@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-5">
+    <div class="card border-primary shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Petty Cash Fund Setup Required</h4>
+        </div>
+        <div class="card-body text-center">
+
+            <p class="lead">
+                No active petty cash fund is assigned to you.
+            </p>
+
+            <p>
+                Please create the initial fund entry to activate your
+                Petty Cash operations.
+            </p>
+
+            <a href="{% url 'pettycash:create_initial_fund' %}"
+               class="btn btn-success">
+                <i class="fas fa-plus-circle"></i>
+                Create Initial Fund
+            </a>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

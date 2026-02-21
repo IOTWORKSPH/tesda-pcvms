@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load money %}
+
+{% block content %}
+
+<section class="content-header">
+    <div class="container-fluid">
+        <h1>Supply Officer Dashboard</h1>
+        <small>Inventory and IAR Management</small>
+    </div>
+</section>
+
+<section class="content">
+<div class="container-fluid">
+
+<!-- ============================= -->
+<!-- KPI CARDS -->
+<!-- ============================= -->
+
+<div class="row">
+
+    <div class="col-md-4">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ pending_count }}</h3>
+                <p>Pending IAR Issuance</p>
+            </div>
+            <a href="{% url 'pettycash:supply_iar_pending' %}"
+               class="small-box-footer">
+                Process Now <i class="fas fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="small-box bg-success">
+            <div class="inner">
+                <h3>{{ issued_count }}</h3>
+                <p>IAR Issued This Month</p>
+            </div>
+            <a href="{% url 'pettycash:supply_items' %}"
+               class="small-box-footer">
+                View Records <i class="fas fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="small-box bg-info">
+            <div class="inner">
+                <h3>{{ total_items }}</h3>
+                <p>Total Items Processed</p>
+            </div>
+            <a href="{% url 'pettycash:supply_items' %}"
+               class="small-box-footer">
+                Open Registry <i class="fas fa-arrow-circle-right"></i>
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<!-- ============================= -->
+<!-- QUICK ACTIONS -->
+<!-- ============================= -->
+
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        Quick Actions
+    </div>
+    <div class="card-body">
+
+        <a href="{% url 'pettycash:supply_iar_pending' %}"
+           class="btn btn-warning mr-2">
+            <i class="fas fa-file-signature mr-1"></i>
+            Issue IAR
+        </a>
+
+        <a href="{% url 'pettycash:supply_items' %}"
+           class="btn btn-success">
+            <i class="fas fa-warehouse mr-1"></i>
+            View Registry
+        </a>
+
+    </div>
+</div>
+
+<!-- ============================= -->
+<!-- RECENT IAR RECORDS -->
+<!-- ============================= -->
+
+<div class="card">
+    <div class="card-header bg-dark text-white">
+        Recent IAR Records
+    </div>
+
+    <div class="card-body table-responsive">
+
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>PCV No</th>
+                    <th>IAR No</th>
+                    <th>Requester</th>
+                    <th>Amount</th>
+                    <th>View</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for voucher in recent_iars %}
+                <tr>
+                    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+                    <td>{{ voucher.pcv_no }}</td>
+                    <td>
+                        <span class="badge badge-success">
+                            {{ voucher.iar_no }}
+                        </span>
+                    </td>
+                    <td>{{ voucher.requester.get_full_name }}</td>
+                    <td>{{ voucher.amount_requested|money }}</td>
+                    <td>
+                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                           class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">
+                        No IAR records found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+
+        </table>
+
+    </div>
+</div>
+
+</div>
+</section>
+
+{% endblock %}

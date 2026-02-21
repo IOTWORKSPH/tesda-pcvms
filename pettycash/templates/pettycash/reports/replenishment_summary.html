@@ -1,0 +1,30 @@
+<div class="print-wrapper">
+
+<h4 class="text-center">PETTY CASH REPLENISHMENT REPORT</h4>
+
+<p><strong>Fund Cluster:</strong> {{ fund.fund_cluster.code }}</p>
+<p><strong>Custodian:</strong> {{ fund.custodian.get_full_name }}</p>
+
+<table>
+<tr>
+<th>PCV No</th>
+<th>Purpose</th>
+<th>Amount</th>
+</tr>
+
+{% for v in vouchers %}
+<tr>
+<td>{{ v.pcv_no }}</td>
+<td>{{ v.purpose }}</td>
+<td class="amount">{{ v.amount_requested|floatformat:2 }}</td>
+</tr>
+{% endfor %}
+
+<tr>
+<td colspan="2"><strong>Total</strong></td>
+<td class="amount"><strong>{{ total|floatformat:2 }}</strong></td>
+</tr>
+
+</table>
+
+</div>

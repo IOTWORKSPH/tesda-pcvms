@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load money %}
+{% load humanize %}
+
+{% block content %}
+
+<section class="content-header">
+    <div class="container-fluid">
+        <h1>Inspection Team Dashboard</h1>
+        <small>
+            Inspection & Acceptance Monitoring
+        </small>
+    </div>
+</section>
+
+<section class="content">
+<div class="container-fluid">
+
+<!-- ================================= -->
+<!-- KPI SUMMARY -->
+<!-- ================================= -->
+
+<div class="row">
+
+    <div class="col-md-6">
+        <div class="small-box bg-warning">
+            <div class="inner">
+                <h3>{{ total_pending }}</h3>
+                <p>Pending Inspection</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-search"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="small-box bg-danger">
+            <div class="inner">
+                <h3>{{ overdue }}</h3>
+                <p>Overdue (7+ days)</p>
+            </div>
+            <div class="icon">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================================= -->
+<!-- PENDING INSPECTION TABLE -->
+<!-- ================================= -->
+
+<div class="card">
+    <div class="card-header bg-primary text-white">
+        <h3 class="card-title">Liquidated – Awaiting Inspection</h3>
+    </div>
+
+    <div class="card-body table-responsive">
+        <table class="table table-bordered table-hover">
+            <thead>
+                <tr>
+                    <th>PCV No</th>
+                    <th>Requester</th>
+                    <th>Supplier</th>
+                    <th>Purchase Date</th>
+                    <th>Total Amount</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% for voucher in pending_inspection %}
+                <tr>
+                    <td>{{ voucher.pcv_no }}</td>
+                    <td>{{ voucher.requester.get_full_name }}</td>
+                    <td>{{ voucher.supplier.name }}</td>
+                    <td>{{ voucher.purchase_date }}</td>
+                    <td>{{ voucher.amount_liquidated|money }}</td>
+                    <td>
+
+                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                           class="btn btn-sm btn-info">
+                            <i class="fas fa-eye"></i>
+                        </a>
+
+                        <a href="{% url 'pettycash:print_iar' voucher.uuid %}"
+                           target="_blank"
+                           class="btn btn-sm btn-success">
+                            <i class="fas fa-print"></i> IAR
+                        </a>
+
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center">
+                        No vouchers pending inspection.
+                    </td>
+                </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+    </div>
+</div>
+
+</div>
+</section>
+
+{% endblock %}

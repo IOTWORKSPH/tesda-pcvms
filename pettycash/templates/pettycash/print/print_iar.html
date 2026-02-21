@@ -1,0 +1,279 @@
+{% load money %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Inspection and Acceptance Report</title>
+
+<style>
+
+/* ==========================================================
+   A4 PAGE SETUP
+   ========================================================== */
+@page {
+    size: A4 portrait;
+    margin: 15mm;
+}
+
+/* ==========================================================
+   SCREEN PREVIEW
+   ========================================================== */
+body {
+    margin: 0;
+    background: #f0f2f5;
+    font-family: "Times New Roman", serif;
+}
+
+.print-wrapper {
+    width: 210mm;
+    margin: 20px auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* PRINT MODE */
+@media print {
+
+    body {
+        background: white;
+    }
+
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+}
+
+/* ==========================================================
+   TABLE
+   ========================================================== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 4px;
+    vertical-align: top;
+    word-wrap: break-word;
+}
+
+/* ==========================================================
+   UTILITIES
+   ========================================================== */
+.bold { font-weight: bold; }
+.text-center { text-align: center; }
+.no-border { border: none !important; }
+
+.checkbox {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid black;
+    text-align: center;
+    line-height: 11px;
+    font-size: 10px;
+}
+
+.signature-name {
+    font-weight: bold;
+    text-transform: uppercase;
+    text-align: center;
+    display: block;
+}
+
+.signature-position {
+    font-size: 10px;
+    text-align: center;
+    display: block;
+}
+
+.title {
+    text-align: center;
+    font-weight: bold;
+    font-size: 14px;
+    margin-bottom: 6px;
+}
+
+.appendix {
+    text-align: right;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="print-wrapper">
+
+    <div class="appendix">Appendix 62</div>
+
+    <div class="title">INSPECTION AND ACCEPTANCE REPORT</div>
+
+    <table>
+
+        <colgroup>
+            <col style="width:15%;">
+            <col style="width:35%;">
+            <col style="width:25%;">
+            <col style="width:25%;">
+        </colgroup>
+
+        <!-- ENTITY + FUND -->
+        <tr>
+            <td colspan="2" class="no-border">
+                <strong>Entity Name:</strong> {{ pcv.entity.name }}
+            </td>
+            <td colspan="2" class="no-border text-center">
+                <strong>Fund Cluster:</strong> {{ pcv.fund.fund_cluster.code }}
+            </td>
+        </tr>
+
+        <!-- SUPPLIER / IAR INFO -->
+        <tr>
+            <td colspan="2">
+                <strong>Supplier:</strong> {{ pcv.supplier.name|default:"-" }}<br><br>
+
+                <strong>Requisitioning Office/Dept:</strong>
+                {{ pcv.requester.office|default:"-" }}<br>
+
+                <strong>Responsibility Center Code:</strong>
+                {{ pcv.fund.responsibility_center.code|default:"-" }}
+            </td>
+
+            <td colspan="2">
+                <strong>IAR No.:</strong> {{ pcv.iar_no|default:"-" }}<br><br>
+
+                <strong>Invoice No.:</strong>
+                {{ pcv.official_receipt_number|default:"-" }}<br>
+
+                <strong>Date:</strong>
+                {{ pcv.purchase_date|date:"F d, Y"|default:"-" }}
+            </td>
+        </tr>
+
+        <!-- HEADER -->
+        <tr class="bold text-center">
+            <td>Stock /<br>Property No.</td>
+            <td>Description</td>
+            <td>Unit</td>
+            <td>Quantity</td>
+        </tr>
+
+        <!-- ITEMS -->
+        {% for item in pcv.items.all %}
+        <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td>{{ item.description }}</td>
+            <td class="text-center">{{ item.unit }}</td>
+            <td class="text-center">{{ item.quantity }}</td>
+        </tr>
+        {% endfor %}
+
+        <!-- BLANK ROWS -->
+        {% for i in blank_rows %}
+        <tr>
+            <td>&nbsp;</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        {% endfor %}
+
+        <!-- INSPECTION / ACCEPTANCE HEADER -->
+        <tr>
+            <td colspan="2" class="text-center bold" style="height:8mm;">
+                INSPECTION
+            </td>
+            <td colspan="2" class="text-center bold">
+                ACCEPTANCE
+            </td>
+        </tr>
+
+        <!-- DATES -->
+        <tr>
+            <td colspan="2">
+                Date Inspected:
+                {{ pcv.purchase_date|date:"m/d/Y"|default:"-" }}
+            </td>
+
+            <td colspan="2">
+                Date Received:
+                {{ pcv.purchase_date|date:"m/d/Y"|default:"-" }}
+            </td>
+        </tr>
+
+        <!-- SIGNATURE SECTION -->
+        <tr>
+            <!-- INSPECTION SIDE -->
+            <td colspan="2" style="height:30mm;">
+
+                <span class="checkbox">X</span>
+                Inspected, verified and found in order as to quantity and specifications
+
+                <br><br><br>
+
+                <div style="text-align:center;">
+                    <strong>Inspection Officer/Inspection Committee</strong>
+                </div>
+
+                {% for inspector in inspectors %}
+                    <br><br>
+
+                    <div class="signature-name">
+                        {{ inspector.get_full_name|upper }}
+                    </div>
+
+                    <div class="signature-position">
+                        {{ inspector.position }}
+                    </div>
+
+                {% empty %}
+                    <br><br>
+                    <div class="signature-position">
+                        No Inspection Officer Assigned
+                    </div>
+                {% endfor %}
+
+            </td>
+
+            <!-- ACCEPTANCE SIDE -->
+            <td colspan="2">
+
+                <span class="checkbox">X</span> Complete<br>
+                <span class="checkbox"></span> Partial (pls. specify quantity)
+
+                <br><br><br>
+
+                {% if acceptance %}
+                    <div class="signature-name">
+                        {{ acceptance.get_full_name|upper }}
+                    </div>
+
+                    <div class="signature-position">
+                        {{ acceptance.designation }}
+                    </div>
+                {% else %}
+                    <div class="signature-position">
+                        No Supply Officer Assigned
+                    </div>
+                {% endif %}
+
+            </td>
+        </tr>
+
+    </table>
+
+</div>
+
+</body>
+</html>

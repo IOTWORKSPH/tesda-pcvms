@@ -1,0 +1,344 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Edit Draft | PCV{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="font-weight-bold text-primary mb-0">
+                Edit Draft Request
+            </h4>
+            <small class="text-muted">
+                Update before submission.
+            </small>
+        </div>
+
+        <span class="badge badge-secondary px-3 py-2">
+            Draft
+        </span>
+    </div>
+
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="row">
+
+            <!-- ================= LEFT COLUMN ================= -->
+            <div class="col-md-8">
+
+                <!-- ================= BASIC INFO ================= -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white font-weight-bold">
+                        Basic Information
+                    </div>
+
+                    <div class="card-body">
+
+                        <div class="form-group">
+                            <label>Petty Cash Fund</label>
+                            {{ form.fund }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Expense Category</label>
+                            {{ form.expense_category }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>Purpose</label>
+                            {{ form.purpose }}
+                        </div>
+
+                        {% if pcv.transaction_type == "CASH_ADVANCE" %}
+                            <div class="form-group">
+                                <label>Amount Requested</label>
+                                {{ form.amount_requested }}
+                            </div>
+                        {% endif %}
+
+                        {% if pcv.transaction_type == "REIMBURSEMENT" %}
+                        <div class="row">
+
+                            <div class="col-md-6 form-group">
+                                <label>Purchase Date</label>
+                                {{ form.purchase_date }}
+                            </div>
+
+                            <div class="col-md-6 form-group">
+                                <label>Official Receipt No.</label>
+                                {{ form.official_receipt_number }}
+                            </div>
+
+                            <div class="col-md-12 form-group">
+                                <label>Supplier</label>
+                                {{ form.supplier_name }}
+                                <small class="text-muted">
+                                    If not existing, supplier will be created automatically.
+                                </small>
+                            </div>
+
+                        </div>
+                        {% endif %}
+
+                    </div>
+                </div>
+
+
+                {% if pcv.transaction_type == "REIMBURSEMENT" %}
+                <!-- ================= ITEMS ================= -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center">
+                        Purchased Items
+                    </div>
+
+                    <div class="card-body p-0">
+
+                        {{ formset.management_form }}
+
+                        <div class="table-responsive">
+                            <table class="table table-bordered mb-0" id="itemsTable">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th>Description</th>
+                                        <th width="100">Qty</th>
+                                        <th width="100">Unit</th>
+                                        <th width="120">Unit Cost</th>
+                                        <th width="140" class="text-right">Total</th>
+                                        <th width="60"></th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {% for item in pcv.items.all %}
+                                    <tr>
+                                        <td>
+                                            <input name="item_description[]"
+                                                value="{{ item.description }}"
+                                                class="form-control">
+                                        </td>
+                                        <td>
+                                            <input name="item_qty[]"
+                                                value="{{ item.quantity }}"
+                                                class="form-control qty">
+                                        </td>
+                                        <td>
+                                            <input name="item_unit[]"
+                                                value="{{ item.unit }}"
+                                                class="form-control">
+                                        </td>
+                                        <td>
+                                            <input name="item_unit_cost[]"
+                                                value="{{ item.unit_cost }}"
+                                                class="form-control unit-cost">
+                                        </td>
+                                        <td class="item-total text-right">
+                                            {{ item.total_cost }}
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger remove-row">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td><input name="item_description[]" class="form-control"></td>
+                                        <td><input name="item_qty[]" class="form-control qty"></td>
+                                        <td><input name="item_unit[]" class="form-control"></td>
+                                        <td><input name="item_unit_cost[]" class="form-control unit-cost"></td>
+                                        <td class="item-total text-right">0.00</td>
+                                        <td class="text-center">
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger remove-row">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    </tbody>
+
+                            </table>
+                            <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center">
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-primary"
+                                    id="addRowBtn">
+                                    <i class="fas fa-plus mr-1"></i> Add Item
+                                </button>
+                            </div>
+                            
+                        </div>
+
+                        <div class="p-3 text-right">
+                            <strong>
+                                Total Items:
+                                ₱ <span id="grandTotal">0.00</span>
+                            </strong>
+                        </div>
+
+                    </div>
+                </div>
+                {% endif %}
+
+
+                {% if pcv.transaction_type == "REIMBURSEMENT" %}
+                <!-- ================= RECEIPT ================= -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white font-weight-bold">
+                        Receipt Attachment
+                    </div>
+
+                    <div class="card-body">
+
+                        {% if pcv.receipts.exists %}
+                            <div class="alert alert-info">
+                                Uploading a new receipt will permanently replace the old one.
+                            </div>
+
+                            <ul class="list-group mb-3">
+                                {% for receipt in pcv.receipts.all %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ receipt.file.name|cut:"receipts/" }}
+                                    <a href="{{ receipt.file.url }}"
+                                       target="_blank"
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye mr-1"></i> View
+                                    </a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+
+                        <div class="form-group">
+                            <label>Upload New Receipt</label>
+                            <input type="file"
+                                   name="receipt"
+                                   class="form-control"
+                                   accept="image/*,.pdf">
+                        </div>
+
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+
+            <!-- ================= RIGHT SUMMARY ================= -->
+            <div class="col-md-4">
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white font-weight-bold">
+                        Summary
+                    </div>
+
+                    <div class="card-body">
+
+                        <p>
+                            <strong>Transaction Type:</strong><br>
+                            {{ pcv.get_transaction_type_display }}
+                        </p>
+
+                        <p>
+                            <strong>Created:</strong><br>
+                            {{ pcv.created_at|date:"m/d/y h:i A" }}
+                        </p>
+
+                        {% if pcv.transaction_type == "CASH_ADVANCE" %}
+                            <p>
+                                <strong>Requested Amount:</strong><br>
+                                ₱{{ pcv.amount_requested|floatformat:2|intcomma }}
+                            </p>
+                        {% endif %}
+
+                        {% if pcv.transaction_type == "REIMBURSEMENT" %}
+                            <p>
+                                <strong>Current Total:</strong><br>
+                                ₱{{ pcv.total_items_amount|floatformat:2|intcomma }}
+                            </p>
+                        {% endif %}
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ================= ACTION BAR ================= -->
+        <div class="d-flex justify-content-end mt-3">
+            <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}"
+               class="btn btn-secondary mr-2">
+                Cancel
+            </a>
+
+            <button type="submit"
+                    class="btn btn-primary">
+                <i class="fas fa-save mr-1"></i>
+                Save Changes
+            </button>
+        </div>
+
+    </form>
+
+</div>
+
+
+<!-- ================= JAVASCRIPT ================= -->
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    function recalcTotals() {
+        let total = 0;
+
+        document.querySelectorAll("#itemsTable tbody tr").forEach(row => {
+
+            const qty = parseFloat(row.querySelector(".qty")?.value || 0);
+            const cost = parseFloat(row.querySelector(".unit-cost")?.value || 0);
+
+            const lineTotal = qty * cost;
+            row.querySelector(".item-total").innerText = lineTotal.toFixed(2);
+
+            total += lineTotal;
+        });
+
+        document.getElementById("grandTotal").innerText = total.toFixed(2);
+    }
+
+    document.addEventListener("input", function (e) {
+        if (e.target.classList.contains("qty") ||
+            e.target.classList.contains("unit-cost")) {
+            recalcTotals();
+        }
+    });
+
+    document.getElementById("addRowBtn").addEventListener("click", function () {
+        const row = document.querySelector("#itemsTable tbody tr").cloneNode(true);
+        row.querySelectorAll("input").forEach(i => i.value = "");
+        row.querySelector(".item-total").innerText = "0.00";
+        document.querySelector("#itemsTable tbody").appendChild(row);
+    });
+
+    document.addEventListener("click", function (e) {
+        if (e.target.closest(".remove-row")) {
+            const rows = document.querySelectorAll("#itemsTable tbody tr");
+            if (rows.length > 1) {
+                e.target.closest("tr").remove();
+                recalcTotals();
+            }
+        }
+    });
+
+    recalcTotals();
+});
+</script>
+
+
+{% endblock %}

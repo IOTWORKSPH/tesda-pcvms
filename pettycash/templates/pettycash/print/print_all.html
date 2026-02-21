@@ -1,0 +1,107 @@
+
+{% load money %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>PCV All Attachment</title>
+
+<style>
+@page {
+    size: A4 portrait;
+    margin: 15mm;
+}
+
+body {
+    margin: 0;
+    background: #f0f2f5;
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+.print-wrapper {
+    width: 210mm;
+    margin: 20px auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* ============================= */
+/* PRINT MODE */
+/* ============================= */
+
+@media print {
+
+    body {
+        background: white;
+    }
+
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    table {
+        page-break-inside: avoid;
+    }
+
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 4px;
+    vertical-align: top;
+}
+
+.bold { font-weight: bold; }
+.text-center { text-align: center; }
+.amount { text-align: right; }
+.no-border { border: none !important; }
+
+.signature-name {
+    text-transform: uppercase;
+    font-weight: bold;
+    display: block;
+    text-align: center;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- PCV -->
+
+        {% include "pettycash/print/print_pcv.html" %}
+
+
+<div class="page-break"></div>
+
+<!-- PR -->
+
+        {% include "pettycash/print/print_pr.html" %}
+
+
+<div class="page-break"></div>
+
+<!-- IAR -->
+
+        {% include "pettycash/print/print_iar.html" %}
+
+</body>
+</html>

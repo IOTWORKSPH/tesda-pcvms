@@ -1,0 +1,212 @@
+{% load group_tags %}
+
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+
+    <!-- Brand Logo -->
+    <a href="#" class="brand-link text-center">
+        <span class="brand-text font-weight-light">
+            TESDA PCVMS
+        </span>
+    </a>
+
+        <!-- Sidebar Menu -->
+        <nav class="mt-2">
+            <ul class="nav nav-pills nav-sidebar flex-column"
+                data-widget="treeview"
+                role="menu"
+                data-accordion="false">
+
+                <!-- DASHBOARD (All roles) -->
+                <li class="nav-item">
+                    <a href="{% url 'users:role_redirect' %}"
+                       class="nav-link">
+                        <i class="nav-icon fas fa-tachometer-alt"></i>
+                        <p>Dashboard</p>
+                    </a>
+                </li>
+
+
+                <!-- STAFF MENU -->
+                {% if request.user|has_group:"Staff" %}
+                <li class="nav-header">Staff</li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-file-invoice"></i>
+                        <p>
+                            Petty Cash Requests
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+
+                        <li class="nav-item">
+                            <a href="{% url 'pettycash:create_cash_advance' %}"
+                               class="nav-link">
+                                <i class="fas fa-money-bill-wave text-success mr-2"></i>
+                                <p>New Cash Advance</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'pettycash:create_reimbursement' %}"
+                               class="nav-link">
+                                <i class="fas fa-undo-alt text-warning mr-2"></i>
+                                <p>New Reimbursement</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'pettycash:my_vouchers' %}"
+                            class="nav-link">
+                                <i class="nav-icon fas fa-clipboard-list text-info"></i>
+                                <p>My Vouchers</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+                {% endif %}
+
+
+                <!-- CUSTODIAN MENU -->
+                {% if request.user|has_group:"Custodian" %}
+                    {% if has_active_fund %}
+
+                        <li class="nav-header">Custodian</li>
+                        <li class="nav-item has-treeview">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon fas fa-cash-register"></i>
+                                <p>
+                                    Fund Management
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+
+                            <ul class="nav nav-treeview">
+
+                                <li class="nav-item">
+                                    <a href="{% url 'pettycash:custodian_release_list' %}"
+                                    class="nav-link">
+                                        <i class="fas fa-hand-holding-usd"></i>
+                                        <p>Release Cash</p>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="{% url 'pettycash:custodian_unliquidated' %}"
+                                    class="nav-link">
+                                        <i class="fas fa-file-invoice-dollar"></i>
+                                        <p>Liquidation Monitoring</p>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="{% url 'pettycash:custodian_fund_ledger' %}"
+                                    class="nav-link">
+                                        <i class="fas fa-book"></i>
+                                        <p>Fund Ledger</p>
+                                    </a>
+                                </li>
+
+                                <li class="nav-item">
+                                    <a href="{% url 'pettycash:replenishment_report' %}"
+                                    class="nav-link">
+                                        <i class="fas fa-sync-alt"></i>
+                                        <p>Replenishment Report</p>
+                                    </a>
+                                </li>
+
+                            </ul>
+                        </li>
+
+                    {% else %}
+
+                        <!-- SHOW INITIALIZE FUND -->
+                        <li class="nav-item">
+                            <a href="{% url 'pettycash:create_initial_fund' %}"
+                            class="nav-link text-warning">
+                                <i class="nav-icon fas fa-plus-circle"></i>
+                                <p>Initialize Fund</p>
+                            </a>
+                        </li>
+
+                    {% endif %}
+                {% endif %}
+
+
+                <!-- ============================= -->
+                <!-- INSPECTION TEAM MENU -->
+                <!-- ============================= -->
+                {% if request.user|has_group:"Inspection" %}
+                <li class="nav-header">Inspection Team</li>
+
+                <li class="nav-item">
+                    <a href="{% url 'pettycash:inspection_pending' %}" class="nav-link">
+                        <i class="nav-icon fas fa-clipboard-check text-warning"></i>
+                        <p>
+                            Pending Inspection
+                        </p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'pettycash:inspection_all_items' %}" class="nav-link">
+                        <i class="nav-icon fas fa-box-open text-info"></i>
+                        <p>
+                            All Purchased Items
+                        </p>
+                    </a>
+                </li>
+                {% endif %}
+
+
+                <!-- ============================= -->
+                <!-- SUPPLY OFFICER MENU -->
+                <!-- ============================= -->
+                {% if request.user|has_group:"Supply" %}
+                <li class="nav-header">Supply Officer</li>
+
+                <li class="nav-item">
+                    <a href="{% url 'pettycash:supply_items' %}" class="nav-link">
+                        <i class="nav-icon fas fa-warehouse text-success"></i>
+                        <p>
+                            Purchased Items Registry
+                        </p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'pettycash:supply_iar_pending' %}" class="nav-link">
+                        <i class="nav-icon fas fa-file-signature text-danger"></i>
+                        <p>
+                            Pending IAR Issuance
+                        </p>
+                    </a>
+                </li>
+                {% endif %}
+
+
+                <!-- ADMINISTRATOR MENU -->
+                {% if request.user|has_group:"Administrator" %}
+                <li class="nav-header">Administrator</li>
+
+                <li class="nav-item">
+                    <a href="{% url 'users:dashboard_administrator' %}" class="nav-link">
+                        <i class="nav-icon fas fa-user-tie"></i>
+                        <p>Administrator Panel</p>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon fas fa-users-cog"></i>
+                        <p>User Management</p>
+                    </a>
+                </li>
+                {% endif %}
+
+
+            </ul>
+        </nav>
+    </div>
+</aside>

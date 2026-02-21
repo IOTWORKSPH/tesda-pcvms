@@ -1,0 +1,986 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% load group_tags %}
+
+{% block title %}PCV Detail{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+
+        <div>
+            <h4 class="fw-bold mb-0">
+                Petty Cash Voucher Detail
+            </h4>
+            <small class="text-muted">
+                Transaction Overview & Workflow Status
+            </small>
+        </div>
+
+        <div>
+            <span class="badge
+
+                {% if pcv.status == 'DRAFT' %}
+                    bg-secondary
+
+                {% elif pcv.status == 'FOR_APPROVAL' %}
+                    bg-warning text-dark
+
+                {% elif pcv.status == 'APPROVED' %}
+                    bg-info
+
+                {% elif pcv.status == 'RELEASED' %}
+                    bg-primary
+
+                {% elif pcv.status == 'LIQUIDATED' %}
+                    bg-warning text-dark
+
+                {% elif pcv.status == 'POSTED' %}
+                    bg-success
+
+                {% else %}
+                    bg-dark
+
+                {% endif %}">
+
+                {# ================= DISPLAY TEXT ================= #}
+
+                {% if pcv.status == "DRAFT" %}
+                    Incomplete
+
+                {% elif pcv.status == "FOR_APPROVAL" %}
+                    For Approval
+
+                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "APPROVED" %}
+                    Approved
+
+                {% elif pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "APPROVED" %}
+                    For Refund
+
+                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
+                    Unliquidated
+
+                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "LIQUIDATED" %}
+                    Pending Verification
+
+                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "POSTED" %}
+                    Fully Liquidated
+
+                {% elif pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "POSTED" %}
+                    Refunded
+
+                {% else %}
+                    {{ pcv.get_status_display }}
+
+                {% endif %}
+
+            </span>
+        </div>
+
+    </div>
+
+    <!-- ================= WORKFLOW PROGRESS ================= -->
+    <div class="mb-4">
+        <div class="d-flex align-items-center flex-wrap">
+
+            {% if pcv.transaction_type == "CASH_ADVANCE" %}
+
+                <!-- Draft -->
+                <span class="badge {% if pcv.status == 'DRAFT' %}badge-primary{% else %}badge-light{% endif %}">
+                    Draft
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <!-- For Approval -->
+                <span class="badge {% if pcv.status == 'FOR_APPROVAL' %}badge-warning{% else %}badge-light{% endif %}">
+                    For Approval
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <!-- Approved -->
+                <span class="badge {% if pcv.status == 'APPROVED' %}badge-info{% else %}badge-light{% endif %}">
+                    Approved
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <!-- Released -->
+                <span class="badge {% if pcv.status == 'RELEASED' %}badge-primary{% else %}badge-light{% endif %}">
+                    Released
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <!-- Pending Verification -->
+                <span class="badge {% if pcv.status == 'LIQUIDATED' %}badge-warning{% else %}badge-light{% endif %}">
+                    Pending Verification
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <!-- Completed -->
+                <span class="badge {% if pcv.status == 'POSTED' %}badge-success{% else %}badge-light{% endif %}">
+                    Completed
+                </span>
+
+            {% else %}
+
+                <!-- Reimbursement Flow -->
+
+                <span class="badge {% if pcv.status == 'DRAFT' %}badge-primary{% else %}badge-light{% endif %}">
+                    Draft
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <span class="badge {% if pcv.status == 'FOR_APPROVAL' %}badge-warning{% else %}badge-light{% endif %}">
+                    For Approval
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <span class="badge {% if pcv.status == 'APPROVED' %}badge-info{% else %}badge-light{% endif %}">
+                    Approved
+                </span>
+
+                <span class="mx-2">→</span>
+
+                <span class="badge {% if pcv.status == 'POSTED' %}badge-success{% else %}badge-light{% endif %}">
+                    Refunded
+                </span>
+
+            {% endif %}
+
+        </div>
+    </div>
+
+    {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "APPROVED" %}
+        <div class="alert alert-info d-flex align-items-center">
+            <i class="fas fa-clock mr-3 fa-lg"></i>
+            <div>
+                <strong>Status:</strong> Awaiting Cash Release<br>
+                Custodian must release funds before liquidation can proceed.
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- ================= DOCUMENT NUMBERS ================= -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body row text-center">
+
+            <div class="col-md-4 border-end">
+                <h6 class="text-muted">PCV Number</h6>
+                <h5 class="fw-bold">
+                    {{ pcv.pcv_no|default:"—" }}
+                </h5>
+            </div>
+
+            <div class="col-md-4 border-end">
+                <h6 class="text-muted">PR Number</h6>
+                <h5 class="fw-bold">
+                    {{ pcv.pr_no|default:"—" }}
+                </h5>
+            </div>
+
+            <div class="col-md-4">
+                <h6 class="text-muted">IAR Number</h6>
+                <h5 class="fw-bold">
+                    {{ pcv.iar_no|default:"—" }}
+                </h5>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ================= TRANSACTION DETAILS ================= -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold">
+            Transaction Details
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+
+                <div class="col-md-6">
+                    <strong>Requester:</strong>
+                    {{ pcv.requester.get_full_name }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Transaction Type:</strong>
+                    {{ pcv.get_transaction_type_display }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Purpose:</strong>
+                    {{ pcv.purpose }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Expense Category:</strong>
+                    {{ pcv.expense_category.name|default:"—" }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Date of Purchase:</strong>
+                    {{ pcv.purchase_date|date:"m/d/y" }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Supplier:</strong>
+                    {{ pcv.supplier.name|default:"—" }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Invoice / OR No:</strong>
+                    {{ pcv.official_receipt_number|default:"—" }}
+                </div>
+
+                <div class="col-md-6">
+                    <strong>Created At:</strong>
+                    {{ pcv.created_at|date:"m/d/y h:i A" }}
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= ITEMS ================= -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold">
+            Purchased Items
+        </div>
+
+        <div class="card-body">
+
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle">
+
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th width="80">Unit</th>
+                            <th width="100">Qty</th>
+                            <th width="120">Unit Cost</th>
+                            <th width="140" class="text-end">Total</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {% for item in pcv.items.all %}
+                        <tr>
+                            <td>{{ item.description }}</td>
+                            <td>{{ item.unit }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>₱{{ item.unit_cost|floatformat:2|intcomma }}</td>
+                            <td class="text-end fw-semibold">
+                                ₱{{ item.total_cost|floatformat:2|intcomma }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No items recorded.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- ================= FINANCIAL SUMMARY ================= -->
+    <div class="card shadow-sm mb-4 border-0">
+
+        <div class="card-header bg-light fw-bold">
+            Financial Overview
+        </div>
+
+        <div class="card-body">
+
+            <div class="row text-center">
+
+                <!-- REQUESTED / ADVANCE AMOUNT -->
+                <div class="col-md-3">
+                    <h6 class="text-muted">Amount Requested</h6>
+                    <h4 class="fw-bold text-primary">
+                        ₱{{ pcv.amount_requested|floatformat:2|intcomma }}
+                    </h4>
+                </div>
+
+                <!-- RELEASED AMOUNT -->
+                <div class="col-md-3">
+                    <h6 class="text-muted">Amount Released</h6>
+                    <h4 class="fw-bold text-info">
+                        {% if pcv.status == "RELEASED" or pcv.status == "LIQUIDATED" %}
+                            ₱{{ pcv.amount_requested|floatformat:2|intcomma }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </h4>
+                </div>
+
+                <!-- LIQUIDATED AMOUNT -->
+                <div class="col-md-3">
+                    <h6 class="text-muted">Amount Liquidated</h6>
+                    <h4 class="fw-bold text-success">
+                        {% if pcv.amount_liquidated %}
+                            ₱{{ pcv.amount_liquidated|floatformat:2|intcomma }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </h4>
+                </div>
+
+                <!-- ================= VARIANCE ================= -->
+                <div class="col-md-3">
+
+                    <h6 class="text-muted">Variance</h6>
+
+                    {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "LIQUIDATED" %}
+
+                        {% if pcv.variance_type == "EXCESS" %}
+                            <div class="p-3 rounded bg-light border border-success">
+                                <div class="fw-bold text-success">
+                                    <i class="fas fa-arrow-down"></i>
+                                    Excess ₱{{ pcv.variance_amount|floatformat:2|intcomma }}
+                                </div>
+                                <small class="text-muted">
+                                    Staff must return this amount to Custodian
+                                </small>
+                            </div>
+
+                        {% elif pcv.variance_type == "SHORTAGE" %}
+                            <div class="p-3 rounded bg-light border border-danger">
+                                <div class="fw-bold text-danger">
+                                    <i class="fas fa-arrow-up"></i>
+                                    Shortage ₱{{ pcv.variance_amount|floatformat:2|intcomma|cut:"-" }}
+                                </div>
+                                <small class="text-muted">
+                                    Staff must be refunded this amount
+                                </small>
+                            </div>
+
+                        {% else %}
+                            <div class="p-3 rounded bg-light border border-secondary text-center">
+                                <div class="fw-bold text-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    No Variance
+                                </div>
+                                <small class="text-muted">
+                                    Fully reconciled — awaiting custodian approval
+                                </small>
+                            </div>
+                        {% endif %}
+
+                    {% else %}
+
+                        <!-- For non-liquidated or reimbursement -->
+                        <h4 class="fw-bold
+                            {% if pcv.variance > 0 %}
+                                text-danger
+                            {% elif pcv.variance < 0 %}
+                                text-warning
+                            {% else %}
+                                text-success
+                            {% endif %}
+                        ">
+                            ₱{{ pcv.variance|floatformat:2|intcomma }}
+                        </h4>
+
+                    {% endif %}
+
+                </div>
+
+
+            </div>
+
+            <!-- STATUS BADGE -->
+            <div class="text-center mt-3">
+
+                {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
+                    <span class="badge bg-primary px-3 py-2">
+                        Unliquidated Cash Advance
+                    </span>
+
+                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "LIQUIDATED" %}
+                    <span class="badge bg-warning text-dark px-3 py-2">
+                        Pending Custodian Review
+                    </span>
+
+                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "POSTED" %}
+                    <span class="badge bg-success px-3 py-2">
+                        Fully Liquidated
+                    </span>
+
+                {% elif pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "APPROVED" %}
+                    <span class="badge bg-info px-3 py-2">
+                        Awaiting Payment Posting
+                    </span>
+
+                {% endif %}
+
+            </div>
+
+            <!-- ================= LIQUIDATION REVIEW SECTION ================= -->
+            {% if pcv.liquidation_reviews.exists %}
+
+            <div class="card shadow-sm border-0 mt-4">
+
+                <!-- ================= HEADER ================= -->
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h6 class="fw-bold mb-0">
+                        <i class="fas fa-clipboard-check me-2 text-warning"></i>
+                        Liquidation Review
+                    </h6>
+
+                    {% with latest=pcv.liquidation_reviews.last %}
+                        {% if latest.action == "RETURNED" %}
+                            <span class="badge bg-danger px-3 py-2">
+                                Action Required
+                            </span>
+                        {% elif latest.action == "APPROVED" %}
+                            <span class="badge bg-success px-3 py-2">
+                                Approved
+                            </span>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+
+                <div class="card-body">
+
+                    <!-- ================= LATEST REVIEW (HIGHLIGHTED) ================= -->
+                    {% with latest=pcv.liquidation_reviews.last %}
+                    <div class="p-4 rounded mb-4
+                        {% if latest.action == 'RETURNED' %}
+                            bg-light border-start border-4 border-danger
+                        {% else %}
+                            bg-light border-start border-4 border-success
+                        {% endif %}
+                    ">
+
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+
+                            <h6 class="fw-bold mb-0
+                                {% if latest.action == 'RETURNED' %}
+                                    text-danger
+                                {% else %}
+                                    text-success
+                                {% endif %}
+                            ">
+                                {{ latest.get_action_display }}
+                            </h6>
+
+                            <small class="text-muted">
+                                {{ latest.created_at|date:"M d, Y h:i A" }}
+                            </small>
+
+                        </div>
+
+                        <p class="mb-2">
+                            {{ latest.remarks }}
+                        </p>
+
+                        <small class="text-muted">
+                            Reviewed by: {{ latest.reviewed_by.get_full_name }}
+                        </small>
+
+                    </div>
+                    {% endwith %}
+
+
+                    <!-- ================= REVIEW HISTORY ================= -->
+                    {% if pcv.liquidation_reviews.count > 1 %}
+
+                    <div class="mt-3">
+
+                        <button class="btn btn-sm btn-outline-secondary mb-3"
+                                type="button"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#reviewHistoryCollapse">
+                            <i class="fas fa-history me-1"></i>
+                            View Previous Review History
+                        </button>
+
+                        <div class="collapse" id="reviewHistoryCollapse">
+
+                            {% for review in pcv.liquidation_reviews.all|slice:":-1" %}
+
+                            <div class="border rounded p-3 mb-3 bg-white">
+
+                                <div class="d-flex justify-content-between align-items-center">
+
+                                    <strong class="
+                                        {% if review.action == 'RETURNED' %}
+                                            text-danger
+                                        {% else %}
+                                            text-success
+                                        {% endif %}
+                                    ">
+                                        {{ review.get_action_display }}
+                                    </strong>
+
+                                    <small class="text-muted">
+                                        {{ review.created_at|date:"M d, Y h:i A" }}
+                                    </small>
+
+                                </div>
+
+                                <div class="mt-2">
+                                    {{ review.remarks }}
+                                </div>
+
+                                <small class="text-muted">
+                                    Reviewed by: {{ review.reviewed_by.get_full_name }}
+                                </small>
+
+                            </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    </div>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+
+            {% endif %}
+
+
+        </div>
+    </div>
+
+
+    <!-- ================= RECEIPTS ================= -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white fw-semibold">
+            Receipt Attachment
+        </div>
+
+        <div class="card-body">
+
+            {% if pcv.receipts.exists %}
+                <ul class="list-group">
+                    {% for receipt in pcv.receipts.all %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ receipt.file.name|cut:"receipts/" }}
+
+                        <a href="{{ receipt.file.url }}"
+                           target="_blank"
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-eye me-1"></i> View
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-warning mb-0">
+                    No receipt uploaded.
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+
+    <!-- ================= CUSTODIAN REVIEW AND APPROVE CASH ADVANCE LIQUIDATION ================= -->
+    {% if request.user|has_group:"Custodian" and pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "LIQUIDATED" %}
+    <div class="card shadow-sm border-0 mb-4">
+
+        <!-- HEADER -->
+        <div class="card-header bg-warning bg-opacity-10 border-0">
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-warning">
+                    <i class="fas fa-clipboard-check me-2"></i>
+                    Liquidation Review Required
+                </h6>
+
+                <span class="badge bg-warning text-dark px-3 py-2">
+                    Pending Custodian Action
+                </span>
+            </div>
+        </div>
+
+        <div class="card-body">
+
+            <!-- ================= CHECKLIST ================= -->
+            <div class="row mb-4 text-center">
+
+                <div class="col-md-3">
+                    {% if pcv.has_receipt %}
+                        <span class="text-success fw-semibold">✔ Receipt</span>
+                    {% else %}
+                        <span class="text-danger fw-semibold">✖ Receipt Missing</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-3">
+                    {% if pcv.supplier %}
+                        <span class="text-success fw-semibold">✔ Supplier</span>
+                    {% else %}
+                        <span class="text-danger fw-semibold">✖ Supplier Missing</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-3">
+                    {% if pcv.official_receipt_number %}
+                        <span class="text-success fw-semibold">✔ Invoice No.</span>
+                    {% else %}
+                        <span class="text-danger fw-semibold">✖ Invoice Missing</span>
+                    {% endif %}
+                </div>
+
+                <div class="col-md-3">
+                    <span class="fw-semibold text-primary">
+                        Variance: ₱{{ pcv.variance|floatformat:2|intcomma }}
+                    </span>
+                </div>
+
+            </div>
+
+            <hr>
+
+            <div class="row g-4">
+
+                <!-- RETURN SECTION -->
+                <div class="col-md-6">
+                    <div class="border rounded p-4 h-100">
+
+                        <h6 class="fw-bold text-danger mb-3">
+                            Return for Correction
+                        </h6>
+
+                        <form method="post"
+                            action="{% url 'pettycash:return_liquidation' pcv.uuid %}">
+                            {% csrf_token %}
+
+                            <div class="mb-3">
+                                <textarea name="remarks"
+                                        class="form-control"
+                                        rows="4"
+                                        placeholder="Explain what needs correction..."
+                                        required></textarea>
+                            </div>
+
+                            <button type="submit"
+                                    class="btn btn-outline-danger w-100">
+                                Send Back to Staff
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+
+
+                <!-- APPROVAL SECTION -->
+                <div class="col-md-6">
+                    <div class="border rounded p-4 h-100 bg-light">
+
+                        <h6 class="fw-bold text-success mb-3">
+                            Approve & Finalize
+                        </h6>
+
+                        <ul class="small text-muted mb-4">
+                            <li>Confirm reconciliation</li>
+                            <li>Post ledger adjustments</li>
+                            <li>Mark voucher as finalized</li>
+                        </ul>
+
+                        <form method="post"
+                            action="{% url 'pettycash:finalize_liquidation' pcv.uuid %}">
+                            {% csrf_token %}
+
+                            <button type="submit"
+                                    class="btn btn-success w-100">
+                                Finalize & Post Adjustment
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+    {% endif %}
+
+
+
+    <!-- ================= ACTION BAR ================= -->
+    <div class="d-flex justify-content-end flex-wrap gap-2">
+
+        <!-- ================= STAFF ACTIONS ================= -->
+
+        {% if pcv.status == "DRAFT" and request.user == pcv.requester %}
+
+            <a href="{% url 'pettycash:edit_pcv' pcv.uuid %}"
+            class="btn btn-warning mr-2">
+                <i class="fas fa-edit mr-1"></i> Edit Draft
+            </a>
+
+            <button type="button"
+                    class="btn btn-success"
+                    data-toggle="modal"
+                    data-target="{% if pcv.transaction_type == 'REIMBURSEMENT' %}#submitRefundModal{% else %}#submitAdvanceModal{% endif %}">
+                Submit for Approval
+            </button>
+
+        {% endif %}
+
+
+        <!-- ================= CUSTODIAN RELEASE BUTTON ================= -->
+
+        {% if request.user|has_group:"Custodian" and pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "APPROVED" %}
+
+            <form method="post"
+                action="{% url 'pettycash:release_cash' pcv.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-money-bill-wave"></i>
+                    Release Cash
+                </button>
+            </form>
+
+        {% endif %}
+
+
+        <!-- ================= CUSTODIAN PAY & POST ================= -->
+
+        {% if request.user|has_group:"Custodian" and pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "APPROVED" %}
+
+            <form method="post"
+                action="{% url 'pettycash:post_reimbursement' pcv.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check-circle"></i>
+                    Pay & Post Reimbursement
+                </button>
+            </form>
+
+        {% endif %}
+
+
+
+        <!-- ================= STAFF LIQUIDATE ================= -->
+
+        {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" and request.user == pcv.requester %}
+
+            <a href="{% url 'pettycash:liquidate_cash_advance' pcv.uuid %}"
+            class="btn btn-primary">
+                Liquidate Cash Advance
+            </a>
+
+        {% endif %}
+
+
+        <!-- ================= ADMIN APPROVAL ================= -->
+
+        {% if request.user|has_group:"Administrator" and pcv.status == "FOR_APPROVAL" %}
+
+            <button type="button"
+                    class="btn btn-success mr-2"
+                    data-toggle="modal"
+                    data-target="#approveModal">
+                Approve
+            </button>
+
+            <button type="button"
+                    class="btn btn-danger"
+                    data-toggle="modal"
+                    data-target="#rejectModal">
+                Reject
+            </button>
+
+        {% endif %}
+
+    </div>
+
+</div>
+
+
+
+<!-- ================= REFUND SUBMIT CONFIRMATION MODAL ================= -->
+<div class="modal fade"
+     id="submitRefundModal"
+     tabindex="-1"
+     role="dialog">
+
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Confirm Refund Submission</h5>
+        <button type="button"
+                class="close"
+                data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>
+          Are you sure you want to submit this refund request?
+        </p>
+        <ul>
+          <li>Receipt must be attached.</li>
+          <li>Review details, You cannot edit after submission.</li>
+          <li>Need Admin Approval, Before Refund.</li>
+        </ul>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button"
+                class="btn btn-secondary"
+                data-dismiss="modal">
+          Cancel
+        </button>
+
+        <form method="post"
+              action="{% url 'pettycash:submit_refund' pcv.uuid %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="btn btn-success">
+            Yes, Submit
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ================= CASH ADVANCE SUBMIT FOR APPROVAL MODAL ================= -->
+<div class="modal fade"
+     id="submitAdvanceModal"
+     tabindex="-1"
+     role="dialog">
+
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Confirm Cash Advance Submission</h5>
+        <button type="button"
+                class="close"
+                data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p>
+          Are you sure you want to submit this cash advance request?
+        </p>
+        <ul>
+          <li>This will require administrator approval.</li>
+          <li>No receipt required at this stage.</li>
+          <li>You must liquadate, after actual purchased</li>
+        </ul>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button"
+                class="btn btn-secondary"
+                data-dismiss="modal">
+          Cancel
+        </button>
+
+        <form method="post"
+              action="{% url 'pettycash:submit_cash_advance' pcv.uuid %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="btn btn-success">
+            Yes, Submit
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ================= ADMINISTRATOR APPROVAL MODAL ================= -->
+<div class="modal fade" id="approveModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success">
+        <h5 class="modal-title text-white">Confirm Approval</h5>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to approve this voucher?
+      </div>
+      <div class="modal-footer">
+        <form method="post"
+              action="{% url 'pettycash:approve_voucher' pcv.uuid %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">
+                Yes, Approve
+            </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ADMINISTRATOR APPROVAL MODAL ================= -->
+<div class="modal fade" id="rejectModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-danger">
+        <h5 class="modal-title text-white">
+            Confirm Rejection
+        </h5>
+      </div>
+
+      <div class="modal-body">
+          <p>Are you sure you want to reject this voucher?</p>
+
+          <div class="form-group">
+              <label>Remarks (Optional)</label>
+              <textarea name="remarks"
+                        class="form-control"
+                        form="rejectForm"></textarea>
+          </div>
+      </div>
+
+      <div class="modal-footer">
+
+          <form method="post"
+                id="rejectForm"
+                action="{% url 'pettycash:reject_voucher' pcv.uuid %}">
+              {% csrf_token %}
+              <button type="submit"
+                      class="btn btn-danger">
+                  Yes, Reject
+              </button>
+          </form>
+
+          <button type="button"
+                  class="btn btn-secondary"
+                  data-dismiss="modal">
+              Cancel
+          </button>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

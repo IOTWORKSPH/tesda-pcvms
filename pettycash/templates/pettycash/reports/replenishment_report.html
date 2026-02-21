@@ -1,0 +1,279 @@
+
+<!-- replenishment_report.html codes-->
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h4 class="text-center fw-bold">
+        PETTY CASH REPLENISHMENT REPORT
+    </h4>
+
+    <div class="mb-3">
+        <strong>Fund Cluster:</strong> {{ fund.fund_cluster.code }} <br>
+        <strong>Custodian:</strong> {{ fund.custodian.get_full_name }}
+    </div>
+
+    <form method="get" class="card p-3 mb-4 shadow-sm">
+
+        <div class="row align-items-end">
+
+            <div class="col-md-4">
+                <label class="form-label">From Date</label>
+                <input type="date"
+                    name="date_from"
+                    class="form-control"
+                    value="{{ date_from }}">
+            </div>
+
+            <div class="col-md-4">
+                <label class="form-label">To Date</label>
+                <input type="date"
+                    name="date_to"
+                    class="form-control"
+                    value="{{ date_to }}">
+            </div>
+
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Apply Filter
+                </button>
+
+                <a href="{% url 'pettycash:replenishment_report' %}"
+                class="btn btn-secondary">
+                    Reset
+                </a>
+            </div>
+
+        </div>
+
+    </form>
+
+    <form method="post" action="{% url 'pettycash:replenishment_generate' %}" id="reportForm">
+        {% csrf_token %}
+
+        <div class="d-flex justify-content-between mb-3">
+
+            <div>
+                <button type="button" id="select-visible" class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-check-square"></i> Select All Visible
+                </button>
+
+                <button type="button" id="clear-selection" class="btn btn-outline-secondary btn-sm">
+                    Clear Selection
+                </button>
+            </div>
+
+            <div>
+                <strong>Selected Total: </strong>
+                <span id="selected-total">₱0.00</span>
+            </div>
+
+            <div>
+                <a href="{% url 'pettycash:replenishment_package_print' %}{% if query_string %}?{{ query_string }}{% endif %}"
+                target="_blank"
+                class="btn btn-danger btn-sm">
+                    <i class="fas fa-file-pdf"></i>
+                    Generate Replenishment Report
+                </a>
+            </div>
+
+            <div>
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fas fa-print"></i> Print Selected
+                </button>
+
+                <button type="submit"
+                        formaction="{% url 'pettycash:replenishment_export_excel' %}"
+                        class="btn btn-warning btn-sm">
+                    <i class="fas fa-file-excel"></i> Export to Excel
+                </button>
+            </div>
+
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <input type="text"
+                    id="searchBox"
+                    class="form-control"
+                    placeholder="Search PCV No or Purpose..."
+                    value="{{ search_query }}">
+            </div>
+        </div>
+
+        <table class="table table-bordered table-hover">
+            <thead class="table-light">
+                <tr>
+                    <th width="40"></th>
+                    <th>Purchase Date</th>
+                    <th>PCV No</th>
+                    <th>Purpose</th>
+                    <th class="text-end">Amount</th>
+                    <th class="text-center" width="140">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="voucherTableBody">
+
+            {% for voucher in vouchers %}
+            <tr>
+                <td>
+                    <input type="checkbox"
+                        name="selected_vouchers"
+                        value="{{ voucher.id }}"
+                        class="row-checkbox"
+                        data-amount="{{ voucher.amount_requested }}">
+                </td>
+
+                <td>{{ voucher.purchase_date|date:"M d, Y" }}</td>
+
+                <td class="fw-bold">
+                    {{ voucher.pcv_no }}
+                </td>
+
+                <td>{{ voucher.purpose }}</td>
+
+                <td class="text-end">
+                    ₱{{ voucher.amount_requested|floatformat:2|intcomma }}
+                </td>
+
+                <!-- ACTION COLUMN -->
+                <td class="text-center">
+                    <div class="btn-group btn-group-sm">
+
+                        <!-- VIEW -->
+                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                        class="btn btn-outline-primary"
+                        title="View">
+                            <i class="fas fa-eye"></i>
+                        </a>
+
+                        <!-- PRINT DROPDOWN -->
+                        <div class="btn-group btn-group-sm">
+
+                            <button type="button"
+                                    class="btn btn-outline-secondary dropdown-toggle"
+                                    data-toggle="dropdown"
+                                    aria-haspopup="true"
+                                    aria-expanded="false"
+                                    title="Print Documents">
+                                <i class="fas fa-print"></i>
+                            </button>
+
+                            <div class="dropdown-menu dropdown-menu-right shadow">
+
+                                <a class="dropdown-item"
+                                href="{% url 'pettycash:print_pcv' voucher.uuid %}"
+                                target="_blank">
+                                    <i class="fas fa-file-invoice mr-2 text-primary"></i>
+                                    Print PCV
+                                </a>
+
+                                <a class="dropdown-item"
+                                href="{% url 'pettycash:print_pr' voucher.uuid %}"
+                                target="_blank">
+                                    <i class="fas fa-file-alt mr-2 text-info"></i>
+                                    Print PR
+                                </a>
+
+                                <a class="dropdown-item"
+                                href="{% url 'pettycash:print_iar' voucher.uuid %}"
+                                target="_blank">
+                                    <i class="fas fa-clipboard-check mr-2 text-success"></i>
+                                    Print IAR
+                                </a>
+
+                                <div class="dropdown-divider"></div>
+
+                                <a class="dropdown-item font-weight-bold"
+                                href="{% url 'pettycash:print_all' voucher.uuid %}"
+                                target="_blank">
+                                    <i class="fas fa-print mr-2 text-dark"></i>
+                                    Print All Documents
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                </td>
+
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center text-muted">
+                    No records found.
+                </td>
+            </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+    </form>
+</div>
+
+
+<script>
+    const checkboxes = document.querySelectorAll(".row-checkbox");
+    const selectedTotalEl = document.getElementById("selected-total");
+
+    function updateTotal() {
+        let total = 0;
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                total += parseFloat(cb.dataset.amount);
+            }
+        });
+
+        selectedTotalEl.textContent =
+            "₱" + total.toLocaleString("en-PH", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+    }
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener("change", updateTotal);
+    });
+
+    document.getElementById("select-visible").addEventListener("click", function () {
+        checkboxes.forEach(cb => cb.checked = true);
+        updateTotal();
+    });
+
+    document.getElementById("clear-selection").addEventListener("click", function () {
+        checkboxes.forEach(cb => cb.checked = false);
+        updateTotal();
+    });
+
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const searchBox = document.getElementById("searchBox");
+    const tableRows = document.querySelectorAll("#voucherTableBody tr");
+
+    searchBox.addEventListener("keyup", function () {
+
+        const value = this.value.toLowerCase();
+
+        tableRows.forEach(row => {
+
+            const text = row.innerText.toLowerCase();
+
+            if (text.includes(value)) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+
+        });
+
+    });
+
+});
+</script>
+
+{% endblock %}

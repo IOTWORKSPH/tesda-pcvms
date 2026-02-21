@@ -1,0 +1,67 @@
+{% extends "base_auth.html" %}
+
+{% block title %}Login | TESDA PCVMS{% endblock %}
+
+{% block content %}
+
+<div class="login-box">
+
+    <div class="card card-outline card-primary shadow-lg">
+        <div class="card-header text-center">
+            <h2 class="font-weight-bold text-primary">TESDA PCVMS</h2>
+            <p class="text-muted mb-1">
+                Petty Cash Voucher Management System
+            </p>
+        </div>
+
+        <div class="card-body">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="POST">
+                {% csrf_token %}
+
+                <div class="input-group mb-3">
+                    <input type="text"
+                           name="username"
+                           class="form-control"
+                           placeholder="Username"
+                           required>
+                    <div class="input-group-append">
+                        <div class="input-group-text">
+                            <span class="fas fa-user"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="input-group mb-3">
+                    <input type="password"
+                           name="password"
+                           class="form-control"
+                           placeholder="Password"
+                           required>
+                    <div class="input-group-append">
+                        <div class="input-group-text">
+                            <span class="fas fa-lock"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary btn-block btn-lg">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    Login
+                </button>
+            </form>
+
+        </div>
+    </div>
+</div>
+
+{% endblock %}

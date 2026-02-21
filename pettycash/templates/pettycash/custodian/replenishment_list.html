@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<section class="content-header">
+    <h1>Replenishment History</h1>
+</section>
+
+<section class="content">
+
+<a href="{% url 'pettycash:create_replenishment' %}" 
+   class="btn btn-success mb-3">
+   + New Replenishment
+</a>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Report No</th>
+            <th>Check No</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in replenishments %}
+        <tr>
+            <td>{{ r.report_number }}</td>
+            <td>{{ r.check_number }}</td>
+            <td>{{ r.check_date }}</td>
+            <td>{{ r.check_amount|intcomma }}</td>
+            <td>
+                <a href="{% url 'pettycash:replenishment_detail' r.pk %}"
+                   class="btn btn-sm btn-info">View</a>
+            </td>
+        </tr>
+    {% empty %}
+        <tr>
+            <td colspan="5" class="text-center">No replenishments yet.</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+</section>
+{% endblock %}

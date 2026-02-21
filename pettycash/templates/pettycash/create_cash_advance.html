@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}New Cash Advance{% endblock %}
+
+{% block content %}
+
+<div class="content-header mb-3">
+    <h4 class="font-weight-bold text-primary">
+        Create Cash Advance Request
+    </h4>
+</div>
+
+<div class="card shadow-sm">
+
+    <div class="card-header bg-white font-weight-bold">
+        Basic Information
+    </div>
+
+    <div class="card-body">
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="row">
+
+                <div class="col-md-6">
+                    <label>Petty Cash Fund</label>
+                    {{ form.fund }}
+                </div>
+
+                <div class="col-md-6">
+                    <label>Expense Category</label>
+                    {{ form.expense_category }}
+                </div>
+
+                <div class="col-md-12 mt-3">
+                    <label>Purpose</label>
+                    {{ form.purpose }}
+                </div>
+
+                <div class="col-md-6 mt-3">
+                    <label>Amount Requested</label>
+                    {{ form.amount_requested }}
+                </div>
+
+            </div>
+
+            <hr>
+
+            <div class="d-flex justify-content-end">
+                <a href="{% url 'users:dashboard_staff' %}"
+                   class="btn btn-secondary mr-2">
+                    Cancel
+                </a>
+
+                <button type="submit"
+                        class="btn btn-primary">
+                    <i class="fas fa-save mr-1"></i>
+                    Save as Draft
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+{% endblock %}

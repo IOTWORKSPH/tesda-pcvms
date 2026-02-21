@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block content %}
+
+<h2>Replenishment {{ replenishment.report_number }}</h2>
+
+<p><strong>Check No:</strong> {{ replenishment.check_number }}</p>
+<p><strong>Check Date:</strong> {{ replenishment.check_date }}</p>
+<p><strong>Total:</strong> {{ replenishment.total_expenses|intcomma }}</p>
+
+<table class="table table-bordered mt-3">
+<thead>
+<tr>
+<th>PCV No</th>
+<th>Date</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody>
+{% for v in vouchers %}
+<tr>
+<td>{{ v.pcv_no }}</td>
+<td>{{ v.purchase_date }}</td>
+<td>{{ v.amount_requested|intcomma }}</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+{% endblock %}

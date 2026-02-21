@@ -1,0 +1,215 @@
+{% load money %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Purchase Request</title>
+
+<style>
+@page {
+    size: A4 portrait;
+    margin: 15mm;
+}
+
+body {
+    margin: 0;
+    background: #f0f2f5;
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+.print-wrapper {
+    width: 210mm;
+    margin: 20px auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+@media print {
+    body { background: white; }
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 4px;
+    vertical-align: top;
+}
+
+.bold { font-weight: bold; }
+.text-center { text-align: center; }
+.amount { text-align: right; }
+.no-border { border: none !important; }
+
+.signature-name {
+    text-transform: uppercase;
+    font-weight: bold;
+    display: block;
+    text-align: center;
+}
+
+</style>
+</head>
+
+<body>
+<div class="print-wrapper">
+
+<div style="text-align:right; font-style:italic;">
+    Appendix 60
+</div>
+
+<div style="text-align:center; font-weight:bold; font-size:15px; margin-bottom:8px;">
+    PURCHASE REQUEST
+</div>
+
+<table>
+
+<colgroup>
+    <col style="width:9%;">
+    <col style="width:8%;">
+    <col style="width:40%;">
+    <col style="width:8%;">
+    <col style="width:17%;">
+    <col style="width:18%;">
+</colgroup>
+
+<!-- ENTITY / FUND -->
+<tr>
+    <td colspan="3" class="no-border">
+        <strong>Entity Name:</strong> {{ entity.name }}
+    </td>
+    <td colspan="3" class="no-border" style="text-align:right;">
+        <strong>Fund Cluster:</strong> {{ pcv.fund.fund_cluster.code }}
+    </td>
+</tr>
+
+<!-- HEADER INFO -->
+<tr>
+    <td colspan="2">
+        <strong>Office/Section:</strong> {{ pcv.requester.office }}
+    </td>
+
+    <td colspan="2">
+        <strong>PR No.:</strong> {{ pcv.pr_no }}<br><br>
+        <strong>Responsibility Center Code:</strong>
+        {{ pcv.fund.responsibility_center.code }}
+    </td>
+
+    <td colspan="2">
+        <strong>Date:</strong>
+        {{ pcv.purchase_date|date:"F d, Y" }}
+    </td>
+</tr>
+
+<!-- COLUMN HEADERS -->
+<tr class="bold text-center">
+    <td>Stock /<br>Property No.</td>
+    <td>Unit</td>
+    <td>Item Description</td>
+    <td>Quantity</td>
+    <td>Unit Cost</td>
+    <td>Total Cost</td>
+</tr>
+
+<!-- ITEM ROWS -->
+{% for item in items %}
+<tr>
+    <td class="text-center">{{ forloop.counter }}</td>
+    <td class="text-center">{{ item.unit }}</td>
+    <td>{{ item.description }}</td>
+    <td class="text-center">{{ item.quantity }}</td>
+    <td class="amount">{{ item.unit_cost|money }}</td>
+    <td class="amount">{{ item.total_cost|money }}</td>
+</tr>
+{% endfor %}
+
+<!-- BLANK ROWS -->
+{% for _ in blank_rows %}
+<tr>
+    <td>&nbsp;</td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td></td>
+</tr>
+{% endfor %}
+
+<!-- TOTAL -->
+<tr>
+    <td colspan="5" class="amount bold">TOTAL</td>
+    <td class="amount bold">
+        {{ pcv.total_items_amount|money }}
+    </td>
+</tr>
+
+<!-- PURPOSE -->
+<tr>
+    <td colspan="2" class="bold">Purpose:</td>
+    <td colspan="4">
+        {{ pcv.purpose }}
+    </td>
+</tr>
+
+<!-- SIGNATURE SECTION -->
+<tr>
+    <td colspan="2"></td>
+    <td colspan="2" class="bold">Requested by:</td>
+    <td colspan="2" class="bold">Approved by:</td>
+</tr>
+
+<tr>
+    <td colspan="2" class="bold">Signature:</td>
+    <td colspan="2"></td>
+    <td colspan="2"></td>
+</tr>
+
+<tr>
+    <td colspan="2" class="bold">Printed Name:</td>
+
+    <td colspan="2" class="text-center">
+        <span class="signature-name">
+            {{ pcv.requester.get_full_name }}
+        </span>
+    </td>
+
+    <td colspan="2" class="text-center">
+        {% if administrator %}
+            <span class="signature-name">
+                {{ administrator.get_full_name }}
+            </span>
+        {% endif %}
+    </td>
+</tr>
+
+<tr>
+    <td colspan="2" class="bold">Designation:</td>
+
+    <td colspan="2" class="text-center">
+        {{ pcv.requester.designation }}
+    </td>
+
+    <td colspan="2" class="text-center">
+        {% if administrator %}
+            {{ administrator.designation }}
+        {% endif %}
+    </td>
+</tr>
+
+</table>
+</div>
+</body>
+</html>

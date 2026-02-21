@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}New Refund Request{% endblock %}
+
+{% block content %}
+
+<div class="card shadow-sm">
+
+    <div class="card-header bg-white fw-bold">
+        Refund / Reimbursement Request
+    </div>
+
+    <div class="card-body">
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- HEADER FIELDS -->
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label>Date of Purchase</label>
+                    <input type="date"
+                           name="purchase_date"
+                           class="form-control"
+                           required>
+                </div>
+
+                <div class="col-md-8">
+                    <label>Purpose</label>
+                    <textarea name="purpose"
+                              class="form-control"
+                              rows="2"
+                              required></textarea>
+                </div>
+
+                <div class="col-md-6">
+                    <label>Expense Category</label>
+                    <select name="expense_category"
+                            class="form-control"
+                            required>
+                        <option value="">Select Category</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">
+                            {{ cat.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label>Petty Cash Fund</label>
+                    <select name="fund"
+                            class="form-control"
+                            required>
+                        <option value="">Select Fund</option>
+                        {% for fund in funds %}
+                        <option value="{{ fund.id }}">
+                            {{ fund.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label>Supplier</label>
+                    <input type="text"
+                           name="supplier_name"
+                           id="supplierField"
+                           class="form-control"
+                           autocomplete="off"
+                           required>
+
+                    <input type="hidden"
+                           name="supplier_id"
+                           id="supplierId">
+                </div>
+
+                <div class="col-md-6">
+                    <label>Invoice / OR Number</label>
+                    <input type="text"
+                           name="official_receipt_number"
+                           class="form-control">
+                </div>
+
+            </div>
+
+            <hr>
+
+            <!-- ITEMS TABLE -->
+            <h6 class="fw-bold">Purchased Items</h6>
+
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Description</th>
+                            <th width="80">Unit</th>
+                            <th width="90">Qty</th>
+                            <th width="120">Unit Cost</th>
+                            <th width="120" class="text-end">Total</th>
+                            <th width="40"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsBody"></tbody>
+                </table>
+            </div>
+
+            <div class="d-flex justify-content-between mt-3">
+                <button type="button"
+                        class="btn btn-outline-primary btn-sm"
+                        id="addRowBtn">
+                    <i class="fas fa-plus me-1"></i> Add Item
+                </button>
+
+                <h5 class="fw-bold">
+                    Total: ₱ <span id="itemsTotal">0.00</span>
+                </h5>
+            </div>
+
+            <hr>
+
+            <div class="col-md-6">
+                <label>Upload Receipt (Required)</label>
+                <input type="file"
+                       name="receipt"
+                       class="form-control"
+                       required>
+            </div>
+
+            <hr>
+
+            <div class="text-end">
+                <button type="submit"
+                        class="btn btn-primary">
+                    Save Refund Request
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+<!-- JAVASCRIPT -->
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+
+<script>
+$(function() {
+
+    $("#supplierField").autocomplete({
+        source: "{% url 'pettycash:supplier_autocomplete' %}",
+        minLength: 2,
+        select: function(event, ui) {
+            $("#supplierField").val(ui.item.label);
+            $("#supplierId").val(ui.item.id);
+            return false;
+        }
+    });
+
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const tableBody = document.getElementById("itemsBody");
+
+    function createRow() {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td><input name="item_description[]" class="form-control" required></td>
+            <td><input name="item_unit[]" class="form-control" required></td>
+            <td><input name="item_qty[]" type="number" step="0.01" class="form-control qty" required></td>
+            <td><input name="item_unit_cost[]" type="number" step="0.01" class="form-control cost" required></td>
+            <td class="text-end fw-semibold item-total">0.00</td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger remove-row">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        `;
+
+        tableBody.appendChild(row);
+    }
+
+    function recalcTotals() {
+        let total = 0;
+
+        document.querySelectorAll("#itemsBody tr").forEach(row => {
+            const qty = parseFloat(row.querySelector(".qty")?.value || 0);
+            const cost = parseFloat(row.querySelector(".cost")?.value || 0);
+            const lineTotal = qty * cost;
+
+            row.querySelector(".item-total").innerText = lineTotal.toFixed(2);
+            total += lineTotal;
+        });
+
+        document.getElementById("itemsTotal").innerText = total.toFixed(2);
+    }
+
+    document.addEventListener("input", function(e){
+        if (e.target.classList.contains("qty") ||
+            e.target.classList.contains("cost")) {
+            recalcTotals();
+        }
+    });
+
+    document.addEventListener("click", function(e){
+        if (e.target.closest(".remove-row")) {
+            e.target.closest("tr").remove();
+            recalcTotals();
+        }
+    });
+
+    document.getElementById("addRowBtn").addEventListener("click", createRow);
+
+    createRow();
+
+});
+</script>
+
+{% endblock %}

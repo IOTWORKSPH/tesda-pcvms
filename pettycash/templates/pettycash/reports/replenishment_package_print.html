@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Replenishment Package</title>
+
+<style>
+@page {
+    size: A4 portrait;
+    margin: 15mm;
+}
+
+body {
+    margin: 0;
+    background: #f0f2f5;
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+.print-wrapper {
+    width: 210mm;
+    margin: 20px auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+@media print {
+    body { background: white; }
+
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .page-break {
+        page-break-before: always;
+        break-before: page;
+    }
+
+    table {
+        page-break-inside: avoid;
+    }
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 4px;
+}
+
+.text-center { text-align: center; }
+.amount { text-align: right; }
+
+</style>
+</head>
+
+<body>
+
+<!-- ================= APPENDIX 49 ================= -->
+{% include "pettycash/reports/appendix_49.html" %}
+
+<div class="page-break"></div>
+
+<!-- ================= APPENDIX 50 ================= -->
+{% include "pettycash/reports/appendix_50.html" %}
+
+<div class="page-break"></div>
+
+<!-- ================= APPENDIX 51 ================= -->
+{% include "pettycash/reports/appendix_51.html" %}
+
+<div class="page-break"></div>
+
+<!-- ================= REPLENISHMENT SUMMARY ================= -->
+{% include "pettycash/reports/replenishment_summary.html" %}
+
+</body>
+</html>

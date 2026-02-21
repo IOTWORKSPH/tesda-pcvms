@@ -1,0 +1,25 @@
+<div class="print-wrapper">
+
+<h4 class="text-center">Appendix 50</h4>
+
+<table>
+<tr>
+<th>Expense Category</th>
+<th>Total Amount</th>
+</tr>
+
+{% for v in vouchers %}
+<tr>
+<td>{{ v.expense_category.name }}</td>
+<td class="amount">{{ v.amount_requested|floatformat:2 }}</td>
+</tr>
+{% endfor %}
+
+<tr>
+<td><strong>Total</strong></td>
+<td class="amount"><strong>{{ total|floatformat:2 }}</strong></td>
+</tr>
+
+</table>
+
+</div>

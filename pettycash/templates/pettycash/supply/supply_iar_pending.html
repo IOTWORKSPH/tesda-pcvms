@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load money %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+<h3>Pending IAR Issuance</h3>
+
+<form method="get" class="mb-3">
+    <input type="text"
+           name="q"
+           value="{{ search }}"
+           placeholder="Search PCV or Requester..."
+           class="form-control"
+           onkeyup="this.form.submit()">
+</form>
+
+<div class="card">
+<div class="card-body table-responsive">
+
+<table class="table table-bordered table-striped">
+<thead>
+<tr>
+    <th>Date</th>
+    <th>PCV No</th>
+    <th>Requester</th>
+    <th>Amount</th>
+    <th>Generate IAR</th>
+</tr>
+</thead>
+
+<tbody>
+{% for voucher in vouchers %}
+<tr>
+    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+    <td>{{ voucher.pcv_no }}</td>
+    <td>{{ voucher.requester.get_full_name }}</td>
+    <td>{{ voucher.amount_requested|money }}</td>
+    <td>
+        <a href="{% url 'pettycash:generate_iar' voucher.uuid %}"
+           class="btn btn-sm btn-success">
+            Generate IAR
+        </a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="5" class="text-center">
+        No vouchers pending IAR issuance.
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+
+</table>
+
+</div>
+</div>
+
+</div>
+
+{% endblock %}

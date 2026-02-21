@@ -1,0 +1,449 @@
+
+{% load money %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Petty Cash Voucher</title>
+
+<style>
+
+@page {
+    size: A4;
+    margin: 15mm;   /* ✅ proper printer margin */
+}
+
+/* ============================= */
+/* SCREEN PREVIEW STYLE */
+/* ============================= */
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9.5px;
+    margin: 0;
+    background: #f5f5f5;
+}
+
+.print-wrapper {
+    width: 210mm;
+    margin: 20px auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* ============================= */
+/* PRINT MODE */
+/* ============================= */
+
+@media print {
+
+    body {
+        background: white;
+    }
+
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+}
+
+/* ============================= */
+/* TABLE STYLING */
+/* ============================= */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 3px;
+    vertical-align: top;
+}
+
+.amount { text-align: right; }
+.text-center { text-align: center; }
+.v-top { vertical-align: top; }
+.v-middle { vertical-align: middle; }
+
+.signature-block {
+    text-align: center;
+    line-height: 1.1;
+}
+
+.signature-name {
+    font-weight: bold;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+
+.signature-label {
+    font-size: 9px;
+    margin-bottom: 1px;
+}
+
+.signature-role {
+    font-size: 9px;
+}
+
+.checkbox {
+    width: 10px;
+    height: 10px;
+    border: 1px solid black;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.checked {
+    background: black;
+}
+
+/* Remove borders from nested tables */
+table table td,
+table table th {
+    border: none;
+}
+
+</style>
+
+</head>
+
+<body>
+    <div class="print-wrapper">
+        <table>
+
+        <!-- ================= HEADER ================= -->
+        <tr>
+            <!-- LEFT BLOCK -->
+            <td rowspan="2" style="width:55%; padding:6px;">
+                <div style="text-align:center; font-weight:bold; font-size:13px;">
+                    PETTY CASH VOUCHER
+                </div>
+                <br>
+                <div style="margin-top:6px; font-size:9px; text-align:left;">
+                    <strong>Entity Name:</strong> {{ entity.name }}
+                    <br><br>
+                    <strong>Fund Cluster:</strong> {{ pcv.fund.fund_cluster.code }}
+                </div>
+            </td>
+
+            <!-- RIGHT BLOCK -->
+            <td style="width:10%; font-weight:bold; vertical-align:middle;">
+                No:
+            </td>
+            <td style="width:35%; vertical-align:middle;">
+                {{ pcv.pcv_no }}
+            </td>
+        </tr>
+
+        <tr>
+            <td style="font-weight:bold; vertical-align:middle;">
+                Date:
+            </td>
+            <td style="vertical-align:middle;">
+                {{ pcv.purchase_date|date:"F d, Y" }}
+            </td>
+        </tr>
+
+        <tr></tr>
+
+        <!-- ================= PAYEE ROW ================= -->
+        <tr>
+            <td>
+                <strong>Payee:</strong> {{ pcv.requester.get_full_name }}<br><br>
+                <strong>Office:</strong>  {{ pcv.requester.office }}
+            </td>
+            <td colspan="2" style="vertical-align:middle;">
+                <strong>Responsibility Center Code:</strong>
+                {{ pcv.fund.responsibility_center.code }}
+            </td>
+        </tr>
+
+        <!-- ================= SECTION TITLES ================= -->
+        <tr>
+            <td style="padding:6px; font-weight:bold;">
+                I. To be filled out upon request
+            </td>
+            <td colspan="2" style="padding:6px; font-weight:bold;">
+                II. To be filled out upon liquidation
+            </td>
+        </tr>
+
+        <!-- ================= PARTICULARS / LIQUIDATION ================= -->
+        <tr>
+
+            <!-- LEFT SIDE -->
+            <td style="vertical-align:middle; padding:0;">
+
+                <table style="width:100%; border-collapse:collapse; border:none;">
+
+                    <tr>
+                        <th style="width:70%; height:5mm;">Particulars</th>
+                        <th style="width:30%;">Amount</th>
+                    </tr>
+
+                    <tr>
+                        <td style="height:20mm; vertical-align:middle; padding-left:5px;">
+                            {{ pcv.expense_category.name }}
+                        </td>
+                        <td class="amount" style="vertical-align:middle;">
+                            {{ pcv.amount_requested|money }}
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+
+            <!-- RIGHT SIDE -->
+            <td colspan="2" style="vertical-align:top; padding:0;">
+
+                <table style="width:100%; border-collapse:collapse;">
+
+                    <tr>
+                        <td colspan="2" style="height:5mm; border:none;"></td>
+                    </tr>
+
+                    <tr>
+                        <td style="width:70%; border:none;">
+                            Total Amount Granted
+                        </td>
+                        <td class="amount"
+                            style="width:30%; border:none; border-bottom:1px solid black; vertical-align:middle;">
+                            {{ pcv.amount_requested|money }}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="border:none;">
+                            Total Amount Paid per<br>OR/Invoice No.        {{ pcv.official_receipt_number|default:"-" }}<br>
+                        </td>
+                        <td class="amount"
+                            style="border:none; border-bottom:1px solid black; vertical-align:middle;">
+                            {% if pcv.status == "LIQUIDATED" or pcv.status == "POSTED" %}
+                                {{ pcv.amount_liquidated|money }}
+                            {% else %}
+                                0.00
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <td style="border:none;">
+                            Amount Refunded/(Reimb)
+                        </td>
+                        <td class="amount"
+                            style="border:none; border-bottom:1px solid black;">
+
+                            {% if pcv.variance_type == "EXCESS" %}
+                                {{ pcv.variance_display|money }}
+
+                            {% elif pcv.variance_type == "SHORTAGE" %}
+                                {{ pcv.variance_display|money }}
+
+                            {% else %}
+                                0.00
+                            {% endif %}
+
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+
+        </tr>
+
+        <!-- ================= A / C SECTION ================= -->
+        <tr>
+
+            <!-- A SECTION -->
+            <td class="v-top cell-padding" style="border-top:1px solid black;">
+
+                <strong>A. Requested</strong><br><br>
+
+                <div class="signature-block">
+                    <div class="signature-name">
+                        {{ pcv.requester.get_full_name }}
+                    </div>
+                    <div class="signature-label">
+                        Signature Over Printed Name
+                    </div>
+                    <div class="signature-role">
+                        Name of Requestor
+                    </div>
+                </div>
+
+                <br>
+
+                <div style="font-style:italic;">
+                    <strong>Approved by:</strong>
+                </div>
+
+                <div class="signature-block">
+                    <div class="signature-name">
+                        {{ administrator.get_full_name }}
+                    </div>
+                    <div class="signature-label">
+                        Signature Over Printed Name
+                    </div>
+                    <div class="signature-role">
+                        Name of Immediate Supervisor
+                    </div>
+                </div>
+
+                <br>
+
+                <div>
+                    <strong>Date:</strong>
+                    {{ pcv.purchase_date|date:"F d, Y" }}
+                </div>
+
+            </td>
+
+            <!-- C SECTION -->
+            <td colspan="2" style="vertical-align:top; padding:6px; border-top:1px solid black;">
+
+                <strong>C.</strong><br><br>
+
+                <div style="margin-left:10px;">
+                    <span class="checkbox
+                        {% if pcv.variance_type == "EXCESS" and pcv.status == "POSTED" %}
+                        checked
+                        {% endif %}
+                        "></span>
+                        Received Refund
+                </div>
+
+                <div style="margin-left:10px; margin-top:5px;">
+                    <span class="checkbox
+                    {% if pcv.variance_type == "SHORTAGE" and pcv.status == "POSTED" %}
+                    checked
+                    {% endif %}
+                    "></span>
+                    Reimbursement Paid
+                </div>
+
+                <br><br>
+
+                <div class="signature-block">
+                    <div class="signature-name">
+                        {{ custodian.get_full_name }}
+                    </div>
+                    <div class="signature-label">
+                        Signature Over Printed Name
+                    </div>
+                    <div class="signature-role">
+                        Petty Cash Custodian
+                    </div>
+                </div>
+
+                <br>
+
+                <div>
+                    <strong>Date:</strong>
+                    {{ pcv.purchase_date|date:"F d, Y" }}
+                </div>
+
+            </td>
+
+        </tr>
+
+        <!-- ================= B / D SECTION ================= -->
+        <tr>
+
+            <!-- B SECTION -->
+            <td style="vertical-align:top; padding:6px; border-top:1px solid black;">
+
+                <strong>B. Paid by:</strong><br><br>
+
+                <div class="signature-block">
+                    <div class="signature-name">
+                        {{ custodian.get_full_name }}
+                    </div>
+                    <div class="signature-label">
+                        Signature Over Printed Name
+                    </div>
+                    <div class="signature-role">
+                        Petty Cash Custodian
+                    </div>
+                </div>
+
+                <br><br>
+
+                <div style="font-style:italic;">
+                    <strong>Cash Received:</strong>
+                </div>
+
+                <div class="signature-block">
+                    <div class="signature-name">
+                        {{ pcv.requester.get_full_name }}
+                    </div>
+                    <div class="signature-label">
+                        Signature Over Printed Name
+                    </div>
+                    <div class="signature-role">
+                        Payee
+                    </div>
+                </div>
+
+                <br>
+
+                <div>
+                    <strong>Date:</strong>
+                    {{ pcv.purchase_date|date:"F d, Y" }}
+                </div>
+
+            </td>
+
+            <!-- D SECTION -->
+            <td colspan="2" style="vertical-align:top; padding:6px; border-top:1px solid black;">
+
+                <strong>D.</strong><br><br>
+
+                <div style="margin-left:10px;">
+                    <span class="checkbox"></span>
+                    &nbsp; Liquidation Submitted
+                </div>
+
+                <div style="margin-left:10px; margin-top:5px;">
+                    <span class="checkbox"></span>
+                    &nbsp; Reimbursement Received by:
+                </div>
+
+                <br><br>
+
+                <div class="signature-block">
+                    <div class="signature-name">
+                        {{ pcv.requester.get_full_name }}
+                    </div>
+                    <div class="signature-label">
+                        Signature Over Printed Name
+                    </div>
+                    <div class="signature-role">
+                        Payee
+                    </div>
+                </div>
+
+                <br>
+
+                <div>
+                    <strong>Date:</strong>
+                    {{ pcv.purchase_date|date:"F d, Y" }}
+                </div>
+
+            </td>
+
+        </tr>
+
+    </table>
+    </div>
+</body>
+</html>

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load money %}
+
+{% block content %}
+
+<div class="container-fluid">
+
+    <h4 class="mb-3">Release Cash</h4>
+
+    <div class="card">
+        <div class="card-body table-responsive">
+            <div class="card mb-3">
+                <div class="card-body">
+
+                    <form method="get" class="form-row">
+
+                        <div class="col-md-4 mb-2">
+                            <input type="text"
+                                name="search"
+                                value="{{ search }}"
+                                class="form-control"
+                                placeholder="Search PCV or Requester">
+                        </div>
+
+                        <div class="col-md-3 mb-2">
+                            <input type="date"
+                                name="date_from"
+                                value="{{ date_from }}"
+                                class="form-control">
+                        </div>
+
+                        <div class="col-md-3 mb-2">
+                            <input type="date"
+                                name="date_to"
+                                value="{{ date_to }}"
+                                class="form-control">
+                        </div>
+
+                        <div class="col-md-2 mb-2">
+                            <button type="submit"
+                                    class="btn btn-primary btn-block">
+                                Filter
+                            </button>
+                        </div>
+
+                    </form>
+
+                </div>
+            </div>
+
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>PCV No</th>
+                        <th>Requester</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                {% for voucher in vouchers %}
+                <tr>
+                    <td>{{ voucher.pcv_no }}</td>
+                    <td>{{ voucher.requester.get_full_name }}</td>
+                    <td>{{ voucher.get_transaction_type_display }}</td>
+                    <td>{{ voucher.amount_requested|money }}</td>
+                    <td>
+                        {% if voucher.transaction_type == "CASH_ADVANCE" %}
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                               class="btn btn-success btn-sm">
+                               Release
+                            </a>
+                        {% else %}
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                               class="btn btn-primary btn-sm">
+                               Pay & Post
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">
+                        No approved vouchers.
+                    </td>
+                </tr>
+                {% endfor %}
+
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

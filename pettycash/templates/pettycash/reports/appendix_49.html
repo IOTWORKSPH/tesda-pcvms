@@ -1,0 +1,205 @@
+{% load money %}
+
+<style>
+@page {
+    size: A4 portrait;
+    margin: 20mm 15mm;
+}
+
+/* ===== SCREEN PREVIEW ===== */
+body {
+    background: #f0f2f5;
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+.print-wrapper {
+    width: 210mm;              /* A4 width */
+    min-height: 297mm;         /* A4 height */
+    margin: 20px auto;
+    padding: 20mm 15mm;
+    background: white;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* ===== PRINT MODE ===== */
+@media print {
+    body {
+        background: white;
+    }
+
+    .print-wrapper {
+        width: 100%;
+        min-height: auto;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td, th {
+    border: 1px solid black;
+    padding: 4px;
+}
+
+.amount {
+    text-align: right;
+}
+</style>
+
+<div class="print-wrapper">
+
+    <!-- ================= HEADER ================= -->
+
+    <table style="border:none; width:100%; margin-bottom:10px;">
+        <tr>
+            <td style="border:none;"></td>
+            <td style="border:none; text-align:right; font-style:italic;">
+                Appendix 49
+            </td>
+        </tr>
+    </table>
+
+    <div style="text-align:center; font-weight:bold; font-size:14px;">
+        REPORT ON PAID PETTY CASH VOUCHERS
+    </div>
+
+    <div style="text-align:center; margin-bottom:10px;">
+        <strong>Period Covered:</strong>
+
+        {% if date_from and date_to %}
+            {{ date_from|date:"F d, Y" }} - {{ date_to|date:"F d, Y" }}
+
+        {% elif period_start and period_end %}
+            {{ period_start|date:"F d, Y" }} - {{ period_end|date:"F d, Y" }}
+
+        {% else %}
+            No Transactions Available
+        {% endif %}
+    </div>
+
+    <table style="border:none; width:100%; margin-bottom:10px;">
+        <tr>
+            <td style="border:none;">
+                <strong>Entity Name:</strong> {{ fund.entity.name }}
+            </td>
+            <td style="border:none;">
+                <strong>Report No:</strong> {{ report_number }}
+            </td>
+        </tr>
+        <tr>
+            <td style="border:none;">
+                <strong>Fund Cluster:</strong> {{ fund.fund_cluster.code }}
+            </td>
+            <td style="border:none;">
+                <strong>Sheet No:</strong> {{ sheet_number }}
+            </td>
+        </tr>
+    </table>
+
+    <!-- ================= MAIN TABLE ================= -->
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:15%;">Date</th>
+                <th style="width:25%;">Petty Cash Voucher No.</th>
+                <th style="width:40%;">Particulars</th>
+                <th style="width:20%;">Amount</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for v in vouchers %}
+            <tr>
+                <td>
+                    {{ v.purchase_date|date:"m-d-Y" }}
+                </td>
+
+                <td class="text-center">
+                    {{ v.pcv_no }}
+                </td>
+
+                <td>
+                    {{ v.purpose }}
+                </td>
+
+                <td class="amount">
+                    {{ v.amount_requested|money }}
+                </td>
+            </tr>
+            {% endfor %}
+
+            <!-- TOTAL ROW -->
+            <tr>
+                <td colspan="3" style="text-align:right;">
+                    <strong>TOTAL</strong>
+                </td>
+                <td class="amount">
+                    <strong>{{ total|money}}</strong>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- ================= CERTIFICATION ================= -->
+
+    <br><br>
+
+    <div style="
+        text-align:center;
+        font-weight:bold;
+        margin-top:10px;
+        margin-bottom:5px;
+    ">
+        C E R T I F I C A T I O N
+    </div>
+
+    <br>
+
+    <div style="text-align:center;">
+        I hereby certify to the correctness of the above information.
+    </div>
+
+    <br><br><br>
+
+    <table style="width:100%; border:none; text-align:center;">
+        <tr>
+            <!-- LEFT COLUMN -->
+            <td style="border:none; width:50%;">
+
+                <div style="font-weight:bold; text-transform:uppercase; text-decoration:underline;">
+                    {{ fund.custodian.get_full_name }}
+                </div>
+
+                <div>
+                    Petty Cash Custodian
+                </div>
+
+            </td>
+
+            <!-- RIGHT COLUMN -->
+            <td style="border:none; width:50%;">
+
+                <div style="font-weight:bold; text-decoration:underline;">
+                    {% if date_to %}
+                        {{ date_to|date:"F d, Y" }}
+                    {% else %}
+                        {{ now|date:"F d, Y" }}
+                    {% endif %}
+                </div>
+
+                <div>
+                    Date:  {{ generated_date|date:"F d, Y" }}
+                </div>
+
+            </td>
+        </tr>
+    </table>
+
+</div>

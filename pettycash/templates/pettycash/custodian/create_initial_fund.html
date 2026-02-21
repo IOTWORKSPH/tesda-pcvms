@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load money %}
+
+{% block content %}
+
+<div class="container mt-4">
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h4>Create Initial Petty Cash Fund</h4>
+        </div>
+        <div class="card-body">
+
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="form-group">
+                    <label>Fund Cluster</label>
+                    <select name="fund_cluster" class="form-control" required>
+                        {% for c in clusters %}
+                        <option value="{{ c.id }}">
+                            {{ c.code }} - {{ c.description }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Responsibility Center</label>
+                    <select name="responsibility_center" class="form-control" required>
+                        {% for r in rccs %}
+                        <option value="{{ r.id }}">
+                            {{ r.code }} - {{ r.description }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Funding Mode</label>
+                    <select name="funding_mode" class="form-control" required id="fundingMode">
+                        <option value="CASH">Cash</option>
+                        <option value="CHECK">Check</option>
+                    </select>
+                </div>
+
+                <div id="checkFields" style="display:none;">
+                    <div class="form-group">
+                        <label>Check Number</label>
+                        <input type="text" name="check_number" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Check Date</label>
+                        <input type="date" name="check_date" class="form-control">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Initial Fund Amount</label>
+                    <input type="number"
+                           step="0.01"
+                           min="0.01"
+                           name="fund_amount"
+                           class="form-control"
+                           required>
+                </div>
+
+                <button type="submit" class="btn btn-success">
+                    Create Fund
+                </button>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById("fundingMode").addEventListener("change", function() {
+    const checkFields = document.getElementById("checkFields");
+    if (this.value === "CHECK") {
+        checkFields.style.display = "block";
+    } else {
+        checkFields.style.display = "none";
+    }
+});
+</script>
+
+{% endblock %}

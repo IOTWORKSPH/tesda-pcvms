@@ -1,0 +1,102 @@
+{% load money %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}Document{% endblock %}</title>
+
+<style>
+
+/* ============================= */
+/* PAGE SETUP */
+/* ============================= */
+
+@page {
+    size: A4 portrait;
+    margin: 15mm;
+}
+
+body {
+    margin: 0;
+    background: #f0f2f5;
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+/* Preview container */
+.print-wrapper {
+    width: 210mm;
+    margin: 20px auto;
+    background: white;
+    padding: 15mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+/* Print mode */
+@media print {
+    body { background: white; }
+
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .page-break {
+        page-break-after: always;
+    }
+}
+
+/* ============================= */
+/* TABLE STANDARDS */
+/* ============================= */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 4px;
+    vertical-align: top;
+}
+
+.no-border { border: none !important; }
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.bold { font-weight: bold; }
+.amount { text-align: right; }
+
+.signature-name {
+    text-transform: uppercase;
+    font-weight: bold;
+    text-align: center;
+    display: block;
+}
+
+.signature-position {
+    font-size: 10px;
+    text-align: center;
+    display: block;
+}
+
+.page-break {
+    page-break-after: always;
+}
+
+</style>
+
+{% block extra_css %}{% endblock %}
+
+</head>
+<body>
+
+<div class="print-wrapper">
+{% block content %}{% endblock %}
+</div>
+
+</body>
+</html>

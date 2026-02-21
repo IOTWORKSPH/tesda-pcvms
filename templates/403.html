@@ -1,0 +1,52 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Access Denied</title>
+
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #0038A8, #001f5c);
+            color: white;
+            text-align: center;
+            padding-top: 10%;
+        }
+
+        .error-box {
+            background: white;
+            color: #333;
+            display: inline-block;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        .error-code {
+            font-size: 80px;
+            font-weight: bold;
+            color: #CE1126;
+        }
+
+        .btn-home {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="error-box">
+    <div class="error-code">403</div>
+    <h3>Access Forbidden</h3>
+    <p>You do not have permission to access this page.</p>
+
+    <a href="{% url 'users:role_redirect' %}" class="btn btn-primary btn-home">
+        Go Back to Dashboard
+    </a>
+</div>
+
+</body>
+</html>
