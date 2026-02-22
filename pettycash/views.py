@@ -1468,99 +1468,195 @@ def replenishment_generate(request):
 @login_required
 def replenishment_package_print(request):
 
-    # ==========================================
-    # 1. GET ACTIVE FUND OF CUSTODIAN
-    # ==========================================
+    from decimal import Decimal
+    from django.utils import timezone
+    from django.utils.dateparse import parse_date
+    from django.db.models import Sum
+
+    # ==========================================================
+    # 1️⃣ GET ACTIVE FUND
+    # ==========================================================
     fund = PettyCashFund.objects.filter(
         custodian=request.user,
         is_active=True
     ).first()
 
     if not fund:
-        return redirect("users:no_fund")
+        return render(request, "users/no_fund.html")
 
-    # ==========================================
-    # 2. GET DATE FILTERS (OPTIONAL)
-    # ==========================================
+    # ==========================================================
+    # 2️⃣ FILTER VOUCHERS (Appendix 49 & 51)
+    # ==========================================================
     raw_date_from = request.GET.get("date_from", "").strip()
     raw_date_to = request.GET.get("date_to", "").strip()
 
-    # Safe parsing
     date_from = parse_date(raw_date_from) if raw_date_from else None
     date_to = parse_date(raw_date_to) if raw_date_to else None
 
-    # ==========================================
-    # 3. BASE QUERYSET (STRICT ACCOUNTING MODE)
-    # ==========================================
     vouchers = PettyCashVoucher.objects.filter(
         fund=fund,
-        is_posted_to_ledger=True  # Only officially posted transactions
+        is_posted_to_ledger=True
     )
 
-    # ==========================================
-    # 4. APPLY DATE FILTERS IF PROVIDED
-    # ==========================================
     if date_from:
         vouchers = vouchers.filter(purchase_date__gte=date_from)
 
     if date_to:
         vouchers = vouchers.filter(purchase_date__lte=date_to)
 
-    # ==========================================
-    # 5. SORTING (ASCENDING BY PCV NUMBER)
-    # ==========================================
-    vouchers = vouchers.order_by("pcv_no")
+    vouchers = vouchers.order_by("purchase_date")
 
-    # ==========================================
-    # 6. TOTAL COMPUTATION
-    # ==========================================
     total = vouchers.aggregate(
         total=Sum("amount_requested")
     )["total"] or Decimal("0.00")
 
-    # ==========================================
-    # 7. PERIOD COVERED CALCULATION
-    # ==========================================
-    dates = vouchers.aggregate(
-        start=Min("purchase_date"),
-        end=Max("purchase_date")
-    )
+    # ==========================================================
+    # 3️⃣ LEDGER SECTION (Appendix 50)
+    # ==========================================================
+    entries = LedgerEntry.objects.filter(
+        fund=fund
+    ).order_by("transaction_date", "id")
 
-    period_start = dates["start"]
-    period_end = dates["end"]
+    records = []
 
-    # ==========================================
-    # 8. CLEAN QUERY STRING (FOR FUTURE USE)
-    # ==========================================
-    params = QueryDict(mutable=True)
+    # ----------------------------------------------------------
+    # A. OPENING ENTRY (Initial Fund)
+    # ----------------------------------------------------------
+    opening_entry = entries.filter(
+        reference_type=ReferenceType.ADJUSTMENT
+    ).first()
 
-    if date_from:
-        params["date_from"] = date_from.isoformat()
+    if opening_entry:
+        records.append({
+            "date": opening_entry.transaction_date,
+            "reference": opening_entry.reference_no,
+            "payee": "",
+            "particulars": "Initial Fund",
+            "received": opening_entry.debit,
+            "disbursement": None,
+            "balance": opening_entry.running_balance,  # equals fund_amount
+        })
 
-    if date_to:
-        params["date_to"] = date_to.isoformat()
+    # ----------------------------------------------------------
+    # B. NORMAL LEDGER ENTRIES
+    #    (Skip adjustment to avoid duplicate)
+    # ----------------------------------------------------------
+    for entry in entries:
 
-    query_string = params.urlencode()
+        # Skip opening entry (already added)
+        if entry.reference_type == ReferenceType.ADJUSTMENT:
+            continue
 
-    current_year = timezone.now().year
-    report_number = f"{current_year}-ALL"
-    sheet_number = 1
+        payee = ""
+        particulars = ""
 
-    # ==========================================
-    # 9. CONTEXT
-    # ==========================================
+        # ==============================
+        # PCV ENTRY
+        # ==============================
+        if entry.reference_type == ReferenceType.PCV:
+
+            voucher = PettyCashVoucher.objects.filter(
+                pcv_no=entry.reference_no,
+                fund=fund
+            ).select_related("expense_category", "requester").first()
+
+            if voucher:
+                payee = voucher.requester.get_full_name()
+                particulars = (
+                    voucher.expense_category.name
+                    if voucher.expense_category
+                    else ""
+                )
+
+        # ==============================
+        # REPLENISHMENT ENTRY
+        # ==============================
+        elif entry.reference_type == ReferenceType.REPLENISHMENT:
+            payee = ""
+            particulars = "Replenishment"
+
+        # ==============================
+        # OTHER TYPES
+        # ==============================
+        else:
+            particulars = entry.description or ""
+
+        records.append({
+            "date": entry.transaction_date,
+            "reference": entry.reference_no,
+            "payee": payee,
+            "particulars": particulars,
+            "received": entry.debit if entry.debit > 0 else None,
+            "disbursement": entry.credit if entry.credit > 0 else None,
+            "balance": entry.running_balance,
+        })
+
+    # ==========================================================
+    # Appendix 51 Dynamic Register
+    # ==========================================================
+
+    from collections import defaultdict
+
+    # Get vouchers within selected period
+    register_vouchers = vouchers.select_related("expense_category")
+
+    # Determine dynamic categories used in report
+    expense_categories = ExpenseCategory.objects.filter(
+        id__in=register_vouchers.values_list("expense_category_id", flat=True)
+    ).order_by("code")
+
+    # Initialize totals dictionary
+    category_totals = defaultdict(lambda: Decimal("0.00"))
+
+    register_rows = []
+
+    ledger_entries = LedgerEntry.objects.filter(
+        fund=fund,
+        reference_type=ReferenceType.PCV
+    ).order_by("transaction_date", "id")
+
+    for entry in ledger_entries:
+
+        voucher = register_vouchers.filter(
+            pcv_no=entry.reference_no
+        ).first()
+
+        if not voucher:
+            continue
+
+        breakdown = defaultdict(lambda: None)
+
+        amount = entry.credit
+
+        # Assign amount to correct category column
+        breakdown[voucher.expense_category.id] = amount
+        category_totals[voucher.expense_category.id] += amount
+
+        register_rows.append({
+            "date": entry.transaction_date,
+            "reference": entry.reference_no,
+            "particulars": voucher.expense_category.name,
+            "receipt": entry.debit if entry.debit > 0 else None,
+            "payment": entry.credit if entry.credit > 0 else None,
+            "balance": entry.running_balance,
+            "breakdown": breakdown,
+        })
+
+    # ==========================================================
+    # 4️⃣ FINAL CONTEXT
+    # ==========================================================
+    
     context = {
         "fund": fund,
         "vouchers": vouchers,
         "total": total,
+        "records": records,
+        "generated_date": timezone.now(),
         "date_from": date_from,
         "date_to": date_to,
-        "period_start": period_start,
-        "period_end": period_end,
-        "generated_date": timezone.now(),
-        "query_string": query_string,
-        "report_number": report_number,
-        "sheet_number": sheet_number,
+        "register_rows": register_rows,
+        "expense_categories": expense_categories,
+        "category_totals": category_totals,
     }
 
     return render(
@@ -1568,6 +1664,7 @@ def replenishment_package_print(request):
         "pettycash/reports/replenishment_package_print.html",
         context
     )
+
 
 
 @login_required

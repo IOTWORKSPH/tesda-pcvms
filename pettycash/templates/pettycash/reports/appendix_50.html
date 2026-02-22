@@ -1,25 +1,195 @@
-<div class="print-wrapper">
+{% load money %}
 
-<h4 class="text-center">Appendix 50</h4>
+<style>
+@page {
+    margin: 15mm 15mm;
+}
 
-<table>
-<tr>
-<th>Expense Category</th>
-<th>Total Amount</th>
-</tr>
+body {
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
 
-{% for v in vouchers %}
-<tr>
-<td>{{ v.expense_category.name }}</td>
-<td class="amount">{{ v.amount_requested|floatformat:2 }}</td>
-</tr>
-{% endfor %}
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
 
-<tr>
-<td><strong>Total</strong></td>
-<td class="amount"><strong>{{ total|floatformat:2 }}</strong></td>
-</tr>
+td, th {
+    border: 1px solid black;
+    padding: 4px;
+}
 
-</table>
+.amount {
+    text-align: right;
+}
+
+.no-border td {
+    border: none !important;
+}
+</style>
+
+<div>
+
+    <!-- ================= APPENDIX LABEL ================= -->
+    <table class="no-border" style="margin-bottom:5px;">
+        <tr>
+            <td></td>
+            <td style="text-align:right; font-style:italic;">
+                Appendix 50
+            </td>
+        </tr>
+    </table>
+
+    <!-- ================= TITLE ================= -->
+    <div style="text-align:center; font-weight:bold; font-size:14px; margin-bottom:10px;">
+        PETTY CASH FUND RECORD
+    </div>
+
+    <!-- ================= ENTITY + FUND ================= -->
+    <table class="no-border" style="margin-bottom:10px;">
+        <tr>
+            <td>
+                <strong>Entity Name :</strong> {{ fund.entity.name }}
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <strong>Fund Cluster :</strong> {{ fund.fund_cluster.code }}
+            </td>
+        </tr>
+    </table>
+
+    <!-- ================= CUSTODIAN HEADER ================= -->
+    <table style="margin-bottom:10px;">
+        <tr>
+            <td style="width:33%; text-align:center;">
+                <strong style="text-transform:uppercase;">
+                    {{ fund.custodian.get_full_name }}
+                </strong><br>
+                Petty Cash Fund Custodian
+            </td>
+
+            <td style="width:34%; text-align:center;">
+                <strong>
+                    {{ fund.custodian.position|default:"-" }}
+                </strong><br>
+                Official Designation
+            </td>
+
+            <td style="width:33%; text-align:center;">
+                <strong>
+                    {{ fund.custodian.office|default:fund.entity.name }}
+                </strong><br>
+                Station
+            </td>
+        </tr>
+    </table>
+
+    <!-- ================= LEDGER TABLE ================= -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width:12%;">Date</th>
+                <th style="width:15%;">Reference / Check / PCV No.</th>
+                <th style="width:15%;">Payee</th>
+                <th style="width:28%;">Particulars</th>
+                <th style="width:10%;">Cash Advance / Replenishments Received</th>
+                <th style="width:10%;">Disbursements</th>
+                <th style="width:10%;">Cash Advance Balance</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for row in records %}
+            <tr>
+                <td>{{ row.date|date:"F d, Y" }}</td>
+                <td>{{ row.reference }}</td>
+                <td>{{ row.payee }}</td>
+                <td>{{ row.particulars }}</td>
+
+                <td class="amount">
+                    {% if row.received %}
+                        {{ row.received|money }}
+                    {% endif %}
+                </td>
+
+                <td class="amount">
+                    {% if row.disbursement %}
+                        {{ row.disbursement|money }}
+                    {% endif %}
+                </td>
+
+                <td class="amount">
+                    {{ row.balance|money }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="text-align:center;">
+                    No ledger entries available.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ================= PERIOD DISPLAY ================= -->
+    <div style="text-align:center; margin-top:10px;">
+        <strong>Period Covered:</strong>
+
+        {% if date_from and date_to %}
+            {{ date_from|date:"F d, Y" }} - {{ date_to|date:"F d, Y" }}
+
+        {% elif period_start and period_end %}
+            {{ period_start|date:"F d, Y" }} - {{ period_end|date:"F d, Y" }}
+
+        {% else %}
+            No Transactions Available
+        {% endif %}
+    </div>
+
+    <!-- ================= CERTIFICATION ================= -->
+    <br><br>
+
+    <div style="text-align:center; font-weight:bold; letter-spacing:3px;">
+        C E R T I F I C A T I O N
+    </div>
+
+    <br>
+
+    <div style="text-align:center; width:85%; margin:0 auto;">
+        I hereby certify that the foregoing is a correct and complete record of all cash advances received
+        and disbursements made by me in my capacity as Petty Cash Fund Custodian of
+        {{ fund.entity.name }} during the period from
+
+        {% if date_from and date_to %}
+            {{ date_from|date:"F d, Y" }} to {{ date_to|date:"F d, Y" }}
+        {% elif period_start and period_end %}
+            {{ period_start|date:"F d, Y" }} to {{ period_end|date:"F d, Y" }}
+        {% endif %}
+
+        inclusive, as indicated in the corresponding columns.
+    </div>
+
+    <br><br><br>
+
+    <table class="no-border" style="text-align:center;">
+        <tr>
+            <td style="width:50%;">
+                <strong style="text-transform:uppercase; text-decoration:underline;">
+                    {{ fund.custodian.get_full_name }}
+                </strong><br>
+                Name and Signature of Petty Cash Fund Custodian
+            </td>
+
+            <td style="width:50%;">
+                <strong style="text-decoration:underline;">
+                    {{ generated_date|date:"F d, Y" }}
+                </strong><br>
+                Date
+            </td>
+        </tr>
+    </table>
 
 </div>

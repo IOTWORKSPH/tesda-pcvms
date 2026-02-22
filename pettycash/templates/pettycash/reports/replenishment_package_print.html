@@ -5,10 +5,24 @@
 <title>Replenishment Package</title>
 
 <style>
-@page {
+
+/* ===============================
+   PAGE DEFINITIONS
+================================= */
+
+@page portrait {
     size: A4 portrait;
     margin: 15mm;
 }
+
+@page landscape {
+    size: A4 landscape;
+    margin: 15mm;
+}
+
+/* ===============================
+   SCREEN PREVIEW
+================================= */
 
 body {
     margin: 0;
@@ -17,18 +31,44 @@ body {
     font-size: 11px;
 }
 
-.print-wrapper {
+/* Portrait preview */
+.page-portrait {
     width: 210mm;
     margin: 20px auto;
-    background: white;
     padding: 15mm;
+    background: white;
     box-shadow: 0 0 15px rgba(0,0,0,0.15);
 }
 
-@media print {
-    body { background: white; }
+/* Landscape preview */
+.page-landscape {
+    width: 297mm;
+    margin: 20px auto;
+    padding: 15mm;
+    background: white;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
 
-    .print-wrapper {
+/* ===============================
+   PRINT MODE
+================================= */
+
+@media print {
+
+    body {
+        background: white;
+    }
+
+    .page-portrait {
+        page: portrait;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
+    .page-landscape {
+        page: landscape;
         width: 100%;
         margin: 0;
         padding: 0;
@@ -40,10 +80,20 @@ body {
         break-before: page;
     }
 
+    /* Allow tables to split naturally */
     table {
+        page-break-inside: auto;
+    }
+
+    tr {
         page-break-inside: avoid;
+        page-break-after: auto;
     }
 }
+
+/* ===============================
+   TABLE STYLE
+================================= */
 
 table {
     width: 100%;
@@ -55,31 +105,42 @@ td, th {
     padding: 4px;
 }
 
-.text-center { text-align: center; }
-.amount { text-align: right; }
+.amount {
+    text-align: right;
+}
 
 </style>
+
 </head>
 
 <body>
 
-<!-- ================= APPENDIX 49 ================= -->
-{% include "pettycash/reports/appendix_49.html" %}
+<!-- APPENDIX 49 (Portrait) -->
+<div class="page-portrait">
+    {% include "pettycash/reports/appendix_49.html" %}
+</div>
 
 <div class="page-break"></div>
 
-<!-- ================= APPENDIX 50 ================= -->
-{% include "pettycash/reports/appendix_50.html" %}
+<!-- APPENDIX 50 (Landscape) -->
+<div class="page-landscape">
+    {% include "pettycash/reports/appendix_50.html" %}
+</div>
 
 <div class="page-break"></div>
 
-<!-- ================= APPENDIX 51 ================= -->
-{% include "pettycash/reports/appendix_51.html" %}
+<!-- APPENDIX 51 (Landscape) -->
+<div class="page-landscape">
+    {% include "pettycash/reports/appendix_51.html" %}
+</div>
 
 <div class="page-break"></div>
 
-<!-- ================= REPLENISHMENT SUMMARY ================= -->
-{% include "pettycash/reports/replenishment_summary.html" %}
+<!-- SUMMARY (Portrait) -->
+<div class="page-portrait">
+    {% include "pettycash/reports/replenishment_summary.html" %}
+</div>
 
 </body>
+
 </html>
