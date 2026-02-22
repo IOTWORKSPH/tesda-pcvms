@@ -34,6 +34,44 @@
     <!-- Content Wrapper -->
     <div class="content-wrapper p-3">
 
+        <!-- ================= FLOATING GLOBAL ALERTS ================= -->
+        {% if request.user.is_authenticated and messages %}
+            <div id="global-alert-container"
+                style="position: fixed;
+                        top: 80px;
+                        right: 20px;
+                        z-index: 9999;
+                        width: 350px;">
+
+                {% for message in messages %}
+                    <div class="alert 
+                        {% if message.tags == 'success' %}alert-success
+                        {% elif message.tags == 'error' %}alert-danger
+                        {% elif message.tags == 'warning' %}alert-warning
+                        {% else %}alert-info{% endif %}
+                        alert-dismissible fade show shadow-lg mb-2"
+                        role="alert">
+
+                        <i class="fas 
+                            {% if message.tags == 'success' %}fa-check-circle
+                            {% elif message.tags == 'error' %}fa-times-circle
+                            {% elif message.tags == 'warning' %}fa-exclamation-triangle
+                            {% else %}fa-info-circle{% endif %}
+                            mr-2"></i>
+
+                        {{ message }}
+
+                        <button type="button"
+                                class="close"
+                                data-dismiss="alert">
+                            <span>&times;</span>
+                        </button>
+
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
         {% block content %}
         {% endblock %}
 
@@ -49,6 +87,30 @@
 
 <!-- AdminLTE -->
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    setTimeout(function() {
+
+        const alerts = document.querySelectorAll('.alert');
+
+        alerts.forEach(function(alert) {
+
+            alert.style.transition = "opacity 0.5s ease, transform 0.5s ease";
+            alert.style.opacity = "0";
+            alert.style.transform = "translateY(-10px)";
+
+            setTimeout(function() {
+                alert.remove();
+            }, 500);
+
+        });
+
+    }, 3000); // 3 seconds
+
+});
+</script>
 
 {% block extra_js %}{% endblock %}
 

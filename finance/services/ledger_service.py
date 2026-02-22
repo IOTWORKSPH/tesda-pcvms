@@ -174,8 +174,14 @@ class LedgerService:
         if difference == 0:
 
             voucher.status = VoucherStatus.POSTED
+            voucher.is_posted_to_ledger = True
             voucher.is_liquidation_posted = True
-            voucher.save(update_fields=["status", "is_posted_to_ledger"])
+
+            voucher.save(update_fields=[
+                "status",
+                "is_posted_to_ledger",
+                "is_liquidation_posted"
+            ])
 
             AuditService.log(
                 entity=voucher.entity,

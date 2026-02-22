@@ -233,14 +233,22 @@ def create_cash_advance(request):
 
             pcv.save()
 
+            # ✅ ADD THIS
+            messages.success(
+                request,
+                "Cash advance request saved successfully."
+            )
+
             return redirect("users:dashboard_staff")
 
     else:
         form = CashAdvanceForm()
 
-    return render(request,
-                  "pettycash/create_cash_advance.html",
-                  {"form": form})
+    return render(
+        request,
+        "pettycash/create_cash_advance.html",
+        {"form": form}
+    )
 
 
 @login_required

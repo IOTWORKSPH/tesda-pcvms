@@ -16,12 +16,10 @@
 
         <div class="card-body">
 
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-danger">
-                        {{ message }}
-                    </div>
-                {% endfor %}
+            {% if request.method == "POST" and not user.is_authenticated %}
+                <div class="alert alert-danger">
+                    Invalid username or password.
+                </div>
             {% endif %}
 
             <form method="POST">

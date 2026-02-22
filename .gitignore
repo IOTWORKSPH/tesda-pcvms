@@ -1,7 +1,23 @@
+# Virtual Environment
 venv/
+
+# Django
 __pycache__/
 *.pyc
-db.sqlite3
+*.pyo
+*.pyd
+
+# Environment
 .env
-media/
+
+# Static & Media
 staticfiles/
+media/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+
+*.save

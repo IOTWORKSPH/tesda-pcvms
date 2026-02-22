@@ -21,7 +21,13 @@ def user_in_group(user, group_name):
 
 
 def login_view(request):
+
+    # 🔥 If already authenticated, clear old messages first
     if request.user.is_authenticated:
+        storage = messages.get_messages(request)
+        for _ in storage:
+            pass  # clear message storage
+
         return redirect("users:role_redirect")
 
     if request.method == "POST":
@@ -33,13 +39,19 @@ def login_view(request):
         if user is not None:
             login(request, user)
 
-            # Superuser → Django Admin
+            # Clear any old login errors before redirect
+            storage = messages.get_messages(request)
+            for _ in storage:
+                pass
+
             if user.is_superuser:
                 return redirect("/admin/")
 
             return redirect("users:role_redirect")
+
         else:
             messages.error(request, "Invalid username or password.")
+            return render(request, "users/login.html")
 
     return render(request, "users/login.html")
 
@@ -47,6 +59,11 @@ def login_view(request):
 @login_required
 def logout_view(request):
     logout(request)
+
+    # 🔥 CLEAR MESSAGE STORAGE
+    storage = messages.get_messages(request)
+    list(storage)  # Force evaluation → clears them
+
     return redirect("users:login")
 
 
@@ -312,7 +329,7 @@ def dashboard_custodian(request):
     ).first()
 
     if not fund:
-        return render(request, "users/no_fund.html")
+        return render(request, "pettycash/no_fund.html")
 
     # =============================
     # FUND POSITION
