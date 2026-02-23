@@ -1,0 +1,128 @@
+<!-- pettycash/templates/pettycash/reports/replenishment_package_pdf.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Replenishment Package</title>
+
+<style>
+
+/* =======================================
+   PAGE DEFINITIONS
+======================================= */
+
+@page portrait {
+    size: A4 portrait;
+    margin: 15mm;
+}
+
+@page landscape {
+    size: A4 landscape;
+    margin: 10mm;
+}
+
+/* =======================================
+   PAGE CONTAINERS
+======================================= */
+
+.page-portrait {
+    page: portrait;
+    break-before: page;
+}
+
+.page-landscape {
+    page: landscape;
+    break-before: page;
+}
+
+/* Remove break for first page */
+.page-portrait:first-child,
+.page-landscape:first-child {
+    break-before: auto;
+}
+
+/* =======================================
+   GENERAL TABLE STYLING
+======================================= */
+
+body {
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td, th {
+    border: 0.8px solid black;
+    padding: 4px;
+}
+
+.amount {
+    text-align: right;
+}
+
+/* =======================================
+   LANDSCAPE OPTIMIZATION
+======================================= */
+
+.page-landscape table {
+    table-layout: fixed;
+    font-size: 9px;
+}
+
+.page-landscape th,
+.page-landscape td {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Allow rows to split naturally */
+tr {
+    page-break-inside: avoid;
+}
+
+/* Prevent width expansion */
+* {
+    box-sizing: border-box;
+}
+
+/* Clamp content width inside printable area */
+.page-landscape,
+.page-portrait {
+    width: 100%;
+    max-width: 100%;
+}
+
+
+</style>
+
+</head>
+
+<body>
+
+<!-- ================= APPENDIX 49 (Portrait) ================= -->
+<div class="page-portrait">
+    {% include "pettycash/reports/appendix_49.html" %}
+</div>
+
+<!-- ================= APPENDIX 50 (Landscape) ================= -->
+<div class="page-landscape">
+    {% include "pettycash/reports/appendix_50.html" %}
+</div>
+
+<!-- ================= APPENDIX 51 (Landscape) ================= -->
+<div class="page-landscape">
+    {% include "pettycash/reports/appendix_51.html" %}
+</div>
+
+<!-- ================= SUMMARY (Portrait) ================= -->
+<div class="page-portrait">
+    {% include "pettycash/reports/replenishment_summary.html" %}
+</div>
+
+</body>
+</html>

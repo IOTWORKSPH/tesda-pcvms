@@ -43,10 +43,11 @@ urlpatterns = [
     path("fund/ledger/",views.custodian_fund_ledger,name="custodian_fund_ledger"),
     
     
-    path("reports/replenishment/",views.replenishment_report,name="replenishment_report"),
-    path("reports/replenishment/generate/",views.replenishment_generate,name="replenishment_generate",),
-    path("reports/replenishment/package/",views.replenishment_package_print,name="replenishment_package_print"),
-    path("reports/replenishment/export/",views.replenishment_export_excel,name="replenishment_export_excel"),
+    # REPORTS
+    path("reports/replenishment/", views.replenishment_report, name="replenishment_report"),
+    path("reports/replenishment/generate/", views.replenishment_generate, name="replenishment_generate"),
+    path("reports/replenishment/package/", views.replenishment_package_pdf, name="replenishment_package_pdf"),
+    path("reports/replenishment/export/", views.replenishment_export_excel, name="replenishment_export_excel"),
 
     # ==========================
     # REPLENISHMENT MANAGEMENT

@@ -11,11 +11,6 @@
         PETTY CASH REPLENISHMENT REPORT
     </h4>
 
-    <div class="mb-3">
-        <strong>Fund Cluster:</strong> {{ fund.fund_cluster.code }} <br>
-        <strong>Custodian:</strong> {{ fund.custodian.get_full_name }}
-    </div>
-
     <form method="get" class="card p-3 mb-4 shadow-sm">
 
         <div class="row align-items-end">
@@ -72,18 +67,18 @@
             </div>
 
             <div>
-                <a href="{% url 'pettycash:replenishment_package_print' %}{% if query_string %}?{{ query_string }}{% endif %}"
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fas fa-print"></i> Print Selected
+                </button>
+            </div>
+
+            <div>
+                <a href="{% url 'pettycash:replenishment_package_pdf' %}{% if query_string %}?{{ query_string }}{% endif %}"
                 target="_blank"
                 class="btn btn-danger btn-sm">
                     <i class="fas fa-file-pdf"></i>
                     Generate Replenishment Report
                 </a>
-            </div>
-
-            <div>
-                <button type="submit" class="btn btn-success btn-sm">
-                    <i class="fas fa-print"></i> Print Selected
-                </button>
 
                 <button type="submit"
                         formaction="{% url 'pettycash:replenishment_export_excel' %}"

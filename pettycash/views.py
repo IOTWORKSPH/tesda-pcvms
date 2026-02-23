@@ -28,7 +28,9 @@ from users.models import User
 from pettycash.services.workflow_service import WorkflowService
 from pettycash.services.replenishment_service import ReplenishmentService
 from finance.services.ledger_service import LedgerService
-
+from .services.replenishment_builder import build_replenishment_context
+from .services.replenishment_pdf import generate_replenishment_pdf
+from pettycash.services.excel.replenishment_excel import generate_replenishment_excel
 
 
 def notify(user, voucher, message):
@@ -1466,204 +1468,14 @@ def replenishment_generate(request):
 
 
 @login_required
-def replenishment_package_print(request):
+def replenishment_package_pdf(request):
 
-    from decimal import Decimal
-    from django.utils import timezone
-    from django.utils.dateparse import parse_date
-    from django.db.models import Sum
+    context = build_replenishment_context(request)
 
-    # ==========================================================
-    # 1️⃣ GET ACTIVE FUND
-    # ==========================================================
-    fund = PettyCashFund.objects.filter(
-        custodian=request.user,
-        is_active=True
-    ).first()
-
-    if not fund:
+    if not context:
         return render(request, "users/no_fund.html")
 
-    # ==========================================================
-    # 2️⃣ FILTER VOUCHERS (Appendix 49 & 51)
-    # ==========================================================
-    raw_date_from = request.GET.get("date_from", "").strip()
-    raw_date_to = request.GET.get("date_to", "").strip()
-
-    date_from = parse_date(raw_date_from) if raw_date_from else None
-    date_to = parse_date(raw_date_to) if raw_date_to else None
-
-    vouchers = PettyCashVoucher.objects.filter(
-        fund=fund,
-        is_posted_to_ledger=True
-    )
-
-    if date_from:
-        vouchers = vouchers.filter(purchase_date__gte=date_from)
-
-    if date_to:
-        vouchers = vouchers.filter(purchase_date__lte=date_to)
-
-    vouchers = vouchers.order_by("purchase_date")
-
-    total = vouchers.aggregate(
-        total=Sum("amount_requested")
-    )["total"] or Decimal("0.00")
-
-    # ==========================================================
-    # 3️⃣ LEDGER SECTION (Appendix 50)
-    # ==========================================================
-    entries = LedgerEntry.objects.filter(
-        fund=fund
-    ).order_by("transaction_date", "id")
-
-    records = []
-
-    # ----------------------------------------------------------
-    # A. OPENING ENTRY (Initial Fund)
-    # ----------------------------------------------------------
-    opening_entry = entries.filter(
-        reference_type=ReferenceType.ADJUSTMENT
-    ).first()
-
-    if opening_entry:
-        records.append({
-            "date": opening_entry.transaction_date,
-            "reference": opening_entry.reference_no,
-            "payee": "",
-            "particulars": "Initial Fund",
-            "received": opening_entry.debit,
-            "disbursement": None,
-            "balance": opening_entry.running_balance,  # equals fund_amount
-        })
-
-    # ----------------------------------------------------------
-    # B. NORMAL LEDGER ENTRIES
-    #    (Skip adjustment to avoid duplicate)
-    # ----------------------------------------------------------
-    for entry in entries:
-
-        # Skip opening entry (already added)
-        if entry.reference_type == ReferenceType.ADJUSTMENT:
-            continue
-
-        payee = ""
-        particulars = ""
-
-        # ==============================
-        # PCV ENTRY
-        # ==============================
-        if entry.reference_type == ReferenceType.PCV:
-
-            voucher = PettyCashVoucher.objects.filter(
-                pcv_no=entry.reference_no,
-                fund=fund
-            ).select_related("expense_category", "requester").first()
-
-            if voucher:
-                payee = voucher.requester.get_full_name()
-                particulars = (
-                    voucher.expense_category.name
-                    if voucher.expense_category
-                    else ""
-                )
-
-        # ==============================
-        # REPLENISHMENT ENTRY
-        # ==============================
-        elif entry.reference_type == ReferenceType.REPLENISHMENT:
-            payee = ""
-            particulars = "Replenishment"
-
-        # ==============================
-        # OTHER TYPES
-        # ==============================
-        else:
-            particulars = entry.description or ""
-
-        records.append({
-            "date": entry.transaction_date,
-            "reference": entry.reference_no,
-            "payee": payee,
-            "particulars": particulars,
-            "received": entry.debit if entry.debit > 0 else None,
-            "disbursement": entry.credit if entry.credit > 0 else None,
-            "balance": entry.running_balance,
-        })
-
-    # ==========================================================
-    # Appendix 51 Dynamic Register
-    # ==========================================================
-
-    from collections import defaultdict
-
-    # Get vouchers within selected period
-    register_vouchers = vouchers.select_related("expense_category")
-
-    # Determine dynamic categories used in report
-    expense_categories = ExpenseCategory.objects.filter(
-        id__in=register_vouchers.values_list("expense_category_id", flat=True)
-    ).order_by("code")
-
-    # Initialize totals dictionary
-    category_totals = defaultdict(lambda: Decimal("0.00"))
-
-    register_rows = []
-
-    ledger_entries = LedgerEntry.objects.filter(
-        fund=fund,
-        reference_type=ReferenceType.PCV
-    ).order_by("transaction_date", "id")
-
-    for entry in ledger_entries:
-
-        voucher = register_vouchers.filter(
-            pcv_no=entry.reference_no
-        ).first()
-
-        if not voucher:
-            continue
-
-        breakdown = defaultdict(lambda: None)
-
-        amount = entry.credit
-
-        # Assign amount to correct category column
-        breakdown[voucher.expense_category.id] = amount
-        category_totals[voucher.expense_category.id] += amount
-
-        register_rows.append({
-            "date": entry.transaction_date,
-            "reference": entry.reference_no,
-            "particulars": voucher.expense_category.name,
-            "receipt": entry.debit if entry.debit > 0 else None,
-            "payment": entry.credit if entry.credit > 0 else None,
-            "balance": entry.running_balance,
-            "breakdown": breakdown,
-        })
-
-    # ==========================================================
-    # 4️⃣ FINAL CONTEXT
-    # ==========================================================
-    
-    context = {
-        "fund": fund,
-        "vouchers": vouchers,
-        "total": total,
-        "records": records,
-        "generated_date": timezone.now(),
-        "date_from": date_from,
-        "date_to": date_to,
-        "register_rows": register_rows,
-        "expense_categories": expense_categories,
-        "category_totals": category_totals,
-    }
-
-    return render(
-        request,
-        "pettycash/reports/replenishment_package_print.html",
-        context
-    )
+    return generate_replenishment_pdf(request, context)
 
 
 
@@ -1673,50 +1485,12 @@ def replenishment_export_excel(request):
     if request.method != "POST":
         return redirect("pettycash:replenishment_report")
 
-    selected_ids = request.POST.getlist("selected_vouchers")
+    context = build_replenishment_context(request)
 
-    if not selected_ids:
-        messages.error(request, "Please select at least one transaction.")
-        return redirect("pettycash:replenishment_report")
+    if not context:
+        return render(request, "users/no_fund.html")
 
-    fund = PettyCashFund.objects.filter(
-        custodian=request.user,
-        is_active=True
-    ).first()
-
-    vouchers = PettyCashVoucher.objects.filter(
-        id__in=selected_ids,
-        fund=fund,
-        is_posted_to_ledger=True
-    ).order_by("-release_date")
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Replenishment Report"
-
-    ws.append(["Date", "PCV No", "Particulars", "Amount"])
-
-    total = Decimal("0.00")
-
-    for v in vouchers:
-        ws.append([
-            v.release_date.strftime("%Y-%m-%d"),
-            v.pcv_no,
-            v.expense_category.name if v.expense_category else "",
-            float(v.amount_requested)
-        ])
-        total += v.amount_requested
-
-    ws.append([])
-    ws.append(["", "", "TOTAL", float(total)])
-
-    response = HttpResponse(
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-    response["Content-Disposition"] = 'attachment; filename="replenishment_report.xlsx"'
-
-    wb.save(response)
-    return response
+    return generate_replenishment_excel(context)
 
 
 
