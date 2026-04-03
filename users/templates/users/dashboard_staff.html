@@ -5,6 +5,12 @@
 
 {% block content %}
 
+<style>
+    .table-responsive {
+        overflow: visible !important;
+    }
+</style>
+
 <div class="content-header mb-3">
     <div class="container-fluid d-flex justify-content-between align-items-center">
         <h4 class="m-0 font-weight-bold text-primary">
@@ -195,7 +201,7 @@
                     <th>Purpose</th>
                     <th class="text-right">Amount</th>
                     <th class="text-center">Type</th>
-                    <th class="text-center">Receipt</th>
+                    {# <th class="text-center">Receipt</th> #}
                     <th class="text-center">Variance</th>
                     <th class="text-center">Status</th>
                     <th class="text-center">Actions</th>
@@ -235,7 +241,7 @@
                     </td>
 
                     <!-- RECEIPT -->
-                    <td class="text-center">
+                    <!--<td class="text-center">
                         {% if pcv.has_receipt %}
                             <i class="fas fa-check-circle text-success"
                                title="Receipt Uploaded"></i>
@@ -243,7 +249,7 @@
                             <i class="fas fa-times-circle text-danger"
                                title="No Receipt"></i>
                         {% endif %}
-                    </td>
+                    </td>-->
 
                     <!-- VARIANCE -->
                     <td class="text-center">
@@ -350,9 +356,10 @@
                             {% endif %}
 
                             <!-- ================= PRINT DROPDOWN ================= -->
-                            {% if pcv.has_receipt %}
+                            {% if pcv.status != "DRAFT" %}
 
-                            <div class="btn-group btn-group-sm">
+                            <div class="btn-group btn-group-sm position-static">
+
                                 <button type="button"
                                         class="btn btn-outline-secondary dropdown-toggle"
                                         data-toggle="dropdown"
@@ -362,6 +369,7 @@
 
                                 <div class="dropdown-menu dropdown-menu-right shadow">
 
+                                    <!-- PCV -->
                                     <a class="dropdown-item"
                                     href="{% url 'pettycash:print_pcv' pcv.uuid %}"
                                     target="_blank">
@@ -369,20 +377,38 @@
                                         Print PCV
                                     </a>
 
+                                    <!-- PR -->
+                                    {% if pcv.pr_no %}
                                     <a class="dropdown-item"
                                     href="{% url 'pettycash:print_pr' pcv.uuid %}"
                                     target="_blank">
                                         <i class="fas fa-file-alt mr-2 text-info"></i>
                                         Print PR
                                     </a>
+                                    {% endif %}
 
+                                    <!-- IAR -->
+                                    {% if pcv.iar_no %}
                                     <a class="dropdown-item"
                                     href="{% url 'pettycash:print_iar' pcv.uuid %}"
                                     target="_blank">
                                         <i class="fas fa-clipboard-check mr-2 text-success"></i>
                                         Print IAR
                                     </a>
+                                    {% endif %}
 
+                                    <!-- ✅ CNRR -->
+                                    {% if pcv.has_cnrr %}
+                                    <a class="dropdown-item"
+                                    href="{% url 'pettycash:print_cnrr' pcv.uuid %}"
+                                    target="_blank">
+                                        <i class="fas fa-file-medical mr-2 text-danger"></i>
+                                        Print CNRR
+                                    </a>
+                                    {% endif %}
+
+                                    <!-- PRINT ALL -->
+                                    {% if pcv.pr_no or pcv.iar_no or pcv.has_cnrr %}
                                     <div class="dropdown-divider"></div>
 
                                     <a class="dropdown-item font-weight-bold"
@@ -391,9 +417,17 @@
                                         <i class="fas fa-print mr-2 text-dark"></i>
                                         Print All Documents
                                     </a>
+                                    {% endif %}
 
                                 </div>
                             </div>
+
+                            <!-- EXPORT EXCEL -->
+                            <a href="{% url 'pettycash:export_voucher_excel' pcv.uuid %}"
+                            class="btn btn-sm btn-outline-success"
+                            title="Export Excel">
+                                <i class="fas fa-file-excel"></i>
+                            </a>
 
                             {% endif %}
                             <!-- ================= END PRINT ================= -->

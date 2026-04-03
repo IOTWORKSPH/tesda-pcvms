@@ -1,35 +1,100 @@
 #PettyCash views.py codes
+# ==========================================================
+# DJANGO CORE IMPORTS
+# ==========================================================
 from django.shortcuts import render, get_object_or_404, redirect
+from django.http import (
+    HttpResponse,
+    JsonResponse,
+    HttpResponseForbidden,
+    QueryDict,
+)
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from decimal import Decimal, InvalidOperation
-from django.contrib import messages
-from django.utils import timezone
-from django.db.models import Min, Max
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, QueryDict
-from pettycash.models import Notification
-from django.db.models import Q, Sum, F
-from django.core.paginator import Paginator
 from django.contrib.auth.models import Group
 from django.views.decorators.http import require_POST
+from django.contrib import messages
+
+from django.db import transaction
+from django.db.models import Q, Sum, F, Min, Max
+
+from django.utils import timezone
 from django.utils.dateparse import parse_date
-
-from openpyxl import Workbook
-
-
-
-from .forms import CashAdvanceForm, RefundForm, PCVItemFormSet
-from .models import (PettyCashVoucher,VoucherStatus,PCVItem,Supplier,ReceiptAttachment,ExpenseCategory, TransactionType,LiquidationReview,Replenishment)
+from django.core.paginator import Paginator
+from django.conf import settings
 
 
+# ==========================================================
+# PYTHON STANDARD LIBRARIES
+# ==========================================================
+import os
+import zipfile
+from io import BytesIO
+from decimal import Decimal, InvalidOperation
+from copy import copy
+
+
+# ==========================================================
+# THIRD-PARTY LIBRARIES
+# ==========================================================
+from openpyxl import load_workbook
+
+
+# ==========================================================
+# LOCAL APP MODELS (PETTY CASH)
+# ==========================================================
+from pettycash.models import (
+    PettyCashVoucher,
+    VoucherStatus,
+    PCVItem,
+    Supplier,
+    ReceiptAttachment,
+    ExpenseCategory,
+    TransactionType,
+    LiquidationReview,
+    Replenishment,
+    ReplenishmentStatus,
+    Notification,
+)
+
+
+# ==========================================================
+# LOCAL APP FORMS
+# ==========================================================
+from .forms import (
+    CashAdvanceForm,
+    RefundForm,
+    PCVItemFormSet,
+)
+
+
+# ==========================================================
+# RELATED APP MODELS
+# ==========================================================
 from finance.models import PettyCashFund, LedgerEntry, ReferenceType
 from audit.models import AuditLog, AuditAction
 from users.models import User
+
+
+# ==========================================================
+# SERVICES (BUSINESS LOGIC LAYER)
+# ==========================================================
 from pettycash.services.workflow_service import WorkflowService
 from pettycash.services.replenishment_service import ReplenishmentService
+from pettycash.services.replenishment_workflow_service import ReplenishmentWorkflowService
+
 from finance.services.ledger_service import LedgerService
-from .services.replenishment_builder import build_replenishment_context
-from .services.replenishment_pdf import generate_replenishment_pdf
+
+from pettycash.services.replenishment_builder import build_replenishment_context
+from pettycash.services.replenishment_pdf import generate_replenishment_pdf
+
+
+# ==========================================================
+# EXCEL GENERATORS (TEMPLATES)
+# ==========================================================
+from pettycash.services.excel.pcv_excel import generate_pcv_excel
+from pettycash.services.excel.pr_excel import generate_pr_excel
+from pettycash.services.excel.iar_excel import generate_iar_excel
+from pettycash.services.excel.cnrr_excel import generate_cnrr_excel
 from pettycash.services.excel.replenishment_excel import generate_replenishment_excel
 
 
@@ -194,9 +259,9 @@ def submit_refund(request, uuid):
         messages.error(request, "Cannot submit without items.")
         return redirect("pettycash:pcv_detail", uuid=pcv.uuid)
 
-    if not pcv.receipts.exists():
-        messages.error(request, "Receipt attachment is required.")
-        return redirect("pettycash:pcv_detail", uuid=pcv.uuid)
+    # if not pcv.receipts.exists():
+    #     messages.error(request, "Receipt attachment is required.")
+    #     return redirect("pettycash:pcv_detail", uuid=pcv.uuid)
 
     WorkflowService.submit_for_approval(pcv, request.user)
 
@@ -222,12 +287,11 @@ def submit_refund(request, uuid):
 def create_cash_advance(request):
 
     if request.method == "POST":
-        form = CashAdvanceForm(request.POST)
+        form = CashAdvanceForm(request.POST, user=request.user)
 
         if form.is_valid():
             pcv = form.save(commit=False)
 
-            # CONTROL FIELDS
             pcv.entity = request.user.entity
             pcv.requester = request.user
             pcv.transaction_type = "CASH_ADVANCE"
@@ -235,7 +299,6 @@ def create_cash_advance(request):
 
             pcv.save()
 
-            # ✅ ADD THIS
             messages.success(
                 request,
                 "Cash advance request saved successfully."
@@ -244,7 +307,7 @@ def create_cash_advance(request):
             return redirect("users:dashboard_staff")
 
     else:
-        form = CashAdvanceForm()
+        form = CashAdvanceForm(user=request.user)
 
     return render(
         request,
@@ -293,9 +356,9 @@ def liquidate_cash_advance(request, uuid):
             messages.error(request, "Purchase date is required.")
             return redirect(request.path)
 
-        if not receipt and not pcv.receipts.exists():
-            messages.error(request, "Receipt upload is required.")
-            return redirect(request.path)
+        # if not receipt and not pcv.receipts.exists():
+        #     messages.error(request, "Receipt upload is required.")
+        #     return redirect(request.path)
 
         # ================= PROCESS ITEMS =================
 
@@ -367,6 +430,135 @@ def liquidate_cash_advance(request, uuid):
 
 
 
+# @login_required
+# @transaction.atomic
+# def create_reimbursement(request):
+
+#     entity = request.user.entity
+
+#     categories = ExpenseCategory.objects.filter(
+#         entity=entity,
+#         is_active=True
+#     )
+
+#     funds = PettyCashFund.objects.filter(
+#         entity=entity,
+#         is_active=True
+        
+#     )
+
+#     default_fund = funds.first()
+
+#     if request.method == "POST":
+
+#         purchase_date = request.POST.get("purchase_date")
+#         purpose = request.POST.get("purpose")
+#         expense_category_id = request.POST.get("expense_category")
+#         fund_id = request.POST.get("fund")
+#         supplier_name = request.POST.get("supplier_name")
+#         supplier_id = request.POST.get("supplier_id")
+#         invoice_no = request.POST.get("official_receipt_number")
+#         receipt_file = request.FILES.get("receipt")
+
+#         descriptions = request.POST.getlist("item_description[]")
+#         units = request.POST.getlist("item_unit[]")
+#         qtys = request.POST.getlist("item_qty[]")
+#         costs = request.POST.getlist("item_unit_cost[]")
+
+#         # =========================
+#         # VALIDATION
+#         # =========================
+
+#         # if not receipt_file:
+#         #     messages.error(request, "Receipt upload is required.")
+#         #     return redirect(request.path)
+
+#         if not purchase_date or not purpose:
+#             messages.error(request, "Purchase date and purpose are required.")
+#             return redirect(request.path)
+
+#         valid_items = []
+
+#         for i in range(len(descriptions)):
+#             if descriptions[i] and qtys[i] and costs[i]:
+#                 if float(qtys[i]) > 0:
+#                     valid_items.append(i)
+
+#         if len(valid_items) == 0:
+#             messages.error(request, "At least one valid item is required.")
+#             return redirect(request.path)
+
+#         # =========================
+#         # SUPPLIER HANDLING
+#         # =========================
+
+#         if supplier_id:
+#             supplier = Supplier.objects.get(id=supplier_id)
+#         else:
+#             supplier, created = Supplier.objects.get_or_create(
+#                 entity=entity,
+#                 name=supplier_name
+#             )
+
+#         # =========================
+#         # CREATE VOUCHER
+#         # =========================
+
+#         pcv = PettyCashVoucher.objects.create(
+#             entity=entity,
+#             fund_id=fund_id,
+#             transaction_type="REIMBURSEMENT",
+#             requester=request.user,
+#             purpose=purpose,
+#             expense_category_id=expense_category_id,
+#             purchase_date=purchase_date,
+#             supplier=supplier,
+#             official_receipt_number=invoice_no,
+#             status="DRAFT",
+#             amount_requested=Decimal("0.00"),
+#             amount_liquidated=Decimal("0.00"),
+#         )
+
+#         total_amount = Decimal("0.00")
+
+#         for i in valid_items:
+#             qty = Decimal(qtys[i])
+#             cost = Decimal(costs[i])
+#             line_total = qty * cost
+
+#             PCVItem.objects.create(
+#                 voucher=pcv,
+#                 description=descriptions[i],
+#                 unit=units[i],
+#                 quantity=qty,
+#                 unit_cost=cost
+#             )
+
+#             total_amount += line_total
+
+#         pcv.amount_requested = total_amount
+#         pcv.amount_liquidated = total_amount
+
+#         pcv.save()
+
+#         ReceiptAttachment.objects.create(
+#             voucher=pcv,
+#             file=receipt_file,
+#             uploaded_by=request.user
+#         )
+
+#         messages.success(request, "Refund request saved successfully.")
+#         return redirect("users:dashboard_staff")
+
+#     return render(
+#         request,
+#         "pettycash/create_reimbursement.html",
+#         {
+#             "categories": categories,
+#             "funds": funds,
+#         }
+#     )
+
 @login_required
 @transaction.atomic
 def create_reimbursement(request):
@@ -394,6 +586,9 @@ def create_reimbursement(request):
         invoice_no = request.POST.get("official_receipt_number")
         receipt_file = request.FILES.get("receipt")
 
+        # ✅ NEW: CNRR FLAG
+        has_cnrr = request.POST.get("has_cnrr") == "on"
+
         descriptions = request.POST.getlist("item_description[]")
         units = request.POST.getlist("item_unit[]")
         qtys = request.POST.getlist("item_qty[]")
@@ -402,10 +597,6 @@ def create_reimbursement(request):
         # =========================
         # VALIDATION
         # =========================
-
-        if not receipt_file:
-            messages.error(request, "Receipt upload is required.")
-            return redirect(request.path)
 
         if not purchase_date or not purpose:
             messages.error(request, "Purchase date and purpose are required.")
@@ -423,13 +614,39 @@ def create_reimbursement(request):
             return redirect(request.path)
 
         # =========================
-        # SUPPLIER HANDLING
+        # COMPUTE TOTAL (FOR CNRR VALIDATION)
         # =========================
+        total_amount = Decimal("0.00")
 
+        for i in valid_items:
+            qty = Decimal(qtys[i])
+            cost = Decimal(costs[i])
+            total_amount += qty * cost
+
+        # =========================
+        # CNRR RULES
+        # =========================
+        if has_cnrr:
+            if total_amount > Decimal("300"):
+                messages.error(request, "CNRR is only allowed for amount ≤ ₱300.")
+                return redirect(request.path)
+
+            # Clear OR only (DO NOT TOUCH FILE)
+            invoice_no = ""
+
+        # else:
+        #     # Optional: enforce receipt if NOT CNRR
+        #     if not receipt_file:
+        #         messages.error(request, "Receipt is required unless using CNRR.")
+        #         return redirect(request.path)
+
+        # =========================
+        # SUPPLIER
+        # =========================
         if supplier_id:
             supplier = Supplier.objects.get(id=supplier_id)
         else:
-            supplier, created = Supplier.objects.get_or_create(
+            supplier, _ = Supplier.objects.get_or_create(
                 entity=entity,
                 name=supplier_name
             )
@@ -437,7 +654,6 @@ def create_reimbursement(request):
         # =========================
         # CREATE VOUCHER
         # =========================
-
         pcv = PettyCashVoucher.objects.create(
             entity=entity,
             fund_id=fund_id,
@@ -451,14 +667,17 @@ def create_reimbursement(request):
             status="DRAFT",
             amount_requested=Decimal("0.00"),
             amount_liquidated=Decimal("0.00"),
+
+            # ✅ NEW FIELD
+            has_cnrr=has_cnrr,
         )
 
-        total_amount = Decimal("0.00")
-
+        # =========================
+        # SAVE ITEMS
+        # =========================
         for i in valid_items:
             qty = Decimal(qtys[i])
             cost = Decimal(costs[i])
-            line_total = qty * cost
 
             PCVItem.objects.create(
                 voucher=pcv,
@@ -468,18 +687,19 @@ def create_reimbursement(request):
                 unit_cost=cost
             )
 
-            total_amount += line_total
-
         pcv.amount_requested = total_amount
         pcv.amount_liquidated = total_amount
-
         pcv.save()
 
-        ReceiptAttachment.objects.create(
-            voucher=pcv,
-            file=receipt_file,
-            uploaded_by=request.user
-        )
+        # =========================
+        # RECEIPT (ONLY IF NOT CNRR)
+        # =========================
+        if receipt_file:
+            ReceiptAttachment.objects.create(
+                voucher=pcv,
+                file=receipt_file,
+                uploaded_by=request.user
+            )
 
         messages.success(request, "Refund request saved successfully.")
         return redirect("users:dashboard_staff")
@@ -493,6 +713,40 @@ def create_reimbursement(request):
         }
     )
 
+
+@login_required
+def print_cnrr(request, uuid):
+
+    voucher = get_object_or_404(
+        PettyCashVoucher,
+        uuid=uuid,
+        entity=request.user.entity
+    )
+
+    if not voucher.has_cnrr:
+        return render(request, "403.html", status=403)
+
+    administrator = User.objects.filter(
+        entity=voucher.entity,
+        groups__name="Administrator",
+        is_active=True
+    ).first()
+
+    wb = generate_cnrr_excel(voucher, administrator)
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    filename = f"CNRR_{voucher.pcv_no or voucher.uuid}.xlsx"
+
+    return HttpResponse(
+        buffer,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'inline; filename="{filename}"'
+        }
+    )
 
 
 @login_required
@@ -937,7 +1191,7 @@ def print_iar(request, uuid):
 
     # Acceptance Officer (Group: Supply Officer)
     acceptance = User.objects.filter(
-        groups__name="Supply Officer",
+        groups__name="Supply",
         entity=pcv.entity,
         is_active=True
     ).first()
@@ -1001,7 +1255,7 @@ def print_all(request, uuid):
     # SUPPLY OFFICER (Acceptance)
     # ==========================================
     acceptance = User.objects.filter(
-        groups__name="Supply Officer",
+        groups__name="Supply",
         entity=entity,
         is_active=True
     ).first()
@@ -1376,6 +1630,9 @@ def delete_pcv(request, uuid):
 @login_required
 def replenishment_report(request):
 
+    if not request.user.has_role("Custodian"):
+        return render(request, "403.html", status=403)
+
     fund = PettyCashFund.objects.filter(
         custodian=request.user,
         is_active=True
@@ -1386,14 +1643,15 @@ def replenishment_report(request):
 
     from_date = request.GET.get("date_from")
     to_date = request.GET.get("date_to")
-    search_query = request.GET.get("q")
+    search_query = request.GET.get("q", "").strip()
 
     vouchers = PettyCashVoucher.objects.filter(
         fund=fund,
-        is_posted_to_ledger=True
+        status=VoucherStatus.POSTED,
+        is_replenished=False,
+        replenishment__isnull=True
     )
 
-    # DATE FILTER (based on PURCHASE DATE)
     if from_date:
         vouchers = vouchers.filter(
             purchase_date__gte=parse_date(from_date)
@@ -1404,28 +1662,29 @@ def replenishment_report(request):
             purchase_date__lte=parse_date(to_date)
         )
 
-    # SEARCH FILTER
     if search_query:
         vouchers = vouchers.filter(
             Q(pcv_no__icontains=search_query) |
             Q(purpose__icontains=search_query)
         )
 
-    # LATEST FIRST
     vouchers = vouchers.order_by("-purchase_date")
 
-    context = {
-        "fund": fund,
-        "vouchers": vouchers,
-        "date_from": from_date,
-        "date_to": to_date,
-        "search_query": search_query,
-    }
+    total = vouchers.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
 
     return render(
         request,
         "pettycash/reports/replenishment_report.html",
-        context
+        {
+            "fund": fund,
+            "vouchers": vouchers,
+            "total": total,
+            "date_from": from_date,
+            "date_to": to_date,
+            "search_query": search_query,
+        }
     )
 
 
@@ -1435,34 +1694,64 @@ def replenishment_generate(request):
     if request.method != "POST":
         return redirect("pettycash:replenishment_report")
 
-    selected_ids = request.POST.getlist("selected_vouchers")
-
-    if not selected_ids:
-        messages.error(request, "Please select at least one transaction.")
-        return redirect("pettycash:replenishment_report")
-
     fund = PettyCashFund.objects.filter(
         custodian=request.user,
         is_active=True
     ).first()
 
-    vouchers = PettyCashVoucher.objects.filter(
-        id__in=selected_ids,
+    if not fund:
+        messages.error(request, "No active fund found.")
+        return redirect("pettycash:replenishment_report")
+
+    # Preserve filters (if coming from filtered report)
+    date_from = request.POST.get("date_from")
+    date_to = request.POST.get("date_to")
+
+    # Base eligible queryset
+    vouchers_qs = PettyCashVoucher.objects.filter(
         fund=fund,
-        is_posted_to_ledger=True
-    ).order_by("-release_date")
+        is_posted_to_ledger=True,
+        is_replenished=False,
+        replenishment__isnull=True
+    )
+
+    # Apply date filters if provided
+    if date_from:
+        vouchers_qs = vouchers_qs.filter(purchase_date__gte=date_from)
+
+    if date_to:
+        vouchers_qs = vouchers_qs.filter(purchase_date__lte=date_to)
+
+    # Get selected vouchers
+    selected_ids = request.POST.getlist("selected_vouchers")
+
+    # ======================================================
+    # ENTERPRISE SELECTION LOGIC
+    # ======================================================
+
+    if selected_ids:
+        vouchers = vouchers_qs.filter(id__in=selected_ids)
+    else:
+        # If none selected → include all filtered
+        vouchers = vouchers_qs
+
+    if not vouchers.exists():
+        messages.error(request, "No eligible transactions found.")
+        return redirect("pettycash:replenishment_report")
 
     total = vouchers.aggregate(
         total=Sum("amount_requested")
-    )["total"] or 0
+    )["total"] or Decimal("0.00")
 
     return render(
         request,
         "pettycash/reports/replenishment_print.html",
         {
             "fund": fund,
-            "vouchers": vouchers,
+            "vouchers": vouchers.order_by("-release_date"),
             "total": total,
+            "date_from": date_from,
+            "date_to": date_to,
         }
     )
 
@@ -1470,10 +1759,14 @@ def replenishment_generate(request):
 @login_required
 def replenishment_package_pdf(request):
 
+    if request.method != "POST":
+        return redirect("pettycash:replenishment_report")
+
     context = build_replenishment_context(request)
 
     if not context:
-        return render(request, "users/no_fund.html")
+        messages.error(request, "No eligible transactions found.")
+        return redirect("pettycash:replenishment_report")
 
     return generate_replenishment_pdf(request, context)
 
@@ -1488,7 +1781,8 @@ def replenishment_export_excel(request):
     context = build_replenishment_context(request)
 
     if not context:
-        return render(request, "users/no_fund.html")
+        messages.error(request, "No eligible transactions found.")
+        return redirect("pettycash:replenishment_report")
 
     return generate_replenishment_excel(context)
 
@@ -1501,30 +1795,44 @@ def create_replenishment(request):
     if not request.user.has_role("Custodian"):
         return render(request, "403.html", status=403)
 
-    fund = PettyCashFund.objects.get(
+    fund = PettyCashFund.objects.filter(
         custodian=request.user,
         is_active=True
-    )
+    ).first()
 
-    vouchers = PettyCashVoucher.objects.filter(
+    if not fund:
+        messages.error(request, "No active fund found.")
+        return redirect("users:dashboard_custodian")
+
+    selected_ids = request.POST.getlist("selected_vouchers")
+
+    base_qs = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.POSTED,
-        is_replenished=False
+        is_replenished=False,
+        replenishment__isnull=True
     )
 
-    total_expenses = vouchers.aggregate(
-        total=Sum("amount_requested")
-    )["total"] or Decimal("0.00")
+    if selected_ids:
+        vouchers = base_qs.filter(id__in=selected_ids)
+    else:
+        vouchers = base_qs
+
+    total_expenses = Decimal("0.00")
+
+    for voucher in vouchers:
+        total_expenses += voucher.actual_amount
 
     if request.method == "POST":
 
-        check_number = request.POST.get("check_number")
-        check_date = request.POST.get("check_date")
-        check_amount = Decimal(request.POST.get("check_amount"))
+        if not vouchers.exists():
+            messages.error(request, "No eligible vouchers found.")
+            return redirect("pettycash:replenishment_report")
 
-        if check_amount != total_expenses:
-            messages.error(request, "Check amount must match total expenses.")
-            return redirect("pettycash:create_replenishment")
+        # ===============================
+        # LOCK FUND FOR SAFE SERIES
+        # ===============================
+        fund = PettyCashFund.objects.select_for_update().get(pk=fund.pk)
 
         current_year = timezone.now().year
 
@@ -1538,40 +1846,42 @@ def create_replenishment(request):
         next_series = last_series + 1
         report_number = f"{current_year}-{next_series:04d}"
 
+        # ===============================
+        # SNAPSHOT OPENING BALANCE
+        # ===============================
+        latest_entry = fund.ledger_entries.order_by(
+            "-transaction_date", "-id"
+        ).first()
+
+        opening_balance = (
+            latest_entry.running_balance
+            if latest_entry
+            else fund.current_balance
+        )
+
         replenishment = Replenishment.objects.create(
             fund=fund,
             year=current_year,
             series_number=next_series,
             report_number=report_number,
-            check_number=check_number,
-            check_date=check_date,
-            check_amount=check_amount,
+            opening_balance=opening_balance,
             total_expenses=total_expenses,
+            status=ReplenishmentStatus.DRAFT,
             created_by=request.user
         )
 
-        vouchers.update(replenishment=replenishment,is_replenished=True)
+        # Link vouchers (but DO NOT mark replenished yet)
+        vouchers.update(replenishment=replenishment)
 
-        # 🔥 Update fund balance
-        fund.current_balance += check_amount
-        fund.save(update_fields=["current_balance"])
-
-        # 🔥 Create ledger entry
-        LedgerEntry.objects.create(
-            fund=fund,
-            transaction_date=check_date,
-            debit=check_amount,
-            credit=Decimal("0.00"),
-            running_balance=fund.current_balance,
-            reference_type=ReferenceType.REPLENISHMENT,
-            reference_no=report_number,
-            description=f"Replenishment - Check #{check_number}",
-            created_by=request.user,
+        messages.success(
+            request,
+            f"Replenishment {report_number} generated (Draft)."
         )
 
-        messages.success(request, f"Replenishment {report_number} created.")
-
-        return redirect("pettycash:replenishment_detail", pk=replenishment.pk)
+        return redirect(
+            "pettycash:replenishment_detail",
+            pk=replenishment.pk
+        )
 
     return render(
         request,
@@ -1617,18 +1927,30 @@ def replenishment_detail(request, pk):
     replenishment = get_object_or_404(
         Replenishment,
         pk=pk,
-        fund__custodian=request.user
+        fund__entity=request.user.entity
     )
 
+    # Group checks
+    is_admin = request.user.groups.filter(name="Administrator").exists()
+    is_custodian = request.user.groups.filter(name="Custodian").exists()
+
+    # Permission check
+    if not (is_admin or replenishment.fund.custodian == request.user):
+        return render(request, "403.html", status=403)
+
     vouchers = replenishment.vouchers.all().order_by("pcv_no")
+
+    context = {
+        "replenishment": replenishment,
+        "vouchers": vouchers,
+        "is_admin": is_admin,
+        "is_custodian": is_custodian,
+    }
 
     return render(
         request,
         "pettycash/custodian/replenishment_detail.html",
-        {
-            "replenishment": replenishment,
-            "vouchers": vouchers
-        }
+        context
     )
 
 
@@ -1944,3 +2266,428 @@ def generate_iar(request, uuid):
     messages.success(request, "IAR generated successfully.")
 
     return redirect("pettycash:supply_items")
+
+
+
+@login_required
+def submit_replenishment(request, pk):
+
+    replenishment = get_object_or_404(
+        Replenishment,
+        pk=pk,
+        fund__custodian=request.user
+    )
+
+    try:
+        ReplenishmentWorkflowService.submit(replenishment)
+        messages.success(request, "Replenishment submitted.")
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect("pettycash:replenishment_detail", pk=pk)
+
+
+@login_required
+def approve_replenishment(request, pk):
+
+    if not request.user.has_role("Administrator"):
+        return render(request, "403.html", status=403)
+
+    replenishment = get_object_or_404(Replenishment, pk=pk)
+
+    try:
+        ReplenishmentWorkflowService.approve(replenishment)
+        messages.success(request, "Replenishment approved.")
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect("pettycash:replenishment_detail", pk=pk)
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def release_replenishment(request, pk):
+
+    # 🔐 Custodian only
+    if not request.user.has_role("Custodian"):
+        return render(request, "403.html", status=403)
+
+    replenishment = get_object_or_404(
+        Replenishment.objects.select_for_update(),
+        pk=pk,
+        fund__entity=request.user.entity
+    )
+
+    # 🔐 Ensure assigned fund
+    if replenishment.fund.custodian != request.user:
+        messages.error(request, "You are not assigned to this fund.")
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    # 🔎 Must be submitted
+    if replenishment.status != ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING:
+        messages.error(request, "Replenishment must be submitted first.")
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    # 📥 Get inputs
+    check_number = request.POST.get("check_number", "").strip()
+    check_date = request.POST.get("check_date")
+    check_amount_raw = request.POST.get("check_amount")
+
+    # 🔎 Validation
+    if not check_number:
+        messages.error(request, "Check number is required.")
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    if not check_date:
+        messages.error(request, "Check date is required.")
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    try:
+        check_amount = Decimal(check_amount_raw)
+    except:
+        messages.error(request, "Invalid check amount.")
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    if check_amount != replenishment.total_expenses:
+        messages.error(
+            request,
+            "Check amount must match total expenses."
+        )
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    try:
+        ReplenishmentWorkflowService.release(
+            replenishment,
+            check_number,
+            check_date,
+            request.user
+        )
+
+        messages.success(
+            request,
+            f"Replenishment {replenishment.report_number} released successfully."
+        )
+
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect("pettycash:replenishment_detail", pk=pk)
+
+@login_required
+@require_POST
+@transaction.atomic
+def delete_replenishment(request, pk):
+
+    replenishment = get_object_or_404(
+        Replenishment.objects.select_for_update(),
+        pk=pk
+    )
+
+    if not request.user.has_role("Custodian"):
+        return render(request, "403.html", status=403)
+
+    if replenishment.fund.custodian != request.user:
+        return render(request, "403.html", status=403)
+
+    if replenishment.status != ReplenishmentStatus.DRAFT:
+        messages.error(
+            request,
+            "Submitted or released replenishments cannot be deleted."
+        )
+        return redirect("pettycash:replenishment_detail", pk=pk)
+
+    replenishment.vouchers.update(
+        replenishment=None,
+        is_replenished=False
+    )
+
+    replenishment.delete()
+
+    messages.success(request, "Draft replenishment deleted.")
+    return redirect("pettycash:replenishment_list")
+
+
+def clone_sheet(source_ws, target_wb, title):
+
+    target_ws = target_wb.create_sheet(title=title)
+
+    # Copy cell values + styles
+    for row in source_ws.iter_rows():
+        for cell in row:
+            new_cell = target_ws[cell.coordinate]
+            new_cell.value = cell.value
+
+            if cell.has_style:
+                new_cell.font = copy(cell.font)
+                new_cell.border = copy(cell.border)
+                new_cell.fill = copy(cell.fill)
+                new_cell.number_format = copy(cell.number_format)
+                new_cell.alignment = copy(cell.alignment)
+
+    # ✅ COPY COLUMN WIDTHS
+    for col in source_ws.column_dimensions:
+        target_ws.column_dimensions[col].width = source_ws.column_dimensions[col].width
+
+    # ✅ COPY ROW HEIGHTS
+    for row in source_ws.row_dimensions:
+        target_ws.row_dimensions[row].height = source_ws.row_dimensions[row].height
+
+    # ✅ VERY IMPORTANT: COPY MERGED CELLS
+    for merged_range in source_ws.merged_cells.ranges:
+        target_ws.merge_cells(str(merged_range))
+
+    return target_ws
+
+
+@login_required
+def replenishment_bundle_excel(request, pk):
+
+    replenishment = get_object_or_404(
+        Replenishment,
+        pk=pk,
+        fund__entity=request.user.entity
+    )
+
+    if not (
+        request.user.has_role("Custodian")
+        or request.user.has_role("Administrator")
+    ):
+        return render(request, "403.html", status=403)
+
+    vouchers = replenishment.vouchers.all().order_by(
+        "purchase_date",
+        "pcv_no"
+    )
+
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+
+        for voucher in vouchers:
+
+            # ================= SIGNATORIES =================
+            administrator = User.objects.filter(
+                entity=voucher.entity,
+                groups__name="Administrator",
+                is_active=True
+            ).first()
+
+            custodian = voucher.fund.custodian
+
+            # ================= GENERATE WORKBOOKS =================
+            wb_pcv = generate_pcv_excel(
+                voucher,
+                voucher.entity,
+                administrator,
+                custodian
+            )
+
+            wb_pr = generate_pr_excel(voucher, administrator)
+            wb_iar = generate_iar_excel(voucher)
+
+            # Rename PCV sheet
+            wb_pcv.active.title = "PCV"
+
+            # Clone PR
+            clone_sheet(wb_pr.active, wb_pcv, "PR")
+
+            # Clone IAR
+            clone_sheet(wb_iar.active, wb_pcv, "IAR")
+
+            # ✅ CNRR
+            if voucher.has_cnrr:
+                wb_cnrr = generate_cnrr_excel(voucher, administrator)
+                clone_sheet(wb_cnrr.active, wb_pcv, "CNRR")
+
+            
+
+            # ================= SAVE FINAL FILE =================
+            buffer = BytesIO()
+            wb_pcv.save(buffer)
+            buffer.seek(0)
+
+            filename = f"{voucher.pcv_no or voucher.uuid}.xlsx"
+
+            zip_file.writestr(filename, buffer.read())
+
+    zip_buffer.seek(0)
+
+    return HttpResponse(
+        zip_buffer,
+        content_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="replenishment_{replenishment.report_number}.zip"'
+        }
+    )
+
+@login_required
+def export_voucher_excel(request, uuid):
+
+    voucher = get_object_or_404(
+        PettyCashVoucher,
+        uuid=uuid,
+        entity=request.user.entity
+    )
+
+    # ================= SECURITY =================
+    if not (
+        request.user == voucher.requester
+        or request.user.has_role("Administrator")
+        or request.user.has_role("Custodian")
+    ):
+        return render(request, "403.html", status=403)
+
+    # ================= SIGNATORIES =================
+    administrator = User.objects.filter(
+        entity=voucher.entity,
+        groups__name="Administrator",
+        is_active=True
+    ).first()
+
+    custodian = voucher.fund.custodian if voucher.fund else None
+
+    # ================= GENERATE WORKBOOKS =================
+    wb_pcv = generate_pcv_excel(
+        voucher,
+        voucher.entity,
+        administrator,
+        custodian
+    )
+
+    wb_pr = generate_pr_excel(voucher, administrator)
+    wb_iar = generate_iar_excel(voucher)
+
+    # ================= COMBINE INTO ONE WORKBOOK =================
+    wb_pcv.active.title = "PCV"
+
+    clone_sheet(wb_pr.active, wb_pcv, "PR")
+    clone_sheet(wb_iar.active, wb_pcv, "IAR")
+
+    # ✅ CNRR SHEET (ONLY IF APPLICABLE)
+    if voucher.has_cnrr:
+        wb_cnrr = generate_cnrr_excel(voucher, administrator)
+        clone_sheet(wb_cnrr.active, wb_pcv, "CNRR")
+
+    # ================= OUTPUT =================
+    buffer = BytesIO()
+    wb_pcv.save(buffer)
+    buffer.seek(0)
+
+    filename = f"{voucher.pcv_no or voucher.uuid}.xlsx"
+
+    response = HttpResponse(
+        buffer,
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+    return response
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def reset_pettycash(request):
+
+    if not request.user.has_role("Custodian"):
+        return render(request, "403.html", status=403)
+
+    if request.POST.get("confirm") != "RESET":
+        messages.error(request, "Confirmation failed.")
+        return redirect("users:dashboard_custodian")
+
+    entity = request.user.entity
+
+    # =========================================
+    # 1. SOFT RESET VOUCHERS
+    # =========================================
+    PettyCashVoucher.objects.filter(entity=entity).update(
+        status=VoucherStatus.DRAFT,
+        is_posted_to_ledger=False,
+        is_release_posted=False,
+        is_liquidation_posted=False,
+        is_replenished=False,
+        replenishment=None,
+        release_date=None,
+        released_by=None,
+        amount_liquidated=0,
+        pr_no=None,
+        iar_no=None,
+    )
+
+    # =========================================
+    # 2. DELETE FINANCIAL DATA
+    # =========================================
+    LedgerEntry.objects.filter(fund__entity=entity).delete()
+    Replenishment.objects.filter(fund__entity=entity).delete()
+
+    # =========================================
+    # 3. DELETE AUDIT LOGS (RECENT ACTIVITIES)
+    # =========================================
+    from audit.models import AuditLog
+    audit_deleted, _ = AuditLog.objects.filter(entity=entity).delete()
+
+    # =========================================
+    # 4. DELETE NOTIFICATIONS
+    # =========================================
+    notifications_deleted, _ = Notification.objects.filter(
+        user__entity=entity
+    ).delete()
+
+    # =========================================
+    # 5. RESET FUND BALANCES
+    # =========================================
+    funds = PettyCashFund.objects.filter(entity=entity)
+
+    for fund in funds:
+        fund.current_balance = fund.fund_amount
+        fund.save(update_fields=["current_balance"])
+
+    # =========================================
+    # SUCCESS MESSAGE
+    # =========================================
+    messages.success(
+        request,
+        f"Petty cash reset completed. "
+        f"{audit_deleted} logs removed, "
+        f"{notifications_deleted} notifications cleared."
+    )
+
+    return redirect("users:dashboard_custodian")
+
+@login_required
+def backup_pettycash(request):
+
+    if not request.user.has_role("Custodian"):
+        return render(request, "403.html", status=403)
+
+    entity = request.user.entity
+
+    vouchers = PettyCashVoucher.objects.filter(entity=entity)
+
+    zip_buffer = BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+
+        for v in vouchers:
+
+            content = f"""
+                PCV: {v.pcv_no}
+                Purpose: {v.purpose}
+                Amount: {v.amount_requested}
+                Date: {v.created_at}
+                Status: {v.status}
+            """
+
+            filename = f"{v.pcv_no or v.uuid}.txt"
+            zip_file.writestr(filename, content)
+
+    zip_buffer.seek(0)
+
+    response = HttpResponse(zip_buffer, content_type="application/zip")
+    response["Content-Disposition"] = 'attachment; filename="pettycash_backup.zip"'
+
+    return response
+

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-wrapper">
+
+    <section class="content-header">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-1">Create New User</h1>
+                <small class="text-muted">
+                    The user will receive an email to activate their account.
+                </small>
+            </div>
+            <a href="{% url 'users:user_list' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> Back
+            </a>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+            <div class="row justify-content-center">
+                <div class="col-lg-9 col-xl-8">
+
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body p-4">
+
+                            <form method="POST" novalidate>
+                                {% csrf_token %}
+
+                                <!-- ACCOUNT DETAILS -->
+                                <h6 class="text-uppercase text-muted mb-2">Account Details</h6>
+                                <hr class="mt-1 mb-4">
+
+                                <div class="row">
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Username</label>
+                                            {{ form.username }}
+                                            {% if form.username.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ form.username.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Email Address</label>
+                                            {{ form.email }}
+                                            {% if form.email.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ form.email.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <!-- PERSONAL INFORMATION -->
+                                <h6 class="text-uppercase text-muted mt-4 mb-2">Personal Information</h6>
+                                <hr class="mt-1 mb-4">
+
+                                <div class="row">
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">First Name</label>
+                                            {{ form.first_name }}
+                                            {% if form.first_name.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ form.first_name.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Last Name</label>
+                                            {{ form.last_name }}
+                                            {% if form.last_name.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ form.last_name.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="small font-weight-bold">Employee Number</label>
+                                    {{ form.employee_number }}
+                                    {% if form.employee_number.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.employee_number.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- ASSIGNMENT -->
+                                <h6 class="text-uppercase text-muted mt-4 mb-2">Assignment & Role</h6>
+                                <hr class="mt-1 mb-4">
+
+                                <div class="row">
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Official Position</label>
+                                            {{ form.position }}
+                                            {% if form.position.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ form.position.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label class="small font-weight-bold">Functional Designation</label>
+                                            {{ form.designation }}
+                                            {% if form.designation.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ form.designation.errors.0 }}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="small font-weight-bold">Office / Division</label>
+                                    {{ form.office }}
+                                    {% if form.office.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.office.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="small font-weight-bold">System Role</label>
+                                    {{ form.role }}
+                                    {% if form.role.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.role.errors.0 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- BUTTONS -->
+                                <div class="d-flex justify-content-end border-top pt-3 mt-4">
+                                    <a href="{% url 'users:user_list' %}" class="btn btn-light mr-2">
+                                        Cancel
+                                    </a>
+
+                                    <button type="submit" class="btn btn-primary px-4">
+                                        Create User
+                                    </button>
+                                </div>
+
+                            </form>
+
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+{% endblock %}

@@ -130,6 +130,19 @@ class PettyCashFund(TimeStampedModel):
     def is_depleted(self):
         return self.current_balance <= 0
 
+    # 🔥 ADD THIS HERE
+    @property
+    def replenishment_percentage(self):
+        """
+        Returns how much of the fund has been used.
+        Used for 75% replenishment trigger.
+        """
+        if self.fund_amount <= 0:
+            return 0
+
+        used = self.fund_amount - self.current_balance
+        return (used / self.fund_amount) * 100
+
 
 # ==========================================================
 # LEDGER ENTRY

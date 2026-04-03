@@ -80,7 +80,7 @@ td, th {
                 <strong>Entity Name:</strong> {{ fund.entity.name }}
             </td>
             <td style="border:none;">
-                <strong>Report No:</strong> {{ report_number }}
+                <strong>Report No:</strong> {{ report_number|default:"-" }}
             </td>
         </tr>
         <tr>
@@ -88,7 +88,7 @@ td, th {
                 <strong>Fund Cluster:</strong> {{ fund.fund_cluster.code }}
             </td>
             <td style="border:none;">
-                <strong>Sheet No:</strong> {{ sheet_number }}
+                <strong>Sheet No:</strong> {{ sheet_number|default:"1" }}
             </td>
         </tr>
     </table>
@@ -121,7 +121,11 @@ td, th {
                 </td>
 
                 <td class="amount">
-                    {{ v.amount_requested|money }}
+                    {% if v.transaction_type == "CASH_ADVANCE" %}
+                        {{ v.amount_liquidated|money }}
+                    {% else %}
+                        {{ v.amount_requested|money }}
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
@@ -132,7 +136,7 @@ td, th {
                     <strong>TOTAL</strong>
                 </td>
                 <td class="amount">
-                    <strong>{{ total|money}}</strong>
+                    <strong>{{ replenishment_amount|money }}</strong>
                 </td>
             </tr>
         </tbody>

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-wrapper">
+
+    <!-- Header -->
+    <section class="content-header">
+        <div class="container-fluid d-flex justify-content-between align-items-center">
+            <div>
+                <h1>User Management</h1>
+                <small class="text-muted">
+                    Manage system users within your entity
+                </small>
+            </div>
+
+            <a href="{% url 'users:create_user' %}" 
+               class="btn btn-primary shadow-sm">
+                <i class="fas fa-user-plus"></i> Create User
+            </a>
+        </div>
+    </section>
+
+    <!-- Content -->
+    <section class="content">
+        <div class="card shadow-sm">
+
+            <div class="card-body p-0">
+
+                {% if users %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="thead-light">
+                            <tr>
+                                <th>Username</th>
+                                <th>Full Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th class="text-right">Action</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user.username }}</strong>
+                                </td>
+
+                                <td>{{ user.get_full_name }}</td>
+
+                                <td>
+                                    {% for group in user.groups.all %}
+                                        {% if group.name == "Administrator" %}
+                                            <span class="badge badge-primary">
+                                                Administrator
+                                            </span>
+                                        {% elif group.name == "Custodian" %}
+                                            <span class="badge badge-warning">
+                                                Custodian
+                                            </span>
+                                        {% elif group.name == "Inspection" %}
+                                            <span class="badge badge-info">
+                                                Inspection
+                                            </span>
+                                        {% elif group.name == "Supply" %}
+                                            <span class="badge badge-secondary">
+                                                Supply
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-success">
+                                                Staff
+                                            </span>
+                                        {% endif %}
+                                    {% endfor %}
+                                </td>
+
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge badge-success">
+                                            <i class="fas fa-check-circle"></i> Active
+                                        </span>
+                                    {% else %}
+                                        <span class="badge badge-danger">
+                                            <i class="fas fa-times-circle"></i> Inactive
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <td class="text-right">
+                                    {% if user.is_active %}
+                                        <a href="{% url 'users:deactivate_user' user.id %}"
+                                           class="btn btn-sm btn-outline-danger"
+                                           onclick="return confirm('Deactivate this user?')">
+                                            <i class="fas fa-user-slash"></i>
+                                        </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+
+                <!-- Empty State -->
+                <div class="text-center p-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5>No Users Found</h5>
+                    <p class="text-muted">
+                        Click "Create User" to add a new user.
+                    </p>
+                </div>
+
+                {% endif %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

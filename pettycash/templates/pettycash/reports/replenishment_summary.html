@@ -24,6 +24,7 @@ td, th {
 .center { text-align: center; }
 .right { text-align: right; }
 .bold { font-weight: bold; }
+
 </style>
 
 <div>
@@ -74,19 +75,28 @@ td, th {
                 </td>
 
                 <td>
-                    {{ v.expense_category.name }}
+                    {{ v.purpose }}
                 </td>
 
+                <!-- ✅ USE ACTUAL EXPENSE FROM BACKEND -->
                 <td class="right">
-                    {{ v.amount_requested|money }}
+                    {{ v.actual_amount|money }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="center">
+                    No transactions available.
                 </td>
             </tr>
             {% endfor %}
 
-            <!-- TOTAL ROW -->
+            <!-- ✅ CORRECT TOTAL -->
             <tr class="bold">
                 <td colspan="3" class="right">TOTAL</td>
-                <td class="right">{{ total|money }}</td>
+                <td class="right">
+                    {{ replenishment_amount|money }}
+                </td>
             </tr>
         </tbody>
     </table>
@@ -109,7 +119,6 @@ td, th {
 
     <table class="no-border" style="width:60%; margin:0 auto; text-align:center;">
         <tr>
-            <!-- NAME -->
             <td style="width:50%;">
 
                 <div style="font-weight:bold; text-transform:uppercase; text-decoration:underline;">
@@ -122,7 +131,6 @@ td, th {
 
             </td>
 
-            <!-- DATE -->
             <td style="width:50%;">
 
                 <div style="font-weight:bold; text-decoration:underline;">

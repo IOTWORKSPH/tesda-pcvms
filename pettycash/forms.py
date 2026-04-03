@@ -24,6 +24,7 @@ class CashAdvanceForm(forms.ModelForm):
             "purpose",
             "amount_requested",
         ]
+
         widgets = {
             "fund": forms.Select(attrs={"class": "form-control"}),
             "expense_category": forms.Select(attrs={"class": "form-control"}),
@@ -38,26 +39,55 @@ class CashAdvanceForm(forms.ModelForm):
             }),
         }
 
+    # ======================================================
+    # INITIALIZATION
+    # ======================================================
+
     def __init__(self, *args, **kwargs):
+
         user = kwargs.pop("user", None)
+
         super().__init__(*args, **kwargs)
 
-        # 🔐 ENTITY ISOLATION
         if user and user.entity:
-            self.fields["fund"].queryset = user.entity.funds.filter(is_active=True)
-            self.fields["expense_category"].queryset = user.entity.expense_categories.filter(is_active=True)
 
-        # 🔒 LOCK IF NOT DRAFT
+            # 🔐 SHOW ONLY FUNDS IN USER ENTITY
+            funds = user.entity.funds.filter(is_active=True)
+
+            self.fields["fund"].queryset = funds
+
+            # 🔐 SHOW ONLY ENTITY EXPENSE CATEGORIES
+            self.fields["expense_category"].queryset = (
+                user.entity.expense_categories.filter(is_active=True)
+            )
+
+            # ⭐ AUTO SELECT DEFAULT FUND
+            if not self.instance.pk:
+
+                default_fund = funds.first()
+
+                if default_fund:
+                    self.fields["fund"].initial = default_fund
+
+        # 🔒 LOCK FORM IF NOT DRAFT
         if self.instance.pk and self.instance.status != "DRAFT":
+
             for field in self.fields:
                 self.fields[field].disabled = True
 
-    # 🔎 VALIDATION
+
+    # ======================================================
+    # VALIDATION
+    # ======================================================
+
     def clean_amount_requested(self):
+
         amount = self.cleaned_data.get("amount_requested")
 
         if amount is None or amount <= Decimal("0.00"):
-            raise forms.ValidationError("Amount must be greater than zero.")
+            raise forms.ValidationError(
+                "Amount must be greater than zero."
+            )
 
         return amount
 
@@ -117,15 +147,30 @@ class RefundForm(forms.ModelForm):
     # ==========================================================
 
     def __init__(self, *args, **kwargs):
+
         user = kwargs.pop("user", None)
+
         super().__init__(*args, **kwargs)
 
-        # 🔐 ENTITY ISOLATION
         if user and user.entity:
-            self.fields["fund"].queryset = user.entity.funds.filter(is_active=True)
-            self.fields["expense_category"].queryset = user.entity.expense_categories.filter(is_active=True)
 
-        # 🧠 Populate supplier_name if editing existing record
+            funds = user.entity.funds.filter(is_active=True)
+
+            # 🔐 SHOW ONLY ENTITY FUNDS
+            self.fields["fund"].queryset = funds
+
+            # ⭐ AUTO SELECT FIRST FUND
+            if not self.instance.pk:
+                default_fund = funds.first()
+                if default_fund:
+                    self.fields["fund"].initial = default_fund
+
+            # 🔐 ENTITY EXPENSE CATEGORIES
+            self.fields["expense_category"].queryset = (
+                user.entity.expense_categories.filter(is_active=True)
+            )
+
+        # Populate supplier if editing
         if self.instance.pk and self.instance.supplier:
             self.fields["supplier_name"].initial = self.instance.supplier.name
 

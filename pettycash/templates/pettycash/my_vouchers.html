@@ -3,6 +3,12 @@
 {% load humanize %}
 
 {% block content %}
+<style>
+    .table-responsive {
+        overflow: visible !important;
+    }
+</style>
+
 
 <section class="content-header">
     <div class="container-fluid">
@@ -96,16 +102,25 @@
                                 <i class="fas fa-edit"></i>
                             </a>
 
-                            <a href="{% url 'pettycash:delete_pcv' voucher.uuid %}"
-                               class="btn btn-sm btn-outline-danger"
-                               title="Delete">
-                                <i class="fas fa-trash"></i>
-                            </a>
+                            <form method="POST"
+                                action="{% url 'pettycash:delete_pcv' voucher.uuid %}"
+                                style="display:inline;"
+                                onsubmit="return confirm('Are you sure you want to delete this draft?');">
+
+                                {% csrf_token %}
+
+                                <button type="submit"
+                                        class="btn btn-sm btn-outline-danger"
+                                        title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+
+                            </form>
                         {% endif %}
 
                         <!-- LIQUIDATE -->
                         {% if voucher.status == "RELEASED" %}
-                            <a href="{% url 'pettycash:liquidate_voucher' voucher.uuid %}"
+                            <a href="{% url 'pettycash:liquidate_cash_advance' voucher.uuid %}"
                                class="btn btn-sm btn-outline-success"
                                title="Liquidate">
                                 <i class="fas fa-file-invoice-dollar"></i>
@@ -113,54 +128,81 @@
                         {% endif %}
 
                         <!-- PRINT -->
-                        {% if voucher.has_receipt %}
+                        {% if voucher.pcv_no %}
 
-                        <div class="btn-group btn-group-sm">
-                            <button type="button"
-                                    class="btn btn-outline-secondary dropdown-toggle"
-                                    data-toggle="dropdown"
-                                    aria-haspopup="true"
-                                    aria-expanded="false"
-                                    title="Print Documents">
-                                <i class="fas fa-print"></i>
-                            </button>
+                            <div class="btn-group btn-group-sm position-static">
 
-                            <div class="dropdown-menu dropdown-menu-right shadow">
+                                <button type="button"
+                                        class="btn btn-outline-secondary dropdown-toggle"
+                                        data-toggle="dropdown"
+                                        title="Print Documents">
+                                    <i class="fas fa-print"></i>
+                                </button>
 
-                                <a class="dropdown-item"
-                                href="{% url 'pettycash:print_pcv' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-file-invoice mr-2 text-primary"></i>
-                                    Print PCV
-                                </a>
+                                <div class="dropdown-menu dropdown-menu-right shadow">
 
-                                <a class="dropdown-item"
-                                href="{% url 'pettycash:print_pr' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-file-alt mr-2 text-info"></i>
-                                    Print PR
-                                </a>
+                                    <!-- PCV (always if has pcv_no) -->
+                                    <a class="dropdown-item"
+                                    href="{% url 'pettycash:print_pcv' voucher.uuid %}"
+                                    target="_blank">
+                                        <i class="fas fa-file-invoice mr-2 text-primary"></i>
+                                        Print PCV
+                                    </a>
 
-                                <a class="dropdown-item"
-                                href="{% url 'pettycash:print_iar' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-clipboard-check mr-2 text-success"></i>
-                                    Print IAR
-                                </a>
+                                    <!-- PR (only if exists) -->
+                                    {% if voucher.pr_no %}
+                                    <a class="dropdown-item"
+                                    href="{% url 'pettycash:print_pr' voucher.uuid %}"
+                                    target="_blank">
+                                        <i class="fas fa-file-alt mr-2 text-info"></i>
+                                        Print PR
+                                    </a>
+                                    {% endif %}
 
-                                <div class="dropdown-divider"></div>
+                                    <!-- IAR (only if exists) -->
+                                    {% if voucher.iar_no %}
+                                    <a class="dropdown-item"
+                                    href="{% url 'pettycash:print_iar' voucher.uuid %}"
+                                    target="_blank">
+                                        <i class="fas fa-clipboard-check mr-2 text-success"></i>
+                                        Print IAR
+                                    </a>
+                                    {% endif %}
+                                    
+                                    {% if voucher.has_cnrr %}
+                                    <a class="dropdown-item"
+                                        href="{% url 'pettycash:print_cnrr' voucher.uuid %}"
+                                        target="_blank">
+                                            <i class="fas fa-file-medical mr-2 text-danger"></i>
+                                            Print CNRR
+                                        </a>
+                                    {% endif %}
 
-                                <a class="dropdown-item font-weight-bold"
-                                href="{% url 'pettycash:print_all' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-print mr-2 text-dark"></i>
-                                    Print All Documents
-                                </a>
+                                    <!-- SHOW "PRINT ALL" only if at least 2 docs exist -->
+                                    {% if voucher.pr_no or voucher.iar_no %}
+                                    <div class="dropdown-divider"></div>
+
+                                    <a class="dropdown-item font-weight-bold"
+                                    href="{% url 'pettycash:print_all' voucher.uuid %}"
+                                    target="_blank">
+                                        <i class="fas fa-print mr-2 text-dark"></i>
+                                        Print All Documents
+                                    </a>
+                                    {% endif %}
+
+                                </div>
 
                             </div>
-                        </div>
+                            
+                            <a href="{% url 'pettycash:export_voucher_excel' voucher.uuid %}"
+                                class="btn btn-sm btn-outline-success"
+                                title="Export Excel">
+                                    <i class="fas fa-file-excel"></i>
+                            </a>
 
                         {% endif %}
+
+                        
 
                     </td>
 

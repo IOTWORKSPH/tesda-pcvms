@@ -103,5 +103,10 @@ td, th {
 
         {% include "pettycash/print/print_iar.html" %}
 
+{% if pcv.has_cnrr %}
+<div class="page-break"></div>
+        {% include "pettycash/print/print_cnrr.html" %}
+{% endif %}
+
 </body>
 </html>

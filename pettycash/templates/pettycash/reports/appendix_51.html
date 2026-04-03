@@ -140,7 +140,7 @@ td, th {
         <!-- ================= TOTAL ROW ================= -->
         <tr style="font-weight:bold;">
             <td colspan="4" style="text-align:right;">TOTAL</td>
-            <td class="amount">{{ total|money }}</td>
+            <td class="amount">{{ replenishment_amount|money }}</td>
             <td></td>
 
             {% for category in expense_categories %}

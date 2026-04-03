@@ -50,12 +50,17 @@ class LedgerService:
 
         amount = voucher.amount_requested
 
-        if fund.current_balance < amount:
+        current_balance = LedgerService._compute_new_balance(fund)
+
+        if current_balance < amount:
             raise ValueError("Insufficient fund balance.")
 
         previous_status = voucher.status
 
-        new_balance = fund.current_balance - amount
+        new_balance = LedgerService._compute_new_balance(
+            fund,
+            credit=amount
+        )
 
         LedgerEntry.objects.create(
             fund=fund,
@@ -111,12 +116,17 @@ class LedgerService:
 
         amount = voucher.amount_requested
 
-        if fund.current_balance < amount:
+        current_balance = LedgerService._compute_new_balance(fund)
+
+        if current_balance < amount:
             raise ValueError("Insufficient fund balance.")
 
         previous_status = voucher.status
 
-        new_balance = fund.current_balance - amount
+        new_balance = LedgerService._compute_new_balance(
+            fund,
+            credit=amount
+        )
 
         LedgerEntry.objects.create(
             fund=fund,
@@ -135,7 +145,12 @@ class LedgerService:
 
         voucher.status = VoucherStatus.RELEASED
         voucher.is_release_posted = True
-        voucher.save(update_fields=["status", "is_posted_to_ledger"])
+        # voucher.is_posted_to_ledger = True
+
+        voucher.save(update_fields=[
+            "status",
+            "is_release_posted"
+        ])
 
         # Audit log
         AuditService.log(
@@ -201,7 +216,10 @@ class LedgerService:
         # ============================================
         if difference > 0:
 
-            new_balance = fund.current_balance + difference
+            new_balance = LedgerService._compute_new_balance(
+                fund,
+                debit=difference
+            )
 
             LedgerEntry.objects.create(
                 fund=fund,
@@ -225,10 +243,15 @@ class LedgerService:
 
             shortage = abs(difference)
 
-            if fund.current_balance < shortage:
+            current_balance = LedgerService._compute_new_balance(fund)
+
+            if current_balance < shortage:
                 raise ValueError("Insufficient fund balance for shortage adjustment.")
 
-            new_balance = fund.current_balance - shortage
+            new_balance = LedgerService._compute_new_balance(
+                fund,
+                credit=shortage
+            )
 
             LedgerEntry.objects.create(
                 fund=fund,
@@ -262,3 +285,33 @@ class LedgerService:
         )
 
         return True
+
+    @staticmethod
+    def _compute_new_balance(fund, debit=Decimal("0.00"), credit=Decimal("0.00")):
+        """
+        Compute running balance strictly from last ledger entry.
+        """
+
+        last_entry = (
+            LedgerEntry.objects
+            .filter(fund=fund)
+            .order_by("-transaction_date", "-id")
+            .first()
+        )
+
+        previous_balance = (
+            last_entry.running_balance
+            if last_entry
+            else fund.fund_amount
+        )
+
+        if debit and credit:
+            raise ValueError("Ledger entry cannot have both debit and credit.")
+
+        if debit > 0:
+            return previous_balance + debit
+
+        if credit > 0:
+            return previous_balance - credit
+
+        return previous_balance

@@ -48,14 +48,18 @@ urlpatterns = [
     path("reports/replenishment/generate/", views.replenishment_generate, name="replenishment_generate"),
     path("reports/replenishment/package/", views.replenishment_package_pdf, name="replenishment_package_pdf"),
     path("reports/replenishment/export/", views.replenishment_export_excel, name="replenishment_export_excel"),
+    path("replenishment/<int:pk>/bundle-excel/",views.replenishment_bundle_excel,name="replenishment_bundle_excel",),
+    path("pcv/<uuid:uuid>/export-excel/",views.export_voucher_excel,name="export_voucher_excel"),
+    path("print/cnrr/<uuid:uuid>/",views.print_cnrr,name="print_cnrr"),
 
-    # ==========================
     # REPLENISHMENT MANAGEMENT
-    # ==========================
-
     path("replenishment/", views.replenishment_list, name="replenishment_list"),
     path("replenishment/create/", views.create_replenishment, name="create_replenishment"),
     path("replenishment/<int:pk>/", views.replenishment_detail, name="replenishment_detail"),
+    path("replenishment/<int:pk>/submit/", views.submit_replenishment, name="submit_replenishment"),
+    path("replenishment/<int:pk>/approve/", views.approve_replenishment, name="approve_replenishment"),
+    path("replenishment/<int:pk>/release/", views.release_replenishment, name="release_replenishment"),
+    path("replenishment/<int:pk>/delete/", views.delete_replenishment, name="delete_replenishment"),
 
 
     # ================= PRINT ROUTES =================
@@ -78,4 +82,7 @@ urlpatterns = [
     path("supply/items/", views.supply_items, name="supply_items"),
     path("supply/iar-pending/", views.supply_iar_pending, name="supply_iar_pending"),
     path("supply/iar-generate/<uuid:uuid>/", views.generate_iar, name="generate_iar"),
+
+    path("reset/", views.reset_pettycash, name="reset_pettycash"),
+    path("backup/", views.backup_pettycash, name="backup_pettycash"),
 ]

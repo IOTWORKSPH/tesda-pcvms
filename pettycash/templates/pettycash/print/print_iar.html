@@ -151,7 +151,9 @@ td, th {
             </td>
 
             <td colspan="2">
-                <strong>IAR No.:</strong> {{ pcv.iar_no|default:"-" }}<br><br>
+                <strong>IAR No.: </strong>
+                <!-- {{ pcv.iar_no|default:"-" }} -->{{ pcv.purchase_date|date:"Y-m" }}-_____
+                <br><br>
 
                 <strong>Invoice No.:</strong>
                 {{ pcv.official_receipt_number|default:"-" }}<br>
@@ -260,7 +262,7 @@ td, th {
                     </div>
 
                     <div class="signature-position">
-                        {{ acceptance.designation }}
+                        {{ acceptance.position }}
                     </div>
                 {% else %}
                     <div class="signature-position">

@@ -3,29 +3,176 @@
 
 {% block content %}
 
-<h2>Replenishment {{ replenishment.report_number }}</h2>
+<div class="container mt-4">
 
-<p><strong>Check No:</strong> {{ replenishment.check_number }}</p>
-<p><strong>Check Date:</strong> {{ replenishment.check_date }}</p>
-<p><strong>Total:</strong> {{ replenishment.total_expenses|intcomma }}</p>
+    <h3 class="mb-3">
+        Replenishment {{ replenishment.report_number }}
+    </h3>
 
-<table class="table table-bordered mt-3">
-<thead>
-<tr>
-<th>PCV No</th>
-<th>Date</th>
-<th>Amount</th>
-</tr>
-</thead>
-<tbody>
-{% for v in vouchers %}
-<tr>
-<td>{{ v.pcv_no }}</td>
-<td>{{ v.purchase_date }}</td>
-<td>{{ v.amount_requested|intcomma }}</td>
-</tr>
-{% endfor %}
-</tbody>
-</table>
+    <!-- STATUS -->
+    <div class="mb-3">
+        <span class="badge 
+            {% if replenishment.status == 'DRAFT' %}badge-secondary
+            {% elif replenishment.status == 'SUBMITTED' %}badge-warning
+            {% elif replenishment.status == 'APPROVED' %}badge-primary
+            {% elif replenishment.status == 'RELEASED' %}badge-success
+            {% endif %}">
+            {{ replenishment.get_status_display }}
+        </span>
+    </div>
+
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <strong>Total Expenses:</strong><br>
+            ₱{{ replenishment.total_expenses|floatformat:2|intcomma }}
+        </div>
+
+        <div class="col-md-4">
+            <strong>Created:</strong><br>
+            {{ replenishment.created_at|date:"M d, Y H:i" }}
+        </div>
+
+        <div class="col-md-4">
+            <strong>Opening Balance:</strong><br>
+            ₱{{ replenishment.opening_balance|floatformat:2|intcomma }}
+        </div>
+        
+    </div>
+
+    <hr>
+
+    <!-- INCLUDED VOUCHERS -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+
+        <h5 class="mb-0">
+            Included Transactions
+        </h5>
+
+        <a href="{% url 'pettycash:replenishment_list' %}"
+        class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-folder-open me-1"></i>
+            View Replenishment Records
+        </a>
+
+    </div>
+
+    <table class="table table-bordered table-sm">
+        <thead class="table-light">
+            <tr>
+                <th>PCV No</th>
+                <th>Date</th>
+                <th>Purpose</th>
+                <th class="text-end">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vouchers %}
+            <tr>
+                <td>{{ v.pcv_no }}</td>
+                <td>{{ v.purchase_date }}</td>
+                <td>{{ v.purpose }}</td>
+                <td class="text-end">
+                    ₱{{ v.actual_amount|floatformat:2|intcomma }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No transactions found.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <hr>
+
+    <!-- ============================= -->
+    <!-- DRAFT ACTIONS (Custodian) -->
+    <!-- ============================= -->
+    {% if replenishment.status == "DRAFT" and is_custodian %}
+
+        <form method="post"
+              action="{% url 'pettycash:submit_replenishment' replenishment.pk %}"
+              class="d-inline">
+            {% csrf_token %}
+            <button class="btn btn-primary">
+                Submit to Accounting
+            </button>
+        </form>
+
+        <form method="post"
+              action="{% url 'pettycash:delete_replenishment' replenishment.pk %}"
+              class="d-inline"
+              onsubmit="return confirm('Delete this draft?');">
+            {% csrf_token %}
+            <button class="btn btn-danger">
+                Delete Draft
+            </button>
+        </form>
+
+    {% endif %}
+
+    <!-- ============================= -->
+    <!-- RELEASE (Custodian) -->
+    <!-- ============================= -->
+    {% if replenishment.status == "APPROVED" and is_custodian %}
+
+        <hr>
+        <h5>Release Replenishment</h5>
+
+        <form method="post"
+              action="{% url 'pettycash:release_replenishment' replenishment.pk %}">
+
+            {% csrf_token %}
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label>Check Number</label>
+                    <input type="text" name="check_number"
+                           class="form-control" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Check Date</label>
+                    <input type="date" name="check_date"
+                           class="form-control" required>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Check Amount</label>
+                    <input type="number"
+                           step="0.01"
+                           name="check_amount"
+                           value="{{ replenishment.total_expenses }}"
+                           class="form-control"
+                           required>
+                </div>
+            </div>
+
+            <br>
+
+            <button class="btn btn-danger">
+                Confirm Release
+            </button>
+        </form>
+
+    {% endif %}
+
+    <!-- ============================= -->
+    <!-- RELEASED VIEW -->
+    <!-- ============================= -->
+    {% if replenishment.status == "RELEASED" %}
+
+        <div class="alert alert-success mt-3">
+            <strong>Released Successfully</strong><br>
+            Check No: {{ replenishment.check_number }}<br>
+            Check Date: {{ replenishment.check_date }}<br>
+            Amount: ₱{{ replenishment.check_amount|floatformat:2|intcomma }}
+        </div>
+
+    {% endif %}
+
+</div>
 
 {% endblock %}

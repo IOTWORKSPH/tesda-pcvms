@@ -64,7 +64,57 @@
         </div>
     </div>
 
+    <!-- ================= RESET PETTY CASH (Uncomment below codes to show reset button)================= -->
+    <div class="card border-danger mt-4">
+
+        <div class="card-header bg-danger text-white">
+            ⚠ System Reset (Testing Only)
+        </div>
+
+        <div class="card-body">
+
+            <p class="mb-3">
+                Reset all petty cash transactions for your entity.
+                This includes vouchers, ledger entries, and replenishment records.
+            </p>
+
+            <button class="btn btn-danger"
+                    data-toggle="modal"
+                    data-target="#resetModal">
+                <i class="fas fa-trash"></i> Reset Petty Cash
+            </button>
+
+        </div>
+    </div>
+
 </div>
+<!-- ============================= -->
+<!-- REPLENISHMENT ALERT -->
+<!-- ============================= -->
+
+{% if show_replenishment_alert %}
+<div class="alert alert-danger shadow-sm d-flex justify-content-between align-items-center">
+    <div>
+        <strong>⚠ Replenishment Required:</strong>
+        Fund utilization has reached 
+        <strong>{{ utilization_percent }}%</strong>.
+        It is recommended to prepare a replenishment report.
+    </div>
+    <div>
+        <a href="{% url 'pettycash:create_replenishment' %}"
+           class="btn btn-light btn-sm">
+            <i class="fas fa-file-invoice-dollar mr-1"></i>
+            Generate Report
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% if active_replenishment_exists %}
+<div class="alert alert-info shadow-sm">
+    ℹ A replenishment request is currently being processed.
+</div>
+{% endif %}
 
 <!-- ========================================= -->
 <!-- FINANCIAL BREAKDOWN -->
@@ -510,5 +560,78 @@
 </div>
 </section>
 
+<!-- ================= RESET CONFIRMATION MODAL ================= -->
+<div class="modal fade" id="resetModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header bg-danger">
+        <h5 class="modal-title text-white">
+            ⚠ Confirm Reset
+        </h5>
+      </div>
+
+      <div class="modal-body">
+
+        <ul class="text-danger">
+            <li>Reset all vouchers to draft</li>
+            <li>Delete ledger entries</li>
+            <li>Delete replenishment records</li>
+            <li>Restore fund balance</li>
+        </ul>
+
+        <div class="alert alert-warning">
+            This action is irreversible unless you backup.
+        </div>
+
+        <label>Type <strong>RESET</strong> to confirm:</label>
+        <input type="text" id="confirmText" class="form-control">
+
+      </div>
+
+      <div class="modal-footer">
+
+        <!-- BACKUP -->
+        <a href="{% url 'pettycash:backup_pettycash' %}"
+           class="btn btn-secondary">
+            <i class="fas fa-download"></i> Backup First
+        </a>
+
+        <!-- RESET -->
+        <form method="post"
+              action="{% url 'pettycash:reset_pettycash' %}">
+            {% csrf_token %}
+
+            <input type="hidden" name="confirm" id="confirmHidden">
+
+            <button type="submit"
+                    class="btn btn-danger"
+                    id="resetBtn"
+                    disabled>
+                Reset Now
+            </button>
+        </form>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById("confirmText").addEventListener("input", function() {
+
+    const value = this.value.trim();
+    const btn = document.getElementById("resetBtn");
+
+    if (value === "RESET") {
+        btn.disabled = false;
+        document.getElementById("confirmHidden").value = "RESET";
+    } else {
+        btn.disabled = true;
+    }
+
+});
+</script>
 
 {% endblock %}

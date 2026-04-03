@@ -1,3 +1,5 @@
+#pettycash/management/commands/reset_pettycash_dev.py
+
 # ⚠ WARNING: DEVELOPMENT USE ONLY
 
 from django.core.management.base import BaseCommand

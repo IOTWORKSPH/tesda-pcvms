@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="content-wrapper">
+
+    <!-- HEADER -->
+    <section class="content-header">
+        <div class="container-fluid">
+            <h1>Create Entity & Administrator</h1>
+            <p class="text-muted">
+                Register a new TESDA Training Center and assign its primary Administrator.
+            </p>
+        </div>
+    </section>
+
+    <!-- CONTENT -->
+    <section class="content">
+        <div class="card shadow-lg">
+
+            <div class="card-body">
+
+                <form method="POST" novalidate>
+                    {% csrf_token %}
+
+                    <!-- ===================================== -->
+                    <!-- ENTITY INFORMATION -->
+                    <!-- ===================================== -->
+                    <div class="mb-4">
+                        <h5 class="text-primary mb-3">
+                            <i class="fas fa-building"></i> Entity Information
+                        </h5>
+
+                        <div class="row">
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Entity Code</label>
+                                    {{ entity_form.code }}
+                                    <small class="text-muted">
+                                        Example: PTC-ZS
+                                    </small>
+                                    {{ entity_form.code.errors }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Entity Name</label>
+                                    {{ entity_form.name }}
+                                    {{ entity_form.name.errors }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="form-group">
+                            <label>Address</label>
+                            {{ entity_form.address }}
+                            {{ entity_form.address.errors }}
+                        </div>
+
+                        <div class="form-group">
+                            <label>TIN</label>
+                            {{ entity_form.tin }}
+                            {{ entity_form.tin.errors }}
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- ===================================== -->
+                    <!-- ADMINISTRATOR INFORMATION -->
+                    <!-- ===================================== -->
+                    <div class="mt-4">
+                        <h5 class="text-primary mb-3">
+                            <i class="fas fa-user-shield"></i> Administrator Information
+                        </h5>
+
+                        <div class="alert alert-info">
+                            The Administrator will receive an email to set their password.
+                        </div>
+
+                        <!-- Account -->
+                        <div class="row">
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Username</label>
+                                    {{ admin_form.username }}
+                                    {{ admin_form.username.errors }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Email Address</label>
+                                    {{ admin_form.email }}
+                                    {{ admin_form.email.errors }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Personal -->
+                        <div class="row">
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>First Name</label>
+                                    {{ admin_form.first_name }}
+                                    {{ admin_form.first_name.errors }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Last Name</label>
+                                    {{ admin_form.last_name }}
+                                    {{ admin_form.last_name.errors }}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div class="form-group">
+                            <label>Employee Number</label>
+                            {{ admin_form.employee_number }}
+                            {{ admin_form.employee_number.errors }}
+                        </div>
+
+                        <!-- Position -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Official Position</label>
+                                    {{ admin_form.position }}
+                                    {{ admin_form.position.errors }}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Functional Designation</label>
+                                    {{ admin_form.designation }}
+                                    {{ admin_form.designation.errors }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Office / Division</label>
+                            {{ admin_form.office }}
+                            {{ admin_form.office.errors }}
+                        </div>
+
+                    </div>
+
+                    <hr>
+
+                    <!-- ACTION BUTTONS -->
+                    <div class="d-flex justify-content-end">
+                        <a href="{% url 'users:user_list' %}"
+                           class="btn btn-secondary mr-2">
+                            Cancel
+                        </a>
+
+                        <button type="submit"
+                                class="btn btn-success">
+                            <i class="fas fa-check-circle"></i>
+                            Create Entity & Administrator
+                        </button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

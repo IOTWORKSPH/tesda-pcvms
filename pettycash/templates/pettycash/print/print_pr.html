@@ -103,7 +103,9 @@ td, th {
     </td>
 
     <td colspan="2">
-        <strong>PR No.:</strong> {{ pcv.pr_no }}<br><br>
+        <strong>PR No.: </strong> 
+        <!-- {{ pcv.pr_no }} --> {{ pcv.purchase_date|date:"Y-m" }}-_____
+        <br><br>
         <strong>Responsibility Center Code:</strong>
         {{ pcv.fund.responsibility_center.code }}
     </td>
@@ -199,12 +201,12 @@ td, th {
     <td colspan="2" class="bold">Designation:</td>
 
     <td colspan="2" class="text-center">
-        {{ pcv.requester.designation }}
+        {{ pcv.requester.position }}
     </td>
 
     <td colspan="2" class="text-center">
         {% if administrator %}
-            {{ administrator.designation }}
+            {{ administrator.position }}
         {% endif %}
     </td>
 </tr>

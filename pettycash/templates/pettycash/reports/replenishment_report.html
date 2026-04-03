@@ -4,210 +4,317 @@
 {% load humanize %}
 
 {% block content %}
+<div class="container-fluid mt-4">
 
-<div class="container mt-4">
+    <!-- ================= HEADER ================= -->
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center mb-3">
 
-    <h4 class="text-center fw-bold">
-        PETTY CASH REPLENISHMENT REPORT
-    </h4>
-
-    <form method="get" class="card p-3 mb-4 shadow-sm">
-
-        <div class="row align-items-end">
-
-            <div class="col-md-4">
-                <label class="form-label">From Date</label>
-                <input type="date"
-                    name="date_from"
-                    class="form-control"
-                    value="{{ date_from }}">
-            </div>
-
-            <div class="col-md-4">
-                <label class="form-label">To Date</label>
-                <input type="date"
-                    name="date_to"
-                    class="form-control"
-                    value="{{ date_to }}">
-            </div>
-
-            <div class="col-md-4">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-filter"></i> Apply Filter
-                </button>
-
-                <a href="{% url 'pettycash:replenishment_report' %}"
-                class="btn btn-secondary">
-                    Reset
-                </a>
-            </div>
-
+        <div>
+            <h4 class="fw-bold mb-1">
+                Petty Cash Replenishment
+            </h4>
+            <small class="text-muted">
+                Review posted transactions and generate replenishment draft
+            </small>
         </div>
 
+        <div class="mt-3 mt-lg-0 d-flex gap-2 flex-wrap">
+            <a href="{% url 'pettycash:replenishment_list' %}"
+               class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-folder-open me-1"></i>
+                View Records
+            </a>
+
+            <button type="submit"
+                    form="reportForm"
+                    formaction="{% url 'pettycash:create_replenishment' %}"
+                    class="btn btn-success btn-sm">
+                <i class="fas fa-plus-circle me-1"></i>
+                Create Replenishment
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= FILTER CARD ================= -->
+    <form method="get" class="card shadow-sm mb-3">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label">From Date</label>
+                    <input type="date" name="date_from"
+                           value="{{ date_from }}"
+                           class="form-control">
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label">To Date</label>
+                    <input type="date" name="date_to"
+                           value="{{ date_to }}"
+                           class="form-control">
+                </div>
+
+                <div class="col-12 col-md-3">
+                    <label class="form-label">Search</label>
+                    <input type="text"
+                           name="q"
+                           value="{{ search_query }}"
+                           class="form-control"
+                           placeholder="PCV No or Purpose">
+                </div>
+
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-filter me-1"></i> Filter
+                    </button>
+                    <a href="{% url 'pettycash:replenishment_report' %}"
+                       class="btn btn-light w-100 border">
+                        Reset
+                    </a>
+                </div>
+
+            </div>
+        </div>
     </form>
 
-    <form method="post" action="{% url 'pettycash:replenishment_generate' %}" id="reportForm">
+    <!-- ================= SUMMARY METRICS ================= -->
+    <div class="row g-3 mb-3">
+
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted">Total Transactions</small>
+                    <h5 class="fw-bold mb-0">{{ vouchers|length }}</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted">Total Amount</small>
+                    <h5 class="fw-bold mb-0">
+                        ₱{{ total|floatformat:2|intcomma }}
+                    </h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <small class="text-muted">Selected Amount</small>
+                    <h5 class="fw-bold mb-0 text-success" id="selected-total">
+                        ₱0.00
+                    </h5>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= TABLE ================= -->
+    <form method="post" id="reportForm">
         {% csrf_token %}
+        <input type="hidden" name="date_from" value="{{ date_from }}">
+        <input type="hidden" name="date_to" value="{{ date_to }}">
 
-        <div class="d-flex justify-content-between mb-3">
+        <div class="card shadow-sm">
 
-            <div>
-                <button type="button" id="select-visible" class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-check-square"></i> Select All Visible
-                </button>
+            <!-- TABLE TOOLBAR -->
+            <div class="card-header bg-white d-flex flex-wrap justify-content-between align-items-center">
 
-                <button type="button" id="clear-selection" class="btn btn-outline-secondary btn-sm">
-                    Clear Selection
-                </button>
+                <div class="d-flex gap-2">
+                    <button type="button"
+                            id="select-visible"
+                            class="btn btn-outline-primary btn-sm">
+                        Select All
+                    </button>
+
+                    <button type="button"
+                            id="clear-selection"
+                            class="btn btn-outline-secondary btn-sm">
+                        Clear
+                    </button>
+                </div>
+
+                <small class="text-muted mt-2 mt-md-0">
+                    If none selected, all filtered records will be included.
+                </small>
+
             </div>
 
-            <div>
-                <strong>Selected Total: </strong>
-                <span id="selected-total">₱0.00</span>
-            </div>
+            <div class="table-responsive">
 
-            <div>
-                <button type="submit" class="btn btn-success btn-sm">
-                    <i class="fas fa-print"></i> Print Selected
-                </button>
-            </div>
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="40"></th>
+                            <th>Date</th>
+                            <th>PCV No</th>
+                            <th>Purpose</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
 
-            <div>
-                <a href="{% url 'pettycash:replenishment_package_pdf' %}{% if query_string %}?{{ query_string }}{% endif %}"
-                target="_blank"
-                class="btn btn-danger btn-sm">
-                    <i class="fas fa-file-pdf"></i>
-                    Generate Replenishment Report
-                </a>
+                    <tbody>
+                        {% for voucher in vouchers %}
+                        <tr>
+                            <td>
+                                <input type="checkbox"
+                                       name="selected_vouchers"
+                                       value="{{ voucher.id }}"
+                                       class="row-checkbox"
+                                       data-amount="{{ voucher.amount_requested }}">
+                            </td>
 
-                <button type="submit"
-                        formaction="{% url 'pettycash:replenishment_export_excel' %}"
-                        class="btn btn-warning btn-sm">
-                    <i class="fas fa-file-excel"></i> Export to Excel
-                </button>
+                            <td>{{ voucher.purchase_date|date:"M d, Y" }}</td>
+                            <td class="fw-semibold">{{ voucher.pcv_no }}</td>
+                            <td class="text-muted">{{ voucher.purpose }}</td>
+                            <td class="text-end fw-semibold">
+                                ₱{{ voucher.amount_requested|floatformat:2|intcomma }}
+                            </td>
+
+                            <td class="text-center">
+
+                                <div class="btn-group btn-group-sm">
+
+                                    <!-- VIEW -->
+                                    <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                                    class="btn btn-outline-primary"
+                                    title="View Voucher">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+
+                                    <!-- PRINT MENU -->
+                                    <div class="btn-group btn-group-sm">
+
+                                        <button type="button"
+                                                class="btn btn-outline-secondary dropdown-toggle"
+                                                data-toggle="dropdown"
+                                                title="Print Documents">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+
+                                        <div class="dropdown-menu dropdown-menu-right shadow">
+
+                                            <a class="dropdown-item"
+                                            href="{% url 'pettycash:print_pcv' voucher.uuid %}"
+                                            target="_blank">
+                                                <i class="fas fa-file-invoice text-primary mr-2"></i>
+                                                Print PCV
+                                            </a>
+
+                                            <a class="dropdown-item"
+                                            href="{% url 'pettycash:print_pr' voucher.uuid %}"
+                                            target="_blank">
+                                                <i class="fas fa-file-alt text-info mr-2"></i>
+                                                Print PR
+                                            </a>
+
+                                            <a class="dropdown-item"
+                                            href="{% url 'pettycash:print_iar' voucher.uuid %}"
+                                            target="_blank">
+                                                <i class="fas fa-clipboard-check text-success mr-2"></i>
+                                                Print IAR
+                                            </a>
+
+                                            <div class="dropdown-divider"></div>
+
+                                            <a class="dropdown-item font-weight-bold"
+                                            href="{% url 'pettycash:print_all' voucher.uuid %}"
+                                            target="_blank">
+                                                <i class="fas fa-print text-dark mr-2"></i>
+                                                Print All Documents
+                                            </a>
+
+                                        </div>
+
+                                    </div>
+
+                                </div>
+
+                                </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No records found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+
+                </table>
+
             </div>
 
         </div>
 
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <input type="text"
-                    id="searchBox"
-                    class="form-control"
-                    placeholder="Search PCV No or Purpose..."
-                    value="{{ search_query }}">
-            </div>
-        </div>
-
-        <table class="table table-bordered table-hover">
-            <thead class="table-light">
-                <tr>
-                    <th width="40"></th>
-                    <th>Purchase Date</th>
-                    <th>PCV No</th>
-                    <th>Purpose</th>
-                    <th class="text-end">Amount</th>
-                    <th class="text-center" width="140">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="voucherTableBody">
-
-            {% for voucher in vouchers %}
-            <tr>
-                <td>
-                    <input type="checkbox"
-                        name="selected_vouchers"
-                        value="{{ voucher.id }}"
-                        class="row-checkbox"
-                        data-amount="{{ voucher.amount_requested }}">
-                </td>
-
-                <td>{{ voucher.purchase_date|date:"M d, Y" }}</td>
-
-                <td class="fw-bold">
-                    {{ voucher.pcv_no }}
-                </td>
-
-                <td>{{ voucher.purpose }}</td>
-
-                <td class="text-end">
-                    ₱{{ voucher.amount_requested|floatformat:2|intcomma }}
-                </td>
-
-                <!-- ACTION COLUMN -->
-                <td class="text-center">
-                    <div class="btn-group btn-group-sm">
-
-                        <!-- VIEW -->
-                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-                        class="btn btn-outline-primary"
-                        title="View">
-                            <i class="fas fa-eye"></i>
-                        </a>
-
-                        <!-- PRINT DROPDOWN -->
-                        <div class="btn-group btn-group-sm">
-
-                            <button type="button"
-                                    class="btn btn-outline-secondary dropdown-toggle"
-                                    data-toggle="dropdown"
-                                    aria-haspopup="true"
-                                    aria-expanded="false"
-                                    title="Print Documents">
-                                <i class="fas fa-print"></i>
-                            </button>
-
-                            <div class="dropdown-menu dropdown-menu-right shadow">
-
-                                <a class="dropdown-item"
-                                href="{% url 'pettycash:print_pcv' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-file-invoice mr-2 text-primary"></i>
-                                    Print PCV
-                                </a>
-
-                                <a class="dropdown-item"
-                                href="{% url 'pettycash:print_pr' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-file-alt mr-2 text-info"></i>
-                                    Print PR
-                                </a>
-
-                                <a class="dropdown-item"
-                                href="{% url 'pettycash:print_iar' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-clipboard-check mr-2 text-success"></i>
-                                    Print IAR
-                                </a>
-
-                                <div class="dropdown-divider"></div>
-
-                                <a class="dropdown-item font-weight-bold"
-                                href="{% url 'pettycash:print_all' voucher.uuid %}"
-                                target="_blank">
-                                    <i class="fas fa-print mr-2 text-dark"></i>
-                                    Print All Documents
-                                </a>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-                </td>
-
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="6" class="text-center text-muted">
-                    No records found.
-                </td>
-            </tr>
-            {% endfor %}
-
-            </tbody>
-        </table>
     </form>
+
+    <!-- ===================================== -->
+    <!-- CONFIRM PDF GENERATION MODAL -->
+    <!-- ===================================== -->
+
+    <div class="modal fade" id="confirmPdfModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        Confirm Replenishment Report Generation
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal">
+                        &times;
+                    </button>
+                </div>
+
+                <div class="modal-body">
+
+                    <p>
+                        <strong>Selected Transactions:</strong>
+                        <span id="modal-selected-count">0</span>
+                    </p>
+
+                    <p>
+                        <strong>Total Amount:</strong>
+                        <span id="modal-selected-total">₱0.00</span>
+                    </p>
+
+                    <div id="include-all-warning"
+                        class="alert alert-warning d-none">
+                        No transactions selected.
+                        <br>
+                        <strong>All filtered records will be included.</strong>
+                    </div>
+
+                    <div class="alert alert-danger">
+                        Please verify the selected transactions carefully.
+                        <br>
+                        This will generate an official replenishment report.
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button"
+                            class="btn btn-secondary"
+                            data-dismiss="modal">
+                        Cancel
+                    </button>
+
+                    <button type="button"
+                            class="btn btn-danger"
+                            id="confirmPdfBtn">
+                        Yes, Generate Report
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
 </div>
 
 
@@ -269,6 +376,79 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    let reportAction = "";
+
+    const pdfBtn = document.getElementById("pdfButton");
+    const excelBtn = document.getElementById("excelButton");
+    const confirmBtn = document.getElementById("confirmPdfBtn");
+    const modalEl = document.getElementById("confirmPdfModal");
+    const form = document.getElementById("reportForm");
+
+    // Bootstrap 4 modal instance
+    const modal = new bootstrap.Modal(modalEl);
+
+    pdfBtn.addEventListener("click", function () {
+        reportAction = "pdf";
+        updateModalData();
+        modal.show();
+    });
+
+    excelBtn.addEventListener("click", function () {
+        reportAction = "excel";
+        updateModalData();
+        modal.show();
+    });
+
+    function updateModalData() {
+        const checkboxes = document.querySelectorAll(".row-checkbox");
+
+        let count = 0;
+        let total = 0;
+
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                count++;
+                total += parseFloat(cb.dataset.amount);
+            }
+        });
+
+        document.getElementById("modal-selected-count").innerText = count;
+
+        document.getElementById("modal-selected-total").innerText =
+            "₱" + total.toLocaleString("en-PH", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+        const warningBox = document.getElementById("include-all-warning");
+
+        if (count === 0) {
+            warningBox.classList.remove("d-none");
+        } else {
+            warningBox.classList.add("d-none");
+        }
+    }
+
+    confirmBtn.addEventListener("click", function () {
+
+        if (reportAction === "pdf") {
+            form.action = "{% url 'pettycash:replenishment_package_pdf' %}";
+            form.target = "_blank";
+        }
+
+        if (reportAction === "excel") {
+            form.action = "{% url 'pettycash:replenishment_export_excel' %}";
+            form.removeAttribute("target");
+        }
+
+        form.submit();
+    });
+
+});
+
 </script>
 
 {% endblock %}

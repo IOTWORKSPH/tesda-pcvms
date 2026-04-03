@@ -1,0 +1,201 @@
+{% load money %}
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>CNRR</title>
+
+<style>
+
+@page {
+    size: A4;
+    margin: 10mm;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    font-size: 9px;
+    margin: 0;
+    background: #f5f5f5;
+}
+
+.print-wrapper {
+    width: 210mm;
+    margin: 10px auto;
+    background: white;
+    padding: 10mm;
+}
+
+/* PRINT MODE */
+@media print {
+    body { background: white; }
+    .print-wrapper {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+}
+
+/* TABLE */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+td, th {
+    border: 0.7px solid black;
+    padding: 3px;
+    vertical-align: top;
+}
+
+.text-center { text-align: center; }
+.amount { text-align: right; }
+.bold { font-weight: bold; }
+
+.header {
+    font-weight: bold;
+    text-align: center;
+    font-size: 11px;
+}
+
+.small {
+    font-size: 8px;
+}
+
+.signature {
+    text-align: center;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="print-wrapper">
+
+<table>
+<tr>
+
+<!-- ================= LEFT COPY ================= -->
+<td style="width:50%;">
+
+    <!-- HEADER -->
+    <div class="header">
+        TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY
+    </div>
+
+    <div class="text-center bold">
+        CERTIFICATION OF EXPENSE NOT REQUIRING RECEIPTS
+    </div>
+
+    <div class="text-center small">
+        Pursuant to COA Circular No. 2017-001 dated June 19, 2017
+    </div>
+
+    <br>
+
+    <!-- INFO -->
+    <table>
+        <tr>
+            <td>Name of Employee</td>
+            <td>{{ pcv.requester.get_full_name }}</td>
+            <td>Employee No.</td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>Office</td>
+            <td>TESDA</td>
+            <td>Division</td>
+            <td>{{ pcv.entity.name }}</td>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- ITEMS -->
+    <table>
+        <tr>
+            <th>PARTICULARS</th>
+            <th width="30%">Amount (₱)</th>
+        </tr>
+
+        {% for item in pcv.items.all %}
+        <tr>
+            <td>{{ item.description }}</td>
+            <td class="amount">{{ item.quantity|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+
+        <!-- Fill empty rows -->
+        {% for i in "123456"|make_list %}
+        <tr><td>&nbsp;</td><td></td></tr>
+        {% endfor %}
+
+        <tr>
+            <td class="bold">TOTAL</td>
+            <td class="amount bold">{{ pcv.amount_requested|money }}</td>
+        </tr>
+    </table>
+
+    <br>
+
+    <!-- PURPOSE -->
+    <table>
+        <tr>
+            <td style="height:25mm;">
+                <strong>Purpose:</strong><br>
+                {{ pcv.purpose }}
+            </td>
+        </tr>
+    </table>
+
+    <p class="small">
+        I hereby certify that the above expenses are incurred as they necessary
+        for the above cited purpose...
+    </p>
+
+    <!-- SIGNATURES -->
+    <table>
+        <tr>
+            <td class="text-center bold">Certified Correct:</td>
+            <td class="text-center bold">Noted by:</td>
+        </tr>
+        <tr>
+            <td style="height:25mm;"></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td class="signature">{{ pcv.requester.get_full_name }}</td>
+            <td class="signature">{{ administrator.get_full_name }}</td>
+        </tr>
+        <tr>
+            <td class="text-center">Signature</td>
+            <td class="text-center">Signature</td>
+        </tr>
+        <tr>
+            <td class="text-center small">Date</td>
+            <td class="text-center small">Date</td>
+        </tr>
+    </table>
+
+</td>
+
+<!-- ================= RIGHT COPY (DUPLICATE) ================= -->
+<td style="width:50%;">
+
+    <!-- EXACT DUPLICATE -->
+    {% include "pettycash/print/print_cnrr.html" with pcv=pcv administrator=administrator only %}
+
+</td>
+
+</tr>
+</table>
+
+</div>
+
+</body>
+</html>

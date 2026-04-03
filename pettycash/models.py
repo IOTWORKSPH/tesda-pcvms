@@ -212,6 +212,7 @@ class PettyCashVoucher(TimeStampedModel):
     is_release_posted = models.BooleanField(default=False)
     is_liquidation_posted = models.BooleanField(default=False)
     is_replenished = models.BooleanField(default=False)
+    has_cnrr = models.BooleanField(default=False)
 
     # =========================================================
     # META
@@ -300,7 +301,10 @@ class PettyCashVoucher(TimeStampedModel):
     def is_fully_liquidated(self):
         if self.transaction_type != TransactionType.CASH_ADVANCE:
             return True
-        return self.status == VoucherStatus.LIQUIDATED
+        return self.status in [
+            VoucherStatus.LIQUIDATED,
+            VoucherStatus.POSTED
+        ]
 
     @property
     def variance_amount(self):
@@ -335,6 +339,22 @@ class PettyCashVoucher(TimeStampedModel):
     @property
     def has_receipt(self):
         return self.receipts.exists()
+
+    @property
+    def actual_amount(self):
+        """
+        Returns the TRUE expense amount for reporting.
+        - Cash Advance:
+            • If liquidated → use liquidated amount
+            • If not yet liquidated → use requested amount
+        - Reimbursement → use requested amount
+        """
+        if self.transaction_type == TransactionType.CASH_ADVANCE:
+            if self.status in [VoucherStatus.LIQUIDATED, VoucherStatus.POSTED]:
+                return self.amount_liquidated or Decimal("0.00")
+            return self.amount_requested or Decimal("0.00")
+
+        return self.amount_requested or Decimal("0.00")
 
 
 # ==========================================================
@@ -446,33 +466,79 @@ class Notification(models.Model):
 
 
 
-class Replenishment(models.Model):
+class ReplenishmentStatus(models.TextChoices):
+    DRAFT = "DRAFT", "Draft"
+    SUBMITTED_TO_ACCOUNTING = "SUBMITTED_TO_ACCOUNTING", "Submitted to Accounting"
+    RELEASED = "RELEASED", "Released"
+
+class Replenishment(TimeStampedModel):
 
     fund = models.ForeignKey(
         "finance.PettyCashFund",
-        on_delete=models.PROTECT
+        on_delete=models.PROTECT,
+        related_name="replenishments"
     )
 
+    # Report Control
     year = models.IntegerField()
     series_number = models.IntegerField()
+    report_number = models.CharField(max_length=30, unique=True)
+    sheet_number = models.IntegerField(default=1)
 
-    report_number = models.CharField(max_length=20, unique=True)
-
-    check_number = models.CharField(max_length=50)
-    check_date = models.DateField()
-    check_amount = models.DecimalField(max_digits=14, decimal_places=2)
-
+    # Snapshot at time of report generation
+    opening_balance = models.DecimalField(max_digits=14, decimal_places=2)
     total_expenses = models.DecimalField(max_digits=14, decimal_places=2)
+
+    # Period covered
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+
+    # Check Information (filled only when released)
+    check_number = models.CharField(max_length=50, blank=True)
+    check_date = models.DateField(null=True, blank=True)
+    check_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+
+    # Status Control
+    status = models.CharField(
+        max_length=30,
+        choices=ReplenishmentStatus.choices,
+        default=ReplenishmentStatus.DRAFT
+    )
+    cash_on_hand = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0
+    )
 
     created_by = models.ForeignKey(
         "users.User",
         on_delete=models.PROTECT
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-
     class Meta:
         ordering = ["-created_at"]
+        unique_together = ("fund", "year", "series_number")
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(cash_on_hand__gte=0),
+                name="cash_on_hand_non_negative"
+            )
+        ]
 
+
+    def calculate_total_expenses(self):
+        total = Decimal("0.00")
+        for voucher in self.vouchers.all():
+            total += voucher.actual_amount
+        return total
+
+    def clean(self):
+        if self.opening_balance is not None:
+            if (self.cash_on_hand + self.total_expenses) != self.opening_balance:
+                raise ValidationError(
+                    "Imprest fund imbalance: "
+                    "Cash on hand + total expenses must equal opening balance."
+                )
+        
     def __str__(self):
         return self.report_number

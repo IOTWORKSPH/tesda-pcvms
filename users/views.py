@@ -10,7 +10,15 @@ from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
 
-from pettycash.models import PettyCashVoucher, VoucherStatus, TransactionType, PCVItem
+from pettycash.models import (
+    PettyCashVoucher,
+    VoucherStatus,
+    TransactionType,
+    PCVItem,
+    Replenishment,
+    ReplenishmentStatus,
+)
+
 from finance.models import PettyCashFund, LedgerEntry
 from audit.models import AuditLog
 from pettycash.services.dashboard_service import CustodianDashboardService
@@ -331,24 +339,36 @@ def dashboard_custodian(request):
     if not fund:
         return render(request, "pettycash/no_fund.html")
 
-    # =============================
+    # =====================================================
     # FUND POSITION
-    # =============================
+    # =====================================================
 
     total_fund = fund.fund_amount
     current_balance = fund.current_balance
     utilized_amount = total_fund - current_balance
 
-    utilization_percent = 0
-    if total_fund > 0:
-        utilization_percent = round(
-            (utilized_amount / total_fund) * 100,
-            2
-        )
+    utilization_percent = round(fund.replenishment_percentage, 2)
 
-    # =============================
+    # =====================================================
+    # CHECK IF REPLENISHMENT IS ALREADY IN PROCESS
+    # =====================================================
+
+    active_replenishment_exists = Replenishment.objects.filter(
+        fund=fund,
+        status__in=[
+            ReplenishmentStatus.DRAFT,
+            ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING,
+        ]
+    ).exists()
+
+    show_replenishment_alert = (
+        fund.replenishment_percentage >= 75
+        and not active_replenishment_exists
+    )
+
+    # =====================================================
     # FINANCIAL BREAKDOWN
-    # =============================
+    # =====================================================
 
     # Unliquidated Cash Advances
     unliquidated_amount = PettyCashVoucher.objects.filter(
@@ -357,37 +377,30 @@ def dashboard_custodian(request):
         transaction_type=TransactionType.CASH_ADVANCE
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
-    # Pending Finalization (Liquidated but not posted)
+    # Liquidated but not yet finalized
     pending_finalization_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.LIQUIDATED,
         is_posted_to_ledger=False
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
-    # Reimbursements Posted
+    # Reimbursements already posted
     reimbursed_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         transaction_type=TransactionType.REIMBURSEMENT,
         is_posted_to_ledger=True
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
-    # =============================
+    # =====================================================
     # OPERATIONAL QUEUES
-    # =============================
+    # =====================================================
 
-    # =====================================
-    # CASH ADVANCE – FOR RELEASE ONLY
-    # =====================================
     for_release = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.APPROVED,
         transaction_type=TransactionType.CASH_ADVANCE
     ).select_related("requester")
 
-
-    # =====================================
-    # REIMBURSEMENT – FOR PAY & POST
-    # =====================================
     for_reimbursement = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.APPROVED,
@@ -407,7 +420,11 @@ def dashboard_custodian(request):
 
     ledger_snapshot = LedgerEntry.objects.filter(
         fund=fund
-    ).order_by("-transaction_date")[:10]
+    ).order_by("-transaction_date", "-id")[:10]
+
+    # =====================================================
+    # CONTEXT
+    # =====================================================
 
     context = {
         "fund": fund,
@@ -415,6 +432,8 @@ def dashboard_custodian(request):
         "current_balance": current_balance,
         "utilized_amount": utilized_amount,
         "utilization_percent": utilization_percent,
+        "show_replenishment_alert": show_replenishment_alert,
+        "active_replenishment_exists": active_replenishment_exists,
 
         "unliquidated_amount": unliquidated_amount,
         "pending_finalization_amount": pending_finalization_amount,
@@ -530,3 +549,5 @@ def dashboard_supply(request):
     }
 
     return render(request, "users/dashboard_supply.html", context)
+
+

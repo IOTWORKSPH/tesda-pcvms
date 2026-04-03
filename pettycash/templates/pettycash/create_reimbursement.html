@@ -125,8 +125,25 @@
                 <label>Upload Receipt (Required)</label>
                 <input type="file"
                        name="receipt"
-                       class="form-control"
-                       required>
+                       class="form-control">
+            </div>
+            
+            <div class="col-md-12">
+                <div class="alert alert-warning p-2">
+                    <strong>CNRR Option:</strong> Use only if NO Official Receipt is available
+                    and amount ≤ ₱300.
+                </div>
+
+                <div class="form-check">
+                    <input class="form-check-input"
+                        type="checkbox"
+                        name="has_cnrr"
+                        id="hasCNRR">
+
+                    <label class="form-check-label" for="hasCNRR">
+                        Attach CNRR (No Receipt)
+                    </label>
+                </div>
             </div>
 
             <hr>
