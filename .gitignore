@@ -1,23 +1,43 @@
-# Virtual Environment
-venv/
-
-# Django
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 
-# Environment
-.env
+# Virtual environments
+venv/
+.venv/
+env/
 
-# Static & Media
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Django database
+db.sqlite3
+*.sqlite3
+
+# Django collected static and uploads
 staticfiles/
 media/
 
-# VS Code
+# Logs
+*.log
+logs/
+
+# IDE / Editor
 .vscode/
+.idea/
 
-# OS
+# OS files
 .DS_Store
+Thumbs.db
 
-*.save
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
