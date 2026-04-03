@@ -342,7 +342,11 @@ def dashboard_custodian(request):
     # =====================================================
 
     total_fund = fund.fund_amount
-    current_balance = fund.current_balance or Decimal("0.00")
+    current_balance = (
+        fund.current_balance
+        if fund.current_balance is not None
+        else Decimal("0.00")
+    )
     utilized_amount = total_fund - current_balance
 
     utilization_percent = Decimal("0.00")

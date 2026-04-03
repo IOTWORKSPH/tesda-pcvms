@@ -2603,7 +2603,7 @@ def reset_pettycash(request):
     # =========================================
     # 1. SOFT RESET VOUCHERS
     # =========================================
-    PettyCashVoucher.objects.filter(entity=entity).update(
+    vouchers_reset = PettyCashVoucher.objects.filter(entity=entity).update(
         status=VoucherStatus.DRAFT,
         is_posted_to_ledger=False,
         is_release_posted=False,
@@ -2612,7 +2612,7 @@ def reset_pettycash(request):
         replenishment=None,
         release_date=None,
         released_by=None,
-        amount_liquidated=0,
+        amount_liquidated=Decimal("0.00"),
         pr_no=None,
         iar_no=None,
     )
@@ -2620,14 +2620,21 @@ def reset_pettycash(request):
     # =========================================
     # 2. DELETE FINANCIAL DATA
     # =========================================
-    LedgerEntry.objects.filter(fund__entity=entity).delete()
-    Replenishment.objects.filter(fund__entity=entity).delete()
+    ledger_deleted, _ = LedgerEntry.objects.filter(
+        fund__entity=entity
+    ).delete()
+
+    repl_deleted, _ = Replenishment.objects.filter(
+        fund__entity=entity
+    ).delete()
 
     # =========================================
-    # 3. DELETE AUDIT LOGS (RECENT ACTIVITIES)
+    # 3. DELETE AUDIT LOGS
     # =========================================
     from audit.models import AuditLog
-    audit_deleted, _ = AuditLog.objects.filter(entity=entity).delete()
+    audit_deleted, _ = AuditLog.objects.filter(
+        entity=entity
+    ).delete()
 
     # =========================================
     # 4. DELETE NOTIFICATIONS
@@ -2637,13 +2644,29 @@ def reset_pettycash(request):
     ).delete()
 
     # =========================================
-    # 5. RESET FUND BALANCES
+    # 5. RESET FUND BALANCES + RECREATE OPENING LEDGER ENTRY
     # =========================================
-    funds = PettyCashFund.objects.filter(entity=entity)
+    funds = PettyCashFund.objects.select_for_update().filter(entity=entity)
+
+    opening_entries_created = 0
 
     for fund in funds:
         fund.current_balance = fund.fund_amount
         fund.save(update_fields=["current_balance"])
+
+        LedgerEntry.objects.create(
+            fund=fund,
+            transaction_date=timezone.now().date(),
+            debit=fund.fund_amount,
+            credit=Decimal("0.00"),
+            running_balance=fund.fund_amount,
+            reference_type=ReferenceType.ADJUSTMENT,
+            reference_no="RESET-OPENING",
+            description="Opening balance restored after petty cash reset",
+            created_by=request.user
+        )
+
+        opening_entries_created += 1
 
     # =========================================
     # SUCCESS MESSAGE
@@ -2651,8 +2674,12 @@ def reset_pettycash(request):
     messages.success(
         request,
         f"Petty cash reset completed. "
-        f"{audit_deleted} logs removed, "
-        f"{notifications_deleted} notifications cleared."
+        f"{vouchers_reset} vouchers reset, "
+        f"{ledger_deleted} ledger rows deleted, "
+        f"{repl_deleted} replenishments deleted, "
+        f"{audit_deleted} audit logs removed, "
+        f"{notifications_deleted} notifications cleared, "
+        f"{opening_entries_created} opening ledger entr{'y' if opening_entries_created == 1 else 'ies'} recreated."
     )
 
     return redirect("users:dashboard_custodian")
