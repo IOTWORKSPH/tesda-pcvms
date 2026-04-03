@@ -1,5 +1,8 @@
+# pettycash/services/replenishment_builder.py
+
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from datetime import timedelta
 from decimal import Decimal
 from collections import defaultdict
 
@@ -13,10 +16,18 @@ from pettycash.models import (
 
 
 def _attach_report_display_numbers(vouchers):
+    """
+    Report-only numbering based on purchase date order.
+    Does NOT overwrite official document numbers in the database.
+    """
     counters = defaultdict(int)
 
     for voucher in vouchers:
-        year = voucher.purchase_date.year if voucher.purchase_date else timezone.now().year
+        year = (
+            voucher.purchase_date.year
+            if voucher.purchase_date
+            else timezone.now().year
+        )
 
         counters[("PCV", year)] += 1
         counters[("PR", year)] += 1
@@ -29,8 +40,55 @@ def _attach_report_display_numbers(vouchers):
     return vouchers
 
 
-def build_replenishment_context(request):
+def _get_previous_replenishment(fund, replenishment_obj=None):
+    """
+    Get the most recent released replenishment before the current one.
+    If preview mode, get the latest released replenishment for the fund.
+    """
+    qs = Replenishment.objects.filter(
+        fund=fund,
+        status=ReplenishmentStatus.RELEASED
+    )
 
+    if replenishment_obj:
+        qs = qs.filter(created_at__lt=replenishment_obj.created_at)
+
+    return qs.order_by("-created_at").first()
+
+
+def _get_previous_cash_on_hand(previous_replenishment):
+    """
+    Safely resolve previous cash on hand.
+    Priority:
+    1. stored cash_on_hand field if available
+    2. opening_balance - total_expenses
+    """
+    stored_cash_on_hand = getattr(previous_replenishment, "cash_on_hand", None)
+    if stored_cash_on_hand is not None:
+        return stored_cash_on_hand
+
+    opening_balance = previous_replenishment.opening_balance or Decimal("0.00")
+    total_expenses = previous_replenishment.total_expenses or Decimal("0.00")
+
+    computed_cash_on_hand = opening_balance - total_expenses
+    return computed_cash_on_hand if computed_cash_on_hand >= Decimal("0.00") else Decimal("0.00")
+
+
+def _get_voucher_amount(voucher):
+    """
+    Safe amount resolver for replenishment reporting.
+    """
+    actual_amount = getattr(voucher, "actual_amount", None)
+    if actual_amount is not None:
+        return actual_amount
+
+    if voucher.amount_liquidated:
+        return voucher.amount_liquidated
+
+    return voucher.amount_requested or Decimal("0.00")
+
+
+def build_replenishment_context(request):
     fund = PettyCashFund.objects.filter(
         custodian=request.user,
         is_active=True
@@ -42,6 +100,9 @@ def build_replenishment_context(request):
     replenishment_id = request.POST.get("replenishment_id")
     replenishment_obj = None
 
+    # =========================================================
+    # EXISTING REPLENISHMENT
+    # =========================================================
     if replenishment_id:
         replenishment_obj = Replenishment.objects.filter(
             pk=replenishment_id,
@@ -58,21 +119,19 @@ def build_replenishment_context(request):
 
         vouchers = _attach_report_display_numbers(list(vouchers_qs))
 
-        if vouchers:
-            derived_start = vouchers[0].purchase_date
-            derived_end = vouchers[-1].purchase_date
-        else:
-            derived_start = None
-            derived_end = None
+        derived_start = vouchers[0].purchase_date if vouchers else None
+        derived_end = vouchers[-1].purchase_date if vouchers else None
 
         date_from = replenishment_obj.period_start or derived_start
         date_to = replenishment_obj.period_end or derived_end
 
         report_number = replenishment_obj.report_number
-        sheet_number = replenishment_obj.sheet_number
-        opening_balance = replenishment_obj.opening_balance
-        replenishment_amount = replenishment_obj.total_expenses
+        sheet_number = replenishment_obj.sheet_number or 1
+        replenishment_amount = replenishment_obj.total_expenses or Decimal("0.00")
 
+    # =========================================================
+    # LIVE PREVIEW MODE
+    # =========================================================
     else:
         raw_date_from = request.POST.get("date_from", "").strip()
         raw_date_to = request.POST.get("date_to", "").strip()
@@ -112,91 +171,132 @@ def build_replenishment_context(request):
             date_to = vouchers[-1].purchase_date
 
         replenishment_amount = Decimal("0.00")
-        for v in vouchers:
-            replenishment_amount += v.actual_amount
+        for voucher in vouchers:
+            replenishment_amount += _get_voucher_amount(voucher)
 
-        opening_balance = fund.current_balance
         report_number = None
         sheet_number = 1
 
+    # =========================================================
+    # APPENDIX 50 – OPENING / PRIOR POSITION
+    # =========================================================
     records = []
-    previous_replenishment = None
-
-    if replenishment_obj:
-        previous_replenishment = (
-            Replenishment.objects
-            .filter(
-                fund=fund,
-                status=ReplenishmentStatus.RELEASED,
-                created_at__lt=replenishment_obj.created_at
-            )
-            .order_by("-created_at")
-            .first()
-        )
+    previous_replenishment = _get_previous_replenishment(fund, replenishment_obj)
 
     if previous_replenishment:
-        prev_cash_on_hand = previous_replenishment.cash_on_hand
-        prev_check_amount = previous_replenishment.check_amount
+        prev_cash_on_hand = _get_previous_cash_on_hand(previous_replenishment)
+        prev_replenishment_amount = (
+            previous_replenishment.check_amount
+            or previous_replenishment.total_expenses
+            or Decimal("0.00")
+        )
+        opening_balance = prev_cash_on_hand + prev_replenishment_amount
 
+        # Row 1: A/O Cash-OnHand
         records.append({
             "date": previous_replenishment.period_end,
-            "reference": "A/O",
+            "reference": "Cash-OnHand",
             "payee": "",
-            "particulars": "Cash on Hand",
+            "particulars": "",
             "received": None,
             "disbursement": None,
             "balance": prev_cash_on_hand,
         })
 
-        new_balance = prev_cash_on_hand + prev_check_amount
-
+        # Row 2: Previous Replenishment
         records.append({
-            "date": previous_replenishment.check_date,
-            "reference": previous_replenishment.check_number,
+            "date": previous_replenishment.check_date or previous_replenishment.period_end,
+            "reference": "Replenishment",
             "payee": "",
-            "particulars": f"Replenishment {previous_replenishment.report_number}",
-            "received": prev_check_amount,
+            "particulars": "",
+            "received": prev_replenishment_amount,
             "disbursement": None,
-            "balance": new_balance,
+            "balance": None,
         })
 
-        running_balance = new_balance
-
-    else:
-        running_balance = fund.fund_amount
-
+        # Row 3: Total
         records.append({
             "date": None,
-            "reference": "INITIAL FUND",
+            "reference": "Total",
             "payee": "",
-            "particulars": "Initial Fund Allocation",
-            "received": fund.fund_amount,
+            "particulars": "",
+            "received": None,
             "disbursement": None,
-            "balance": fund.fund_amount,
+            "balance": opening_balance,
         })
 
+    else:
+        # FIRST REPLENISHMENT
+        first_date = date_from or (vouchers[0].purchase_date if vouchers else timezone.now().date())
+        ao_date = first_date - timedelta(days=1) if first_date else None
+        opening_balance = fund.fund_amount or Decimal("0.00")
+
+        # Row 1: A/O Cash-OnHand = 0.00
+        records.append({
+            "date": ao_date,
+            "reference": "Cash-OnHand",
+            "payee": "",
+            "particulars": "",
+            "received": None,
+            "disbursement": None,
+            "balance": Decimal("0.00"),
+        })
+
+        # Row 2: Initial Fund
+        records.append({
+            "date": getattr(fund, "created_at", None).date() if getattr(fund, "created_at", None) else first_date,
+            "reference": "Initial Fund",
+            "payee": "",
+            "particulars": "",
+            "received": opening_balance,
+            "disbursement": None,
+            "balance": None,
+        })
+
+        # Row 3: Total
+        records.append({
+            "date": None,
+            "reference": "Total",
+            "payee": "",
+            "particulars": "",
+            "received": None,
+            "disbursement": None,
+            "balance": opening_balance,
+        })
+
+    # =========================================================
+    # CURRENT EXPENSES
+    # =========================================================
+    running_balance = opening_balance
+
     for voucher in vouchers:
-        amount = voucher.actual_amount
+        amount = _get_voucher_amount(voucher)
         running_balance -= amount
 
         records.append({
             "date": voucher.purchase_date,
             "reference": getattr(voucher, "report_pcv_no", voucher.pcv_no),
             "payee": voucher.requester.get_full_name(),
-            "particulars": voucher.expense_category.name,
+            "particulars": voucher.expense_category.name if voucher.expense_category else "",
             "received": None,
             "disbursement": amount,
             "balance": running_balance,
         })
 
+    # =========================================================
+    # RECONCILIATION
+    # =========================================================
     cash_on_hand = running_balance
-    allocated_fund = fund.fund_amount
+    allocated_fund = fund.fund_amount or Decimal("0.00")
     reconciled_total = cash_on_hand + replenishment_amount
 
+    # =========================================================
+    # APPENDIX 51 REGISTER
+    # =========================================================
     expense_category_ids = [
-        v.expense_category_id
-        for v in vouchers
-        if v.expense_category_id
+        voucher.expense_category_id
+        for voucher in vouchers
+        if voucher.expense_category_id
     ]
 
     expense_categories = ExpenseCategory.objects.filter(
@@ -209,17 +309,19 @@ def build_replenishment_context(request):
     register_running_balance = opening_balance
 
     for voucher in vouchers:
-        amount = voucher.actual_amount
+        amount = _get_voucher_amount(voucher)
         register_running_balance -= amount
 
         breakdown = defaultdict(lambda: None)
-        breakdown[voucher.expense_category.id] = amount
-        category_totals[voucher.expense_category.id] += amount
+
+        if voucher.expense_category_id:
+            breakdown[voucher.expense_category.id] = amount
+            category_totals[voucher.expense_category.id] += amount
 
         register_rows.append({
             "date": voucher.purchase_date,
             "reference": getattr(voucher, "report_pcv_no", voucher.pcv_no),
-            "particulars": voucher.expense_category.name,
+            "particulars": voucher.expense_category.name if voucher.expense_category else "",
             "receipt": None,
             "payment": amount,
             "balance": register_running_balance,
@@ -233,16 +335,24 @@ def build_replenishment_context(request):
         "register_rows": register_rows,
         "expense_categories": expense_categories,
         "category_totals": category_totals,
+
         "report_number": report_number,
         "sheet_number": sheet_number,
+
+        "opening_balance": opening_balance,
         "previous_balance": opening_balance,
         "cash_on_hand": cash_on_hand,
         "replenishment_amount": replenishment_amount,
         "reconciled_total": reconciled_total,
         "allocated_fund": allocated_fund,
+
         "total": replenishment_amount,
         "generated_date": timezone.now(),
+
         "date_from": date_from,
         "date_to": date_to,
+        "period_start": date_from,
+        "period_end": date_to,
+
         "selected_count": len(vouchers),
     }
