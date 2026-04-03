@@ -117,7 +117,7 @@ td, th {
                 </td>
 
                 <td>
-                    {{ v.particulars }}
+                    {{ v.expense_category.name|default:"" }}
                 </td>
 
                 <td class="amount">
