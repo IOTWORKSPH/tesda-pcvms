@@ -1,14 +1,11 @@
 # pettycash/services/replenishment_builder.py
 
-# pettycash/services/replenishment_builder.py
-
 from django.utils.dateparse import parse_date
 from django.utils import timezone
-from datetime import timedelta
 from decimal import Decimal
 from collections import defaultdict
 
-from finance.models import PettyCashFund
+from finance.models import PettyCashFund, LedgerEntry
 from pettycash.models import (
     PettyCashVoucher,
     ExpenseCategory,
@@ -88,6 +85,30 @@ def _get_voucher_amount(voucher):
         return voucher.amount_liquidated
 
     return voucher.amount_requested or Decimal("0.00")
+
+
+def _get_initial_fund_entry(fund):
+    """
+    Get the earliest positive/debit ledger entry as initial fund basis.
+    """
+    return (
+        LedgerEntry.objects
+        .filter(fund=fund, debit__gt=0)
+        .order_by("transaction_date", "id")
+        .first()
+    )
+
+
+def _get_report_creation_date(replenishment_obj=None):
+    """
+    Current replenishment report creation date:
+    - existing replenishment: date draft/report was created
+    - preview mode: today
+    """
+    if replenishment_obj and replenishment_obj.created_at:
+        return replenishment_obj.created_at.date()
+
+    return timezone.now().date()
 
 
 def build_replenishment_context(request):
@@ -183,6 +204,7 @@ def build_replenishment_context(request):
     # APPENDIX 50 – OPENING / PRIOR POSITION
     # =========================================================
     records = []
+    report_created_date = _get_report_creation_date(replenishment_obj)
     previous_replenishment = _get_previous_replenishment(fund, replenishment_obj)
 
     if previous_replenishment:
@@ -194,23 +216,23 @@ def build_replenishment_context(request):
         )
         opening_balance = prev_cash_on_hand + prev_replenishment_amount
 
-        # Row 1: A/O Cash-OnHand
+        # Row 1: Cash on Hand
         records.append({
-            "date": previous_replenishment.period_end,
-            "reference": "Cash-OnHand",
+            "date": report_created_date,
+            "reference": "",
             "payee": "",
-            "particulars": "",
+            "particulars": "Cash on Hand",
             "received": None,
             "disbursement": None,
             "balance": prev_cash_on_hand,
         })
 
-        # Row 2: Previous Replenishment
+        # Row 2: Replenishment
         records.append({
-            "date": previous_replenishment.check_date or previous_replenishment.period_end,
-            "reference": "Replenishment",
+            "date": previous_replenishment.check_date,
+            "reference": previous_replenishment.check_number or "",
             "payee": "",
-            "particulars": "",
+            "particulars": "Replenishment",
             "received": prev_replenishment_amount,
             "disbursement": None,
             "balance": None,
@@ -219,9 +241,9 @@ def build_replenishment_context(request):
         # Row 3: Total
         records.append({
             "date": None,
-            "reference": "Total",
+            "reference": "",
             "payee": "",
-            "particulars": "",
+            "particulars": "Total",
             "received": None,
             "disbursement": None,
             "balance": opening_balance,
@@ -229,16 +251,34 @@ def build_replenishment_context(request):
 
     else:
         # FIRST REPLENISHMENT
-        first_date = date_from or (vouchers[0].purchase_date if vouchers else timezone.now().date())
-        ao_date = first_date - timedelta(days=1) if first_date else None
-        opening_balance = fund.fund_amount or Decimal("0.00")
+        initial_fund_entry = _get_initial_fund_entry(fund)
 
-        # Row 1: A/O Cash-OnHand = 0.00
+        initial_fund_amount = (
+            initial_fund_entry.debit
+            if initial_fund_entry and initial_fund_entry.debit
+            else (fund.fund_amount or Decimal("0.00"))
+        )
+
+        initial_fund_date = (
+            initial_fund_entry.transaction_date
+            if initial_fund_entry and initial_fund_entry.transaction_date
+            else report_created_date
+        )
+
+        initial_fund_reference = (
+            initial_fund_entry.reference_no
+            if initial_fund_entry and initial_fund_entry.reference_no
+            else ""
+        )
+
+        opening_balance = initial_fund_amount
+
+        # Row 1: Cash on Hand
         records.append({
-            "date": ao_date,
-            "reference": "Cash-OnHand",
+            "date": report_created_date,
+            "reference": "",
             "payee": "",
-            "particulars": "",
+            "particulars": "Cash on Hand",
             "received": None,
             "disbursement": None,
             "balance": Decimal("0.00"),
@@ -246,11 +286,11 @@ def build_replenishment_context(request):
 
         # Row 2: Initial Fund
         records.append({
-            "date": getattr(fund, "created_at", None).date() if getattr(fund, "created_at", None) else first_date,
-            "reference": "Initial Fund",
+            "date": initial_fund_date,
+            "reference": initial_fund_reference,
             "payee": "",
-            "particulars": "",
-            "received": opening_balance,
+            "particulars": "Initial Fund",
+            "received": initial_fund_amount,
             "disbursement": None,
             "balance": None,
         })
@@ -258,9 +298,9 @@ def build_replenishment_context(request):
         # Row 3: Total
         records.append({
             "date": None,
-            "reference": "Total",
+            "reference": "",
             "payee": "",
-            "particulars": "",
+            "particulars": "Total",
             "received": None,
             "disbursement": None,
             "balance": opening_balance,
@@ -356,5 +396,6 @@ def build_replenishment_context(request):
         "period_start": date_from,
         "period_end": date_to,
 
+        "report_created_date": report_created_date,
         "selected_count": len(vouchers),
     }
