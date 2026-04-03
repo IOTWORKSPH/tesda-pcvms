@@ -1,22 +1,42 @@
 # pettycash/services/excel/appendix_49_excel.py
 
-from openpyxl.styles import Font, Alignment
+from decimal import Decimal
+from openpyxl.styles import Alignment
+
+
+def _get_period_text(context):
+    date_from = context.get("date_from") or context.get("period_start")
+    date_to = context.get("date_to") or context.get("period_end")
+
+    if date_from and date_to:
+        return f"{date_from.strftime('%B %d, %Y')} - {date_to.strftime('%B %d, %Y')}"
+    if date_from:
+        return date_from.strftime("%B %d, %Y")
+    if date_to:
+        return date_to.strftime("%B %d, %Y")
+    return "No Transactions Available"
+
+
+def _get_voucher_amount(voucher):
+    actual_amount = getattr(voucher, "actual_amount", None)
+    if actual_amount is not None:
+        return actual_amount
+
+    if getattr(voucher, "amount_liquidated", None):
+        return voucher.amount_liquidated
+
+    return voucher.amount_requested or Decimal("0.00")
 
 
 def generate_appendix_49(wb, context, styles):
-
     fund = context["fund"]
     vouchers = context["vouchers"]
-    total = context["total"]
+    total = context.get("replenishment_amount", context.get("total", Decimal("0.00")))
     generated_date = context["generated_date"]
 
-    date_from = context.get("date_from")
-    date_to = context.get("date_to")
-    period_start = context.get("period_start")
-    period_end = context.get("period_end")
-
-    report_number = context.get("report_number", "")
-    sheet_number = context.get("sheet_number", 1)
+    report_number = context.get("report_number", "") or ""
+    sheet_number = context.get("sheet_number", 1) or 1
+    period_text = _get_period_text(context)
 
     ws = wb.active
     ws.title = "Appendix 49"
@@ -31,7 +51,7 @@ def generate_appendix_49(wb, context, styles):
     row = 1
 
     # =====================================================
-    # APPENDIX LABEL (RIGHT)
+    # APPENDIX LABEL
     # =====================================================
     ws.merge_cells("A1:D1")
     ws["A1"] = "Appendix 49"
@@ -50,20 +70,13 @@ def generate_appendix_49(wb, context, styles):
     # =====================================================
     # PERIOD COVERED
     # =====================================================
-    if date_from and date_to:
-        period_text = f"{date_from.strftime('%B %d, %Y')} - {date_to.strftime('%B %d, %Y')}"
-    elif period_start and period_end:
-        period_text = f"{period_start.strftime('%B %d, %Y')} - {period_end.strftime('%B %d, %Y')}"
-    else:
-        period_text = "No Transactions Available"
-
     ws.merge_cells(f"A{row}:D{row}")
     ws.cell(row=row, column=1).value = f"Period Covered: {period_text}"
     ws.cell(row=row, column=1).alignment = center
     row += 2
 
     # =====================================================
-    # ENTITY + REPORT INFO (2 COLUMNS)
+    # ENTITY + REPORT INFO
     # =====================================================
     ws.cell(row=row, column=1).value = "Entity Name:"
     ws.cell(row=row, column=1).font = bold
@@ -86,43 +99,38 @@ def generate_appendix_49(wb, context, styles):
     # =====================================================
     # TABLE HEADER
     # =====================================================
-    headers = [
-        "Date",
-        "Petty Cash Voucher No.",
-        "Particulars",
-        "Amount"
-    ]
+    headers = ["Date", "Petty Cash Voucher No.", "Particulars", "Amount"]
 
-    ws.append(headers)
-
-    for col in range(1, 5):
-        ws.cell(row=row, column=col).font = bold
-        ws.cell(row=row, column=col).alignment = center
-        ws.cell(row=row, column=col).border = border
+    for idx, header in enumerate(headers, start=1):
+        ws.cell(row=row, column=idx).value = header
+        ws.cell(row=row, column=idx).font = bold
+        ws.cell(row=row, column=idx).alignment = center
+        ws.cell(row=row, column=idx).border = border
 
     row += 1
 
     # =====================================================
     # TABLE DATA
     # =====================================================
-    for v in vouchers:
+    for voucher in vouchers:
+        amount = _get_voucher_amount(voucher)
 
         ws.cell(row=row, column=1).value = (
-            v.purchase_date.strftime("%m-%d-%Y")
-            if v.purchase_date else ""
+            voucher.purchase_date.strftime("%m-%d-%Y")
+            if voucher.purchase_date else ""
         )
 
-        ws.cell(row=row, column=2).value = v.pcv_no
+        ws.cell(row=row, column=2).value = getattr(voucher, "report_pcv_no", voucher.pcv_no)
         ws.cell(row=row, column=2).alignment = center
 
         ws.cell(row=row, column=3).value = (
-            v.expense_category.name
-            if v.expense_category else ""
+            voucher.expense_category.name if voucher.expense_category else ""
         )
         ws.cell(row=row, column=3).alignment = wrap
 
-        ws.cell(row=row, column=4).value = float(v.amount_requested)
+        ws.cell(row=row, column=4).value = float(amount)
         ws.cell(row=row, column=4).alignment = right
+        ws.cell(row=row, column=4).number_format = '#,##0.00'
 
         for col in range(1, 5):
             ws.cell(row=row, column=col).border = border
@@ -136,13 +144,13 @@ def generate_appendix_49(wb, context, styles):
     ws.cell(row=row, column=1).value = "TOTAL"
     ws.cell(row=row, column=1).alignment = right
     ws.cell(row=row, column=1).font = bold
+    ws.cell(row=row, column=1).border = border
 
     ws.cell(row=row, column=4).value = float(total)
     ws.cell(row=row, column=4).alignment = right
     ws.cell(row=row, column=4).font = bold
-
-    for col in range(1, 5):
-        ws.cell(row=row, column=col).border = border
+    ws.cell(row=row, column=4).border = border
+    ws.cell(row=row, column=4).number_format = '#,##0.00'
 
     row += 3
 
@@ -156,13 +164,12 @@ def generate_appendix_49(wb, context, styles):
     row += 2
 
     ws.merge_cells(f"A{row}:D{row}")
-    ws.cell(row=row, column=1).value = \
-        "I hereby certify to the correctness of the above information."
+    ws.cell(row=row, column=1).value = "I hereby certify to the correctness of the above information."
     ws.cell(row=row, column=1).alignment = center
     row += 4
 
     # =====================================================
-    # SIGNATURE BLOCK (2 COLUMNS)
+    # SIGNATURE BLOCK
     # =====================================================
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
     ws.cell(row=row, column=1).value = fund.custodian.get_full_name().upper()
@@ -170,13 +177,7 @@ def generate_appendix_49(wb, context, styles):
     ws.cell(row=row, column=1).alignment = center
 
     ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=4)
-
-    if date_to:
-        date_value = date_to.strftime("%B %d, %Y")
-    else:
-        date_value = generated_date.strftime("%B %d, %Y")
-
-    ws.cell(row=row, column=3).value = date_value
+    ws.cell(row=row, column=3).value = generated_date.strftime("%B %d, %Y")
     ws.cell(row=row, column=3).font = bold
     ws.cell(row=row, column=3).alignment = center
     row += 1
@@ -190,12 +191,12 @@ def generate_appendix_49(wb, context, styles):
     ws.cell(row=row, column=3).alignment = center
 
     # =====================================================
-    # COLUMN WIDTHS (MATCH PDF PROPORTION)
+    # COLUMN WIDTHS
     # =====================================================
-    ws.column_dimensions["A"].width = 18   # 15%
-    ws.column_dimensions["B"].width = 30   # 25%
-    ws.column_dimensions["C"].width = 50   # 40%
-    ws.column_dimensions["D"].width = 20   # 20%
+    ws.column_dimensions["A"].width = 18
+    ws.column_dimensions["B"].width = 25
+    ws.column_dimensions["C"].width = 42
+    ws.column_dimensions["D"].width = 18
 
     # =====================================================
     # PAGE SETUP

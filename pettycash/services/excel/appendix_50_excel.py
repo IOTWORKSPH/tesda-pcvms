@@ -1,18 +1,26 @@
 # pettycash/services/excel/appendix_50_excel.py
 
-from openpyxl.styles import Font, Alignment, Border, Side
+from openpyxl.styles import Alignment
+
+
+def _get_period_text(context):
+    date_from = context.get("date_from") or context.get("period_start")
+    date_to = context.get("date_to") or context.get("period_end")
+
+    if date_from and date_to:
+        return f"{date_from.strftime('%B %d, %Y')} - {date_to.strftime('%B %d, %Y')}"
+    if date_from:
+        return date_from.strftime("%B %d, %Y")
+    if date_to:
+        return date_to.strftime("%B %d, %Y")
+    return "No Transactions Available"
 
 
 def generate_appendix_50(wb, context, styles):
-
     fund = context["fund"]
     records = context["records"]
     generated_date = context["generated_date"]
-
-    date_from = context.get("date_from")
-    date_to = context.get("date_to")
-    period_start = context.get("period_start")
-    period_end = context.get("period_end")
+    period_text = _get_period_text(context)
 
     ws = wb.create_sheet("Appendix 50")
 
@@ -26,7 +34,7 @@ def generate_appendix_50(wb, context, styles):
     row = 1
 
     # =====================================================
-    # APPENDIX LABEL (Right)
+    # APPENDIX LABEL
     # =====================================================
     ws.merge_cells("A1:G1")
     ws["A1"] = "Appendix 50"
@@ -56,7 +64,7 @@ def generate_appendix_50(wb, context, styles):
     row += 2
 
     # =====================================================
-    # CUSTODIAN HEADER (3 columns)
+    # CUSTODIAN HEADER
     # =====================================================
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
     ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=4)
@@ -68,9 +76,11 @@ def generate_appendix_50(wb, context, styles):
 
     ws.cell(row=row, column=3).value = fund.custodian.position or "-"
     ws.cell(row=row, column=3).alignment = center
+    ws.cell(row=row, column=3).font = bold
 
     ws.cell(row=row, column=5).value = fund.custodian.office or fund.entity.name
     ws.cell(row=row, column=5).alignment = center
+    ws.cell(row=row, column=5).font = bold
     row += 1
 
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
@@ -87,7 +97,7 @@ def generate_appendix_50(wb, context, styles):
     row += 2
 
     # =====================================================
-    # LEDGER TABLE HEADER
+    # TABLE HEADER
     # =====================================================
     headers = [
         "Date",
@@ -96,15 +106,14 @@ def generate_appendix_50(wb, context, styles):
         "Particulars",
         "Receipts",
         "Disbursements",
-        "Balance"
+        "Balance",
     ]
 
-    ws.append(headers)
-
-    for col in range(1, 8):
-        ws.cell(row=row, column=col).font = bold
-        ws.cell(row=row, column=col).alignment = center
-        ws.cell(row=row, column=col).border = border
+    for idx, header in enumerate(headers, start=1):
+        ws.cell(row=row, column=idx).value = header
+        ws.cell(row=row, column=idx).font = bold
+        ws.cell(row=row, column=idx).alignment = center
+        ws.cell(row=row, column=idx).border = border
 
     row += 1
 
@@ -112,19 +121,37 @@ def generate_appendix_50(wb, context, styles):
     # DATA ROWS
     # =====================================================
     for entry in records:
+        entry_date = entry.get("date")
+        received = entry.get("received")
+        disbursement = entry.get("disbursement")
+        balance = entry.get("balance")
 
         ws.cell(row=row, column=1).value = (
-            entry["date"].strftime("%B %d, %Y") if entry["date"] else ""
+            entry_date.strftime("%B %d, %Y") if entry_date else ""
         )
 
-        ws.cell(row=row, column=2).value = entry["reference"]
-        ws.cell(row=row, column=3).value = entry["payee"]
-        ws.cell(row=row, column=4).value = entry["particulars"]
+        ws.cell(row=row, column=2).value = entry.get("reference") or ""
+        ws.cell(row=row, column=3).value = entry.get("payee") or ""
+        ws.cell(row=row, column=4).value = entry.get("particulars") or ""
         ws.cell(row=row, column=4).alignment = wrap
 
-        ws.cell(row=row, column=5).value = float(entry["received"]) if entry["received"] else ""
-        ws.cell(row=row, column=6).value = float(entry["disbursement"]) if entry["disbursement"] else ""
-        ws.cell(row=row, column=7).value = float(entry["balance"]) if entry["balance"] else ""
+        if received is not None:
+            ws.cell(row=row, column=5).value = float(received)
+            ws.cell(row=row, column=5).number_format = '#,##0.00'
+        else:
+            ws.cell(row=row, column=5).value = ""
+
+        if disbursement is not None:
+            ws.cell(row=row, column=6).value = float(disbursement)
+            ws.cell(row=row, column=6).number_format = '#,##0.00'
+        else:
+            ws.cell(row=row, column=6).value = ""
+
+        if balance is not None:
+            ws.cell(row=row, column=7).value = float(balance)
+            ws.cell(row=row, column=7).number_format = '#,##0.00'
+        else:
+            ws.cell(row=row, column=7).value = ""
 
         ws.cell(row=row, column=5).alignment = right
         ws.cell(row=row, column=6).alignment = right
@@ -139,14 +166,6 @@ def generate_appendix_50(wb, context, styles):
     # PERIOD DISPLAY
     # =====================================================
     row += 1
-
-    if date_from and date_to:
-        period_text = f"{date_from.strftime('%B %d, %Y')} - {date_to.strftime('%B %d, %Y')}"
-    elif period_start and period_end:
-        period_text = f"{period_start.strftime('%B %d, %Y')} - {period_end.strftime('%B %d, %Y')}"
-    else:
-        period_text = "No Transactions Available"
-
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=7)
     ws.cell(row=row, column=1).value = f"Period Covered: {period_text}"
     ws.cell(row=row, column=1).alignment = center
@@ -165,7 +184,7 @@ def generate_appendix_50(wb, context, styles):
     ws.cell(row=row, column=1).value = (
         f"I hereby certify that the foregoing is a correct and complete record of "
         f"all cash advances received and disbursements made by me in my capacity "
-        f"as Petty Cash Fund Custodian of {fund.entity.name} during the period "
+        f"as Petty Cash Fund Custodian of {fund.entity.name} during the period from "
         f"{period_text}, inclusive, as indicated in the corresponding columns."
     )
     ws.cell(row=row, column=1).alignment = Alignment(horizontal="center", wrap_text=True)
@@ -197,12 +216,12 @@ def generate_appendix_50(wb, context, styles):
     # COLUMN WIDTHS
     # =====================================================
     ws.column_dimensions["A"].width = 18
-    ws.column_dimensions["B"].width = 18
-    ws.column_dimensions["C"].width = 20
+    ws.column_dimensions["B"].width = 20
+    ws.column_dimensions["C"].width = 22
     ws.column_dimensions["D"].width = 30
-    ws.column_dimensions["E"].width = 15
-    ws.column_dimensions["F"].width = 15
-    ws.column_dimensions["G"].width = 15
+    ws.column_dimensions["E"].width = 16
+    ws.column_dimensions["F"].width = 16
+    ws.column_dimensions["G"].width = 16
 
     # =====================================================
     # PAGE SETUP

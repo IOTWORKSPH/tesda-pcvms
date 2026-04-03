@@ -1,19 +1,29 @@
 # pettycash/services/excel/summary_excel.py
 
-from openpyxl.styles import Font, Alignment, Border, Side
+from decimal import Decimal
+from openpyxl.styles import Font
+
+
+def _get_voucher_amount(voucher):
+    actual_amount = getattr(voucher, "actual_amount", None)
+    if actual_amount is not None:
+        return actual_amount
+
+    if getattr(voucher, "amount_liquidated", None):
+        return voucher.amount_liquidated
+
+    return voucher.amount_requested or Decimal("0.00")
 
 
 def generate_summary(wb, context, styles):
-
     fund = context["fund"]
     vouchers = context["vouchers"]
-    total = context["total"]
+    total = context.get("replenishment_amount", context.get("total", Decimal("0.00")))
     generated_date = context["generated_date"]
 
     ws = wb.create_sheet("Summary")
 
     bold = styles["bold"]
-    bold_large = styles["bold_large"]
     center = styles["center"]
     right = styles["right"]
     border = styles["border"]
@@ -22,7 +32,7 @@ def generate_summary(wb, context, styles):
     row = 1
 
     # =====================================================
-    # GOVERNMENT HEADER
+    # HEADER
     # =====================================================
     ws.merge_cells("A1:D1")
     ws["A1"] = "Republic of the Philippines"
@@ -42,7 +52,7 @@ def generate_summary(wb, context, styles):
     row += 1
 
     ws.merge_cells("A4:D4")
-    ws["A4"] = fund.entity.address
+    ws["A4"] = fund.entity.address or ""
     ws["A4"].alignment = center
     row += 2
 
@@ -59,10 +69,10 @@ def generate_summary(wb, context, styles):
     # TABLE HEADER
     # =====================================================
     headers = ["Date", "Petty Cash Voucher No.", "Particulars", "Amount"]
-    ws.append(headers)
 
-    for col in range(1, 5):
-        cell = ws.cell(row=row, column=col)
+    for idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=row, column=idx)
+        cell.value = header
         cell.font = bold
         cell.alignment = center
         cell.border = border
@@ -72,24 +82,26 @@ def generate_summary(wb, context, styles):
     # =====================================================
     # TABLE DATA
     # =====================================================
-    for v in vouchers:
+    for voucher in vouchers:
+        amount = _get_voucher_amount(voucher)
 
         ws.cell(row=row, column=1).value = (
-            v.purchase_date.strftime("%B %d, %Y")
-            if v.purchase_date else ""
+            voucher.purchase_date.strftime("%B %d, %Y")
+            if voucher.purchase_date else ""
         )
         ws.cell(row=row, column=1).alignment = center
 
-        ws.cell(row=row, column=2).value = v.pcv_no
+        ws.cell(row=row, column=2).value = getattr(voucher, "report_pcv_no", voucher.pcv_no)
         ws.cell(row=row, column=2).alignment = center
 
         ws.cell(row=row, column=3).value = (
-            v.expense_category.name if v.expense_category else ""
+            voucher.expense_category.name if voucher.expense_category else ""
         )
         ws.cell(row=row, column=3).alignment = wrap
 
-        ws.cell(row=row, column=4).value = float(v.amount_requested)
+        ws.cell(row=row, column=4).value = float(amount)
         ws.cell(row=row, column=4).alignment = right
+        ws.cell(row=row, column=4).number_format = '#,##0.00'
 
         for col in range(1, 5):
             ws.cell(row=row, column=col).border = border
@@ -103,13 +115,13 @@ def generate_summary(wb, context, styles):
     ws.cell(row=row, column=1).value = "TOTAL"
     ws.cell(row=row, column=1).alignment = right
     ws.cell(row=row, column=1).font = bold
+    ws.cell(row=row, column=1).border = border
 
     ws.cell(row=row, column=4).value = float(total)
     ws.cell(row=row, column=4).alignment = right
     ws.cell(row=row, column=4).font = bold
-
-    for col in range(1, 5):
-        ws.cell(row=row, column=col).border = border
+    ws.cell(row=row, column=4).border = border
+    ws.cell(row=row, column=4).number_format = '#,##0.00'
 
     row += 3
 
@@ -123,14 +135,12 @@ def generate_summary(wb, context, styles):
     row += 2
 
     ws.merge_cells(f"A{row}:D{row}")
-    ws.cell(row=row, column=1).value = (
-        "I hereby certify to the correctness of the above information."
-    )
+    ws.cell(row=row, column=1).value = "I hereby certify to the correctness of the above information."
     ws.cell(row=row, column=1).alignment = center
     row += 4
 
     # =====================================================
-    # SIGNATURE BLOCK (Two Columns Like PDF)
+    # SIGNATURE BLOCK
     # =====================================================
     ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
     ws.cell(row=row, column=1).value = fund.custodian.get_full_name().upper()

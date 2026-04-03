@@ -11,7 +11,6 @@ from .summary_excel import generate_summary
 
 
 def generate_replenishment_excel(context):
-
     wb = Workbook()
     styles = get_styles()
 
@@ -20,12 +19,17 @@ def generate_replenishment_excel(context):
     generate_appendix_51(wb, context, styles)
     generate_summary(wb, context, styles)
 
+    report_number = context.get("report_number")
+    filename = (
+        f"replenishment_{report_number}.xlsx"
+        if report_number
+        else "replenishment_package.xlsx"
+    )
+
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-    response["Content-Disposition"] = (
-        'attachment; filename="replenishment_package.xlsx"'
-    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
     wb.save(response)
     return response
