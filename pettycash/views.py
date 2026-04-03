@@ -1805,6 +1805,11 @@ def create_replenishment(request):
         return redirect("users:dashboard_custodian")
 
     selected_ids = request.POST.getlist("selected_vouchers")
+    raw_date_from = request.POST.get("date_from", "").strip()
+    raw_date_to = request.POST.get("date_to", "").strip()
+
+    date_from = parse_date(raw_date_from) if raw_date_from else None
+    date_to = parse_date(raw_date_to) if raw_date_to else None
 
     base_qs = PettyCashVoucher.objects.filter(
         fund=fund,
@@ -1813,13 +1818,20 @@ def create_replenishment(request):
         replenishment__isnull=True
     )
 
+    if date_from:
+        base_qs = base_qs.filter(purchase_date__gte=date_from)
+
+    if date_to:
+        base_qs = base_qs.filter(purchase_date__lte=date_to)
+
     if selected_ids:
         vouchers = base_qs.filter(id__in=selected_ids)
     else:
         vouchers = base_qs
 
-    total_expenses = Decimal("0.00")
+    vouchers = vouchers.order_by("purchase_date", "created_at", "id")
 
+    total_expenses = Decimal("0.00")
     for voucher in vouchers:
         total_expenses += voucher.actual_amount
 
@@ -1829,9 +1841,10 @@ def create_replenishment(request):
             messages.error(request, "No eligible vouchers found.")
             return redirect("pettycash:replenishment_report")
 
-        # ===============================
-        # LOCK FUND FOR SAFE SERIES
-        # ===============================
+        # derive covered period from actual selected vouchers if not supplied
+        actual_period_start = date_from or vouchers.first().purchase_date
+        actual_period_end = date_to or vouchers.last().purchase_date
+
         fund = PettyCashFund.objects.select_for_update().get(pk=fund.pk)
 
         current_year = timezone.now().year
@@ -1846,9 +1859,6 @@ def create_replenishment(request):
         next_series = last_series + 1
         report_number = f"{current_year}-{next_series:04d}"
 
-        # ===============================
-        # SNAPSHOT OPENING BALANCE
-        # ===============================
         latest_entry = fund.ledger_entries.order_by(
             "-transaction_date", "-id"
         ).first()
@@ -1866,11 +1876,12 @@ def create_replenishment(request):
             report_number=report_number,
             opening_balance=opening_balance,
             total_expenses=total_expenses,
+            period_start=actual_period_start,
+            period_end=actual_period_end,
             status=ReplenishmentStatus.DRAFT,
             created_by=request.user
         )
 
-        # Link vouchers (but DO NOT mark replenished yet)
         vouchers.update(replenishment=replenishment)
 
         messages.success(

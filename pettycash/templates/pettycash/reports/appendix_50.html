@@ -150,10 +150,6 @@ td, th {
 
         {% if date_from and date_to %}
             {{ date_from|date:"F d, Y" }} - {{ date_to|date:"F d, Y" }}
-
-        {% elif period_start and period_end %}
-            {{ period_start|date:"F d, Y" }} - {{ period_end|date:"F d, Y" }}
-
         {% else %}
             No Transactions Available
         {% endif %}

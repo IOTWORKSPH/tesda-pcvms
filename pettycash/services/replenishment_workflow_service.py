@@ -125,7 +125,7 @@ class ReplenishmentWorkflowService:
     @transaction.atomic
     def approve(replenishment):
 
-        if replenishment.status != ReplenishmentStatus.SUBMITTED:
+        if replenishment.status != ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING:
             raise ValueError("Replenishment must be submitted first.")
 
         replenishment.status = ReplenishmentStatus.APPROVED

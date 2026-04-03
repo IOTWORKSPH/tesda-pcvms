@@ -13,18 +13,10 @@ from pettycash.models import (
 
 
 def _attach_report_display_numbers(vouchers):
-    """
-    Create report-only numbering based on purchase date order.
-    Does NOT overwrite official pcv_no/pr_no/iar_no in database.
-    """
     counters = defaultdict(int)
 
     for voucher in vouchers:
-        year = (
-            voucher.purchase_date.year
-            if voucher.purchase_date
-            else timezone.now().year
-        )
+        year = voucher.purchase_date.year if voucher.purchase_date else timezone.now().year
 
         counters[("PCV", year)] += 1
         counters[("PR", year)] += 1
@@ -50,11 +42,7 @@ def build_replenishment_context(request):
     replenishment_id = request.POST.get("replenishment_id")
     replenishment_obj = None
 
-    # =========================================================
-    # IF OPENING EXISTING REPLENISHMENT
-    # =========================================================
     if replenishment_id:
-
         replenishment_obj = Replenishment.objects.filter(
             pk=replenishment_id,
             fund=fund
@@ -70,17 +58,22 @@ def build_replenishment_context(request):
 
         vouchers = _attach_report_display_numbers(list(vouchers_qs))
 
-        date_from = replenishment_obj.period_start
-        date_to = replenishment_obj.period_end
+        if vouchers:
+            derived_start = vouchers[0].purchase_date
+            derived_end = vouchers[-1].purchase_date
+        else:
+            derived_start = None
+            derived_end = None
+
+        date_from = replenishment_obj.period_start or derived_start
+        date_to = replenishment_obj.period_end or derived_end
+
         report_number = replenishment_obj.report_number
         sheet_number = replenishment_obj.sheet_number
         opening_balance = replenishment_obj.opening_balance
         replenishment_amount = replenishment_obj.total_expenses
 
     else:
-        # =========================================================
-        # LIVE REPORT PREVIEW MODE
-        # =========================================================
         raw_date_from = request.POST.get("date_from", "").strip()
         raw_date_to = request.POST.get("date_to", "").strip()
         selected_ids = request.POST.getlist("selected_vouchers")
@@ -113,6 +106,11 @@ def build_replenishment_context(request):
         if not vouchers:
             return None
 
+        if not date_from:
+            date_from = vouchers[0].purchase_date
+        if not date_to:
+            date_to = vouchers[-1].purchase_date
+
         replenishment_amount = Decimal("0.00")
         for v in vouchers:
             replenishment_amount += v.actual_amount
@@ -121,9 +119,6 @@ def build_replenishment_context(request):
         report_number = None
         sheet_number = 1
 
-    # =========================================================
-    # APPENDIX 50 – FUND RECORD
-    # =========================================================
     records = []
     previous_replenishment = None
 
@@ -180,9 +175,6 @@ def build_replenishment_context(request):
             "balance": fund.fund_amount,
         })
 
-    # ---------------------------------------------------------
-    # CURRENT DISBURSEMENTS
-    # ---------------------------------------------------------
     for voucher in vouchers:
         amount = voucher.actual_amount
         running_balance -= amount
@@ -201,9 +193,6 @@ def build_replenishment_context(request):
     allocated_fund = fund.fund_amount
     reconciled_total = cash_on_hand + replenishment_amount
 
-    # =========================================================
-    # APPENDIX 51 REGISTER
-    # =========================================================
     expense_category_ids = [
         v.expense_category_id
         for v in vouchers
@@ -217,10 +206,13 @@ def build_replenishment_context(request):
     category_totals = defaultdict(lambda: Decimal("0.00"))
     register_rows = []
 
+    register_running_balance = opening_balance
+
     for voucher in vouchers:
         amount = voucher.actual_amount
-        breakdown = defaultdict(lambda: None)
+        register_running_balance -= amount
 
+        breakdown = defaultdict(lambda: None)
         breakdown[voucher.expense_category.id] = amount
         category_totals[voucher.expense_category.id] += amount
 
@@ -230,7 +222,7 @@ def build_replenishment_context(request):
             "particulars": voucher.expense_category.name,
             "receipt": None,
             "payment": amount,
-            "balance": None,
+            "balance": register_running_balance,
             "breakdown": breakdown,
         })
 
@@ -241,7 +233,6 @@ def build_replenishment_context(request):
         "register_rows": register_rows,
         "expense_categories": expense_categories,
         "category_totals": category_totals,
-
         "report_number": report_number,
         "sheet_number": sheet_number,
         "previous_balance": opening_balance,
@@ -249,7 +240,6 @@ def build_replenishment_context(request):
         "replenishment_amount": replenishment_amount,
         "reconciled_total": reconciled_total,
         "allocated_fund": allocated_fund,
-
         "total": replenishment_amount,
         "generated_date": timezone.now(),
         "date_from": date_from,
