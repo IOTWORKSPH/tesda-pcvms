@@ -344,10 +344,22 @@ def dashboard_custodian(request):
     # =====================================================
 
     total_fund = fund.fund_amount
-    current_balance = fund.current_balance
+
+    latest_entry = LedgerEntry.objects.filter(
+        fund=fund
+    ).order_by("-transaction_date", "-id").first()
+
+    current_balance = (
+        latest_entry.running_balance
+        if latest_entry
+        else fund.current_balance
+    )
+
     utilized_amount = total_fund - current_balance
 
-    utilization_percent = round(fund.replenishment_percentage, 2)
+    utilization_percent = Decimal("0.00")
+    if total_fund > 0:
+        utilization_percent = round((utilized_amount / total_fund) * 100, 2)
 
     # =====================================================
     # CHECK IF REPLENISHMENT IS ALREADY IN PROCESS
@@ -362,7 +374,7 @@ def dashboard_custodian(request):
     ).exists()
 
     show_replenishment_alert = (
-        fund.replenishment_percentage >= 75
+        utilization_percent >= 75
         and not active_replenishment_exists
     )
 
@@ -370,25 +382,26 @@ def dashboard_custodian(request):
     # FINANCIAL BREAKDOWN
     # =====================================================
 
-    # Unliquidated Cash Advances
     unliquidated_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.RELEASED,
         transaction_type=TransactionType.CASH_ADVANCE
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
-    # Liquidated but not yet finalized
     pending_finalization_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.LIQUIDATED,
+        transaction_type=TransactionType.CASH_ADVANCE,
         is_posted_to_ledger=False
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
-    # Reimbursements already posted
+    # Current reimbursement exposure only
     reimbursed_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         transaction_type=TransactionType.REIMBURSEMENT,
-        is_posted_to_ledger=True
+        status=VoucherStatus.POSTED,
+        is_posted_to_ledger=True,
+        is_replenished=False
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
     # =====================================================
@@ -410,21 +423,19 @@ def dashboard_custodian(request):
     for_liquidation = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.LIQUIDATED,
+        transaction_type=TransactionType.CASH_ADVANCE,
         is_posted_to_ledger=False
-    )
+    ).select_related("requester")
 
     unliquidated_cash_advances = PettyCashVoucher.objects.filter(
         fund=fund,
-        status=VoucherStatus.RELEASED
-    )
+        status=VoucherStatus.RELEASED,
+        transaction_type=TransactionType.CASH_ADVANCE
+    ).select_related("requester")
 
     ledger_snapshot = LedgerEntry.objects.filter(
         fund=fund
     ).order_by("-transaction_date", "-id")[:10]
-
-    # =====================================================
-    # CONTEXT
-    # =====================================================
 
     context = {
         "fund": fund,
