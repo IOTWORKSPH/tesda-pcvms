@@ -112,39 +112,26 @@ td, th {
 
         <tbody>
             {% for row in records %}
-            <tr {% if row.is_total_row %}style="font-weight:bold;"{% endif %}>
-                <td>
-                    {{ row.date_label|default:"" }}
-                </td>
-
-                <td>
-                    {{ row.reference|default:"" }}
-                </td>
-
-                <td>
-                    {{ row.payee|default:"" }}
-                </td>
-
-                <td>
-                    {{ row.particulars|default:"" }}
-                </td>
+            <tr>
+                <td>{{ row.date|date:"F d, Y" }}</td>
+                <td>{{ row.reference }}</td>
+                <td>{{ row.payee }}</td>
+                <td>{{ row.particulars }}</td>
 
                 <td class="amount">
-                    {% if row.show_received %}
+                    {% if row.received %}
                         {{ row.received|money }}
                     {% endif %}
                 </td>
 
                 <td class="amount">
-                    {% if row.show_disbursement %}
+                    {% if row.disbursement %}
                         {{ row.disbursement|money }}
                     {% endif %}
                 </td>
 
                 <td class="amount">
-                    {% if row.show_balance %}
-                        {{ row.balance|money }}
-                    {% endif %}
+                    {{ row.balance|money }}
                 </td>
             </tr>
             {% empty %}
