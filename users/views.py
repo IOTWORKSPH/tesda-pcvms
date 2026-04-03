@@ -345,16 +345,17 @@ def dashboard_custodian(request):
 
     total_fund = fund.fund_amount
 
-    latest_entry = LedgerEntry.objects.filter(
+    ledger_totals = LedgerEntry.objects.filter(
         fund=fund
-    ).order_by("-transaction_date", "-id").first()
-
-    current_balance = (
-        latest_entry.running_balance
-        if latest_entry
-        else fund.current_balance
+    ).aggregate(
+        total_debit=Sum("debit"),
+        total_credit=Sum("credit"),
     )
 
+    total_debit = ledger_totals["total_debit"] or Decimal("0.00")
+    total_credit = ledger_totals["total_credit"] or Decimal("0.00")
+
+    current_balance = total_debit - total_credit
     utilized_amount = total_fund - current_balance
 
     utilization_percent = Decimal("0.00")
@@ -382,12 +383,15 @@ def dashboard_custodian(request):
     # FINANCIAL BREAKDOWN
     # =====================================================
 
+    # Released cash advances still fully outstanding
     unliquidated_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.RELEASED,
         transaction_type=TransactionType.CASH_ADVANCE
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
+    # Liquidated but not yet finalized:
+    # full amount is still outstanding until excess/shortage is posted
     pending_finalization_amount = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.LIQUIDATED,
@@ -395,14 +399,8 @@ def dashboard_custodian(request):
         is_posted_to_ledger=False
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
-    # Current reimbursement exposure only
-    reimbursed_amount = PettyCashVoucher.objects.filter(
-        fund=fund,
-        transaction_type=TransactionType.REIMBURSEMENT,
-        status=VoucherStatus.POSTED,
-        is_posted_to_ledger=True,
-        is_replenished=False
-    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+    # Posted unreplenished expenses = current utilized less the still-unfinalized exposures
+    posted_unreplenished_amount = utilized_amount - unliquidated_amount - pending_finalization_amount
 
     # =====================================================
     # OPERATIONAL QUEUES
@@ -435,7 +433,7 @@ def dashboard_custodian(request):
 
     ledger_snapshot = LedgerEntry.objects.filter(
         fund=fund
-    ).order_by("-transaction_date", "-id")[:10]
+    ).order_by("-id")[:10]
 
     context = {
         "fund": fund,
@@ -448,7 +446,7 @@ def dashboard_custodian(request):
 
         "unliquidated_amount": unliquidated_amount,
         "pending_finalization_amount": pending_finalization_amount,
-        "reimbursed_amount": reimbursed_amount,
+        "reimbursed_amount": posted_unreplenished_amount,
 
         "for_release": for_release,
         "for_reimbursement": for_reimbursement,
