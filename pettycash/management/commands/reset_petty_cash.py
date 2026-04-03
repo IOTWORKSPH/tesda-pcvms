@@ -1,5 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from decimal import Decimal
+from django.utils import timezone
 
 from pettycash.models import (
     PettyCashVoucher,
@@ -11,6 +13,7 @@ from pettycash.models import (
 from finance.models import (
     PettyCashFund,
     LedgerEntry,
+    ReferenceType,
 )
 
 from users.models import Entity
@@ -89,6 +92,18 @@ class Command(BaseCommand):
         for fund in funds:
             fund.current_balance = fund.fund_amount
             fund.save(update_fields=["current_balance"])
+
+            LedgerEntry.objects.create(
+                fund=fund,
+                transaction_date=timezone.now().date(),
+                debit=fund.fund_amount,
+                credit=Decimal("0.00"),
+                running_balance=fund.fund_amount,
+                reference_type=ReferenceType.ADJUSTMENT,
+                reference_no="RESET-OPENING",
+                description="Opening balance restored after petty cash reset",
+                created_by=fund.custodian
+            )
 
         # -----------------------------------
         # OUTPUT SUMMARY

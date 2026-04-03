@@ -2,6 +2,7 @@
 #Finance/Services/ledger_service.py codes
 from django.db import transaction
 from decimal import Decimal
+from django.utils import timezone
 
 from finance.models import LedgerEntry, ReferenceType, PettyCashFund
 from pettycash.models import TransactionType, VoucherStatus
@@ -45,17 +46,16 @@ class LedgerService:
         if voucher.transaction_type != TransactionType.REIMBURSEMENT:
             raise ValueError("Invalid transaction type for reimbursement.")
 
-        # Lock fund row
         fund = LedgerService._lock_fund(voucher.fund.id)
 
         amount = voucher.amount_requested
-
-        current_balance = LedgerService._compute_new_balance(fund)
+        current_balance = fund.current_balance
 
         if current_balance < amount:
             raise ValueError("Insufficient fund balance.")
 
         previous_status = voucher.status
+        posting_date = timezone.now().date()
 
         new_balance = LedgerService._compute_new_balance(
             fund,
@@ -64,13 +64,13 @@ class LedgerService:
 
         LedgerEntry.objects.create(
             fund=fund,
-            transaction_date=voucher.purchase_date,
+            transaction_date=posting_date,
             debit=Decimal("0.00"),
             credit=amount,
             running_balance=new_balance,
             reference_type=ReferenceType.PCV,
             reference_no=voucher.pcv_no,
-            description=f"Reimbursement - {voucher.purpose}",
+            description=f"Reimbursement paid - {voucher.purpose}",
             created_by=user,
         )
 
@@ -81,7 +81,6 @@ class LedgerService:
         voucher.status = VoucherStatus.POSTED
         voucher.save(update_fields=["is_posted_to_ledger", "status"])
 
-        # Audit log
         AuditService.log(
             entity=voucher.entity,
             user=user,
@@ -103,8 +102,8 @@ class LedgerService:
     @transaction.atomic
     def post_cash_advance_release(voucher, user):
 
-        if voucher.is_posted_to_ledger:
-            raise ValueError("Voucher already posted.")
+        if voucher.is_release_posted:
+            raise ValueError("Cash advance already released.")
 
         if voucher.status != VoucherStatus.APPROVED:
             raise ValueError("Voucher must be approved before release.")
@@ -115,13 +114,13 @@ class LedgerService:
         fund = LedgerService._lock_fund(voucher.fund.id)
 
         amount = voucher.amount_requested
-
-        current_balance = LedgerService._compute_new_balance(fund)
+        current_balance = fund.current_balance
 
         if current_balance < amount:
             raise ValueError("Insufficient fund balance.")
 
         previous_status = voucher.status
+        release_dt = timezone.now()
 
         new_balance = LedgerService._compute_new_balance(
             fund,
@@ -130,7 +129,7 @@ class LedgerService:
 
         LedgerEntry.objects.create(
             fund=fund,
-            transaction_date=voucher.created_at.date(),
+            transaction_date=release_dt.date(),
             debit=Decimal("0.00"),
             credit=amount,
             running_balance=new_balance,
@@ -145,14 +144,15 @@ class LedgerService:
 
         voucher.status = VoucherStatus.RELEASED
         voucher.is_release_posted = True
-        # voucher.is_posted_to_ledger = True
-
+        voucher.release_date = release_dt
+        voucher.released_by = user
         voucher.save(update_fields=[
             "status",
-            "is_release_posted"
+            "is_release_posted",
+            "release_date",
+            "released_by",
         ])
 
-        # Audit log
         AuditService.log(
             entity=voucher.entity,
             user=user,
@@ -181,17 +181,15 @@ class LedgerService:
 
         requested = voucher.amount_requested
         actual = voucher.amount_liquidated
-
         difference = requested - actual
         previous_status = voucher.status
+        posting_date = timezone.now().date()
 
         # No adjustment needed
         if difference == 0:
-
             voucher.status = VoucherStatus.POSTED
             voucher.is_posted_to_ledger = True
             voucher.is_liquidation_posted = True
-
             voucher.save(update_fields=[
                 "status",
                 "is_posted_to_ledger",
@@ -208,14 +206,9 @@ class LedgerService:
                 previous_status=previous_status,
                 new_status=voucher.status
             )
-
             return True
 
-        # ============================================
-        # EXCESS CASH RETURNED (Debit Fund)
-        # ============================================
         if difference > 0:
-
             new_balance = LedgerService._compute_new_balance(
                 fund,
                 debit=difference
@@ -223,7 +216,7 @@ class LedgerService:
 
             LedgerEntry.objects.create(
                 fund=fund,
-                transaction_date=voucher.created_at.date(),
+                transaction_date=posting_date,
                 debit=difference,
                 credit=Decimal("0.00"),
                 running_balance=new_balance,
@@ -236,16 +229,10 @@ class LedgerService:
             fund.current_balance = new_balance
             fund.save(update_fields=["current_balance"])
 
-        # ============================================
-        # SHORTAGE (Credit Fund)
-        # ============================================
         elif difference < 0:
-
             shortage = abs(difference)
 
-            current_balance = LedgerService._compute_new_balance(fund)
-
-            if current_balance < shortage:
+            if fund.current_balance < shortage:
                 raise ValueError("Insufficient fund balance for shortage adjustment.")
 
             new_balance = LedgerService._compute_new_balance(
@@ -255,7 +242,7 @@ class LedgerService:
 
             LedgerEntry.objects.create(
                 fund=fund,
-                transaction_date=voucher.created_at.date(),
+                transaction_date=posting_date,
                 debit=Decimal("0.00"),
                 credit=shortage,
                 running_balance=new_balance,
@@ -270,9 +257,13 @@ class LedgerService:
 
         voucher.status = VoucherStatus.POSTED
         voucher.is_posted_to_ledger = True
-        voucher.save(update_fields=["status", "is_posted_to_ledger"])
+        voucher.is_liquidation_posted = True
+        voucher.save(update_fields=[
+            "status",
+            "is_posted_to_ledger",
+            "is_liquidation_posted"
+        ])
 
-        # Audit log
         AuditService.log(
             entity=voucher.entity,
             user=user,
@@ -289,21 +280,11 @@ class LedgerService:
     @staticmethod
     def _compute_new_balance(fund, debit=Decimal("0.00"), credit=Decimal("0.00")):
         """
-        Compute running balance strictly from last ledger entry.
+        Compute running balance from the locked fund's current balance.
+        This avoids broken balances when historical/backdated transaction dates are used.
         """
 
-        last_entry = (
-            LedgerEntry.objects
-            .filter(fund=fund)
-            .order_by("-transaction_date", "-id")
-            .first()
-        )
-
-        previous_balance = (
-            last_entry.running_balance
-            if last_entry
-            else fund.fund_amount
-        )
+        previous_balance = fund.current_balance if fund.current_balance is not None else fund.fund_amount
 
         if debit and credit:
             raise ValueError("Ledger entry cannot have both debit and credit.")
