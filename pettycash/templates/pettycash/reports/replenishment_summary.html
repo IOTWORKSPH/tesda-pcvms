@@ -71,7 +71,7 @@ td, th {
                 </td>
 
                 <td class="center">
-                    {{ v.pcv_no }}
+                    {{ v.report_pcv_no|default:v.pcv_no }}
                 </td>
 
                 <td>
