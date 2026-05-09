@@ -38,12 +38,17 @@
                 <div class="col-md-6">
                     <label>Expense Category</label>
                     <select name="expense_category"
-                            class="form-control"
+                            class="form-control expense-category-select"
+                            title="Select a UACS expense category"
+                            data-toggle="tooltip"
                             required>
                         <option value="">Select Category</option>
                         {% for cat in categories %}
-                        <option value="{{ cat.id }}">
-                            {{ cat.name }}
+                        <option value="{{ cat.id }}"
+                                title="{{ cat.description }}"
+                                data-description="{{ cat.description }}"
+                                data-uacs-code="{{ cat.code }}">
+                            {{ cat.code }} - {{ cat.name }}
                         </option>
                         {% endfor %}
                     </select>

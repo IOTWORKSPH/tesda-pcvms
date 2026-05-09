@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% load money %}
+{% load humanize %}
+
+{% block content %}
+<style>
+    .table-responsive {
+        overflow: visible !important;
+    }
+</style>
+
+<section class="content-header">
+    <div class="container-fluid">
+        <h4>
+            <i class="fas fa-archive text-secondary"></i>
+            Replenished Voucher Archive
+        </h4>
+    </div>
+</section>
+
+<section class="content">
+<div class="container-fluid">
+
+<div class="card shadow-sm">
+
+    <div class="card-header">
+        <form method="get" class="form-inline float-right">
+            <input type="text"
+                   name="q"
+                   value="{{ search }}"
+                   class="form-control form-control-sm mr-2"
+                   placeholder="Search PCV, Purpose, Category, Report">
+            <button type="submit" class="btn btn-sm btn-primary">
+                <i class="fas fa-search"></i>
+            </button>
+        </form>
+    </div>
+
+    <div class="card-body table-responsive p-0">
+
+        <table class="table table-hover table-striped table-sm">
+            <thead class="thead-light">
+                <tr>
+                    <th>Date</th>
+                    <th>PCV No</th>
+                    <th>Type</th>
+                    <th>Purpose</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Replenishment</th>
+                    <th style="width:180px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            {% for voucher in page_obj %}
+                <tr>
+                    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+
+                    <td>{{ voucher.pcv_no|default:"-" }}</td>
+
+                    <td>
+                        {% if voucher.transaction_type == "CASH_ADVANCE" %}
+                            <span class="badge badge-success">
+                                <i class="fas fa-money-bill-wave"></i> Cash Advance
+                            </span>
+                        {% else %}
+                            <span class="badge badge-warning">
+                                <i class="fas fa-undo-alt"></i> Reimbursement
+                            </span>
+                        {% endif %}
+                    </td>
+
+                    <td>{{ voucher.purpose|truncatechars:40 }}</td>
+
+                    <td class="font-weight-bold">
+                        {{ voucher.actual_amount|money }}
+                    </td>
+
+                    <td>
+                        <span class="badge badge-success">
+                            {{ voucher.get_status_display }}
+                        </span>
+                    </td>
+
+                    <td>
+                        {% if voucher.replenishment %}
+                            <a href="{% url 'pettycash:replenishment_detail' voucher.replenishment.pk %}">
+                                {{ voucher.replenishment.report_number }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+
+                    <td>
+                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                           class="btn btn-sm btn-outline-primary"
+                           title="View">
+                            <i class="fas fa-eye"></i>
+                        </a>
+
+                        {% if voucher.pcv_no %}
+                            <div class="btn-group btn-group-sm position-static">
+                                <button type="button"
+                                        class="btn btn-outline-secondary dropdown-toggle"
+                                        data-toggle="dropdown"
+                                        title="Print Documents">
+                                    <i class="fas fa-print"></i>
+                                </button>
+
+                                <div class="dropdown-menu dropdown-menu-right shadow">
+                                    <a class="dropdown-item"
+                                       href="{% url 'pettycash:print_pcv' voucher.uuid %}"
+                                       target="_blank">
+                                        <i class="fas fa-file-invoice mr-2 text-primary"></i>
+                                        Print PCV
+                                    </a>
+
+                                    {% if voucher.pr_no %}
+                                    <a class="dropdown-item"
+                                       href="{% url 'pettycash:print_pr' voucher.uuid %}"
+                                       target="_blank">
+                                        <i class="fas fa-file-alt mr-2 text-info"></i>
+                                        Print PR
+                                    </a>
+                                    {% endif %}
+
+                                    {% if voucher.iar_no %}
+                                    <a class="dropdown-item"
+                                       href="{% url 'pettycash:print_iar' voucher.uuid %}"
+                                       target="_blank">
+                                        <i class="fas fa-clipboard-check mr-2 text-success"></i>
+                                        Print IAR
+                                    </a>
+                                    {% endif %}
+
+                                    {% if voucher.has_cnrr %}
+                                    <a class="dropdown-item"
+                                       href="{% url 'pettycash:print_cnrr' voucher.uuid %}"
+                                       target="_blank">
+                                        <i class="fas fa-file-medical mr-2 text-danger"></i>
+                                        Print CNRR
+                                    </a>
+                                    {% endif %}
+
+                                    {% if voucher.pr_no or voucher.iar_no or voucher.has_cnrr %}
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item font-weight-bold"
+                                       href="{% url 'pettycash:print_all' voucher.uuid %}"
+                                       target="_blank">
+                                        <i class="fas fa-print mr-2 text-dark"></i>
+                                        Print All Documents
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <a href="{% url 'pettycash:export_voucher_excel' voucher.uuid %}"
+                               class="btn btn-sm btn-outline-success"
+                               title="Export Excel">
+                                <i class="fas fa-file-excel"></i>
+                            </a>
+                        {% endif %}
+                    </td>
+                </tr>
+
+            {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center py-4">
+                        No replenished vouchers found.
+                    </td>
+                </tr>
+            {% endfor %}
+
+            </tbody>
+        </table>
+
+    </div>
+
+    <div class="card-footer text-center">
+        {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}&q={{ search }}"
+               class="btn btn-sm btn-secondary">Previous</a>
+        {% endif %}
+
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}&q={{ search }}"
+               class="btn btn-sm btn-secondary">Next</a>
+        {% endif %}
+    </div>
+
+</div>
+
+</div>
+</section>
+
+{% endblock %}

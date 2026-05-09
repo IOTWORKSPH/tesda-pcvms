@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>{{ title|default:"Print Documents" }}</title>
+
+<style>
+@page portrait-page {
+    size: A4 portrait;
+    margin: 8mm;
+}
+
+@page landscape-page {
+    size: A4 landscape;
+    margin: 8mm;
+}
+
+body {
+    margin: 0;
+    background: #f0f2f5;
+    font-family: Arial, sans-serif;
+}
+
+.excel-page {
+    margin: 12px auto;
+    background: white;
+    padding: 8mm;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.excel-page.portrait {
+    page: portrait-page;
+    width: 210mm;
+    min-height: 297mm;
+}
+
+.excel-page.landscape {
+    page: landscape-page;
+    width: 297mm;
+    min-height: 210mm;
+}
+
+.page-break {
+    break-before: page;
+    page-break-before: always;
+}
+
+.excel-sheet {
+    border-collapse: collapse;
+    border: 1px solid #000;
+    table-layout: fixed;
+    margin-left: auto;
+    margin-right: auto;
+    width: auto;
+    max-width: 100%;
+}
+
+.excel-sheet td {
+    line-height: 1.05;
+}
+
+.iar-checkline {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+    height: 100%;
+    justify-content: center;
+    text-align: center;
+    width: 100%;
+}
+
+.iar-checkline-left {
+    gap: 8px;
+    justify-content: flex-start;
+    padding-left: 8px;
+}
+
+.iar-checkline-acceptance {
+    justify-content: flex-start;
+    padding-left: 28px;
+}
+
+.iar-checkbox {
+    align-items: center;
+    border: 1px solid #000;
+    display: inline-flex;
+    flex: 0 0 auto;
+    font-family: Arial, sans-serif;
+    font-size: 11pt;
+    height: 20px;
+    justify-content: center;
+    line-height: 1;
+    width: 26px;
+}
+
+.iar-checkbox-checked {
+    font-size: 10pt;
+}
+
+@media print {
+    body {
+        background: white;
+    }
+
+    .excel-page {
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    .excel-page.portrait,
+    .excel-page.landscape {
+        width: auto;
+        min-height: 0;
+    }
+}
+</style>
+</head>
+
+<body>
+    {% for sheet in sheets %}
+        <section class="excel-page {{ sheet.orientation }}{% if not forloop.first %} page-break{% endif %}">
+            {{ sheet.html|safe }}
+        </section>
+    {% endfor %}
+
+    {% if auto_print %}
+    <script>
+    window.addEventListener("load", function () {
+        setTimeout(function () {
+            window.print();
+        }, 350);
+    });
+    </script>
+    {% endif %}
+</body>
+</html>

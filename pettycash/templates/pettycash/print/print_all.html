@@ -13,6 +13,11 @@
     margin: 15mm;
 }
 
+@page cnrr-landscape {
+    size: A4 landscape;
+    margin: 8mm;
+}
+
 body {
     margin: 0;
     background: #f0f2f5;
@@ -54,6 +59,13 @@ body {
         page-break-inside: avoid;
     }
 
+    .cnrr-landscape-page {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+
 }
 
 table {
@@ -78,6 +90,26 @@ td, th {
     font-weight: bold;
     display: block;
     text-align: center;
+}
+
+.cnrr-landscape-page {
+    page: cnrr-landscape;
+    width: 281mm;
+    margin: 20px auto;
+    background: white;
+    padding: 8mm;
+    box-sizing: border-box;
+    box-shadow: 0 0 15px rgba(0,0,0,0.15);
+}
+
+.cnrr-landscape-page .excel-sheet {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.cnrr-landscape-page .excel-sheet td {
+    line-height: 1.1;
 }
 
 </style>
@@ -105,7 +137,9 @@ td, th {
 
 {% if pcv.has_cnrr %}
 <div class="page-break"></div>
-        {% include "pettycash/print/print_cnrr.html" %}
+<div class="cnrr-landscape-page">
+        {{ cnrr_sheet_html|safe }}
+</div>
 {% endif %}
 
 </body>

@@ -111,12 +111,21 @@ def generate_appendix_51(wb, context, styles):
     ws.cell(row=row, column=4).value = "( + )"
     ws.cell(row=row, column=5).value = "( - )"
 
+    col = 7
+    for category in expense_categories:
+        ws.cell(row=row, column=col).value = category.code
+        ws.cell(row=row, column=col).alignment = center
+        col += 1
+
     for r in range(header_start, header_start + 3):
         ws.row_dimensions[r].height = 35
         for c in range(1, total_columns + 1):
             ws.cell(row=r, column=c).font = bold
             ws.cell(row=r, column=c).alignment = center
             ws.cell(row=r, column=c).border = border
+
+    ws.row_dimensions[header_start + 1].height = 42
+    ws.row_dimensions[header_start + 2].height = 24
 
     row += 1
 

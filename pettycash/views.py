@@ -81,6 +81,7 @@ from users.models import User
 from pettycash.services.workflow_service import WorkflowService
 from pettycash.services.replenishment_service import ReplenishmentService
 from pettycash.services.replenishment_workflow_service import ReplenishmentWorkflowService
+from pettycash.services.numbering_service import DocumentNumberService
 
 from finance.services.ledger_service import LedgerService
 
@@ -96,6 +97,15 @@ from pettycash.services.excel.pr_excel import generate_pr_excel
 from pettycash.services.excel.iar_excel import generate_iar_excel
 from pettycash.services.excel.cnrr_excel import generate_cnrr_excel
 from pettycash.services.excel.replenishment_excel import generate_replenishment_excel
+from pettycash.services.excel.worksheet_html import (
+    worksheet_fit_scale,
+    worksheet_to_html,
+)
+from pettycash.services.excel.pdf_export import (
+    ExcelPdfExportError,
+    configure_print_layout,
+    export_workbooks_to_pdf,
+)
 
 
 def notify(user, voucher, message):
@@ -104,6 +114,98 @@ def notify(user, voucher, message):
         voucher=voucher,
         message=message,
         is_read=False
+    )
+
+
+def build_print_sheet(
+    workbook,
+    orientation="portrait",
+    name="Document",
+    max_row=None,
+    max_col=None,
+    print_area=None,
+    html_overrides=None,
+):
+    configure_print_layout(
+        workbook,
+        orientation=orientation,
+        print_area=print_area,
+    )
+    worksheet = workbook.active
+    scale = worksheet_fit_scale(
+        worksheet,
+        orientation=orientation,
+        max_row=max_row,
+        max_col=max_col,
+    )
+
+    return {
+        "name": name,
+        "orientation": orientation,
+        "workbook": workbook,
+        "html": worksheet_to_html(
+            worksheet,
+            scale=scale,
+            max_row=max_row,
+            max_col=max_col,
+            html_overrides=html_overrides,
+        ),
+    }
+
+
+def iar_checkbox_overrides():
+    checked_box = (
+        '<span class="iar-checkbox iar-checkbox-checked">x</span>'
+    )
+    empty_box = (
+        '<span class="iar-checkbox">&nbsp;</span>'
+    )
+
+    return {
+        (24, 1): (
+            '<div class="iar-checkline iar-checkline-left">'
+            f"{checked_box}"
+            '<span>Inspected, verified and found in order as<br>'
+            'to quantity and specifications</span>'
+            '</div>'
+        ),
+        (24, 3): (
+            '<div class="iar-checkline iar-checkline-acceptance">'
+            f"{checked_box}"
+            '<span>Complete</span>'
+            '</div>'
+        ),
+        (27, 3): (
+            '<div class="iar-checkline iar-checkline-acceptance">'
+            f"{empty_box}"
+            '<span>Partial (pls. specify quantity)</span>'
+            '</div>'
+        ),
+    }
+
+
+def render_excel_print_response(request, title, sheets, filename):
+    if request.GET.get("pdf") == "1":
+        try:
+            pdf_data = export_workbooks_to_pdf([sheet["workbook"] for sheet in sheets])
+            response = HttpResponse(pdf_data, content_type="application/pdf")
+            response["Content-Disposition"] = f'inline; filename="{filename}"'
+            return response
+        except ExcelPdfExportError as exc:
+            messages.warning(
+                request,
+                f"Excel PDF export failed; showing browser print preview instead. {exc}",
+                fail_silently=True,
+            )
+
+    return render(
+        request,
+        "pettycash/print/print_excel_sheets.html",
+        {
+            "title": title,
+            "sheets": sheets,
+            "auto_print": True,
+        }
     )
 
 @login_required
@@ -568,7 +670,7 @@ def create_reimbursement(request):
     categories = ExpenseCategory.objects.filter(
         entity=entity,
         is_active=True
-    )
+    ).order_by("code", "name")
 
     funds = PettyCashFund.objects.filter(
         entity=entity,
@@ -732,20 +834,23 @@ def print_cnrr(request, uuid):
         is_active=True
     ).first()
 
-    wb = generate_cnrr_excel(voucher, administrator)
+    title = f"CNRR {voucher.pcv_no or voucher.uuid}"
+    sheets = [
+        build_print_sheet(
+            generate_cnrr_excel(voucher, administrator),
+            orientation="landscape",
+            name="CNRR",
+            max_row=24,
+            max_col=21,
+            print_area="A1:U24",
+        )
+    ]
 
-    buffer = BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-
-    filename = f"CNRR_{voucher.pcv_no or voucher.uuid}.xlsx"
-
-    return HttpResponse(
-        buffer,
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={
-            "Content-Disposition": f'inline; filename="{filename}"'
-        }
+    return render_excel_print_response(
+        request,
+        title,
+        sheets,
+        f"{voucher.pcv_no or voucher.uuid}-CNRR.pdf",
     )
 
 
@@ -1118,7 +1223,11 @@ def reject_voucher(request, uuid):
 @login_required
 def print_pcv(request, uuid):
 
-    pcv = get_object_or_404(PettyCashVoucher, uuid=uuid)
+    pcv = get_object_or_404(
+        PettyCashVoucher,
+        uuid=uuid,
+        entity=request.user.entity
+    )
 
     entity = pcv.entity
 
@@ -1136,12 +1245,24 @@ def print_pcv(request, uuid):
         is_active=True
     ).first()
 
-    return render(request, "pettycash/print/print_pcv.html", {
-        "pcv": pcv,
-        "entity": entity,
-        "administrator": administrator,
-        "custodian": custodian,
-    })
+    title = f"PCV {pcv.pcv_no or pcv.uuid}"
+    sheets = [
+        build_print_sheet(
+            generate_pcv_excel(pcv, entity, administrator, custodian),
+            orientation="portrait",
+            name="PCV",
+            max_row=47,
+            max_col=14,
+            print_area="A1:N47",
+        )
+    ]
+
+    return render_excel_print_response(
+        request,
+        title,
+        sheets,
+        f"{pcv.pcv_no or pcv.uuid}-PCV.pdf",
+    )
 
 # ==========================================================
 # PRINT PR
@@ -1149,7 +1270,11 @@ def print_pcv(request, uuid):
 
 @login_required
 def print_pr(request, uuid):
-    pcv = get_object_or_404(PettyCashVoucher, uuid=uuid)
+    pcv = get_object_or_404(
+        PettyCashVoucher,
+        uuid=uuid,
+        entity=request.user.entity
+    )
 
     # Get Administrator from Django Group
     administrator = User.objects.filter(
@@ -1158,21 +1283,24 @@ def print_pr(request, uuid):
         is_active=True
     ).first()
 
-    items = pcv.items.all()
+    title = f"PR {pcv.pr_no or pcv.uuid}"
+    sheets = [
+        build_print_sheet(
+            generate_pr_excel(pcv, administrator),
+            orientation="portrait",
+            name="PR",
+            max_row=29,
+            max_col=6,
+            print_area="A1:F29",
+        )
+    ]
 
-    # Official PR usually has fixed number of rows (e.g., 10)
-    total_rows = 10
-    blank_count = max(0, total_rows - items.count())
-
-    context = {
-        "pcv": pcv,
-        "items": items,
-        "blank_rows": range(blank_count),
-        "entity": pcv.entity,
-        "administrator": administrator,
-    }
-
-    return render(request, "pettycash/print/print_pr.html", context)
+    return render_excel_print_response(
+        request,
+        title,
+        sheets,
+        f"{pcv.pr_no or pcv.uuid}-PR.pdf",
+    )
 
 
 # ==========================================================
@@ -1180,35 +1308,31 @@ def print_pr(request, uuid):
 # ==========================================================
 @login_required
 def print_iar(request, uuid):
-    pcv = get_object_or_404(PettyCashVoucher, uuid=uuid)
-
-    # Inspection Committee (Group: Inspection)
-    inspectors = User.objects.filter(
-        groups__name="Inspection",
-        entity=pcv.entity,
-        is_active=True
+    pcv = get_object_or_404(
+        PettyCashVoucher,
+        uuid=uuid,
+        entity=request.user.entity
     )
 
-    # Acceptance Officer (Group: Supply Officer)
-    acceptance = User.objects.filter(
-        groups__name="Supply",
-        entity=pcv.entity,
-        is_active=True
-    ).first()
+    title = f"IAR {pcv.iar_no or pcv.uuid}"
+    sheets = [
+        build_print_sheet(
+            generate_iar_excel(pcv),
+            orientation="portrait",
+            name="IAR",
+            max_row=35,
+            max_col=5,
+            print_area="A1:E35",
+            html_overrides=iar_checkbox_overrides(),
+        )
+    ]
 
-    items = pcv.items.all()
-
-    total_rows = 8
-    blank_count = max(0, total_rows - items.count())
-
-    context = {
-        "pcv": pcv,
-        "inspectors": inspectors,
-        "acceptance": acceptance,
-        "blank_rows": range(blank_count),
-    }
-
-    return render(request, "pettycash/print/print_iar.html", context)
+    return render_excel_print_response(
+        request,
+        title,
+        sheets,
+        f"{pcv.iar_no or pcv.uuid}-IAR.pdf",
+    )
 
 
 # ==========================================================
@@ -1217,7 +1341,11 @@ def print_iar(request, uuid):
 @login_required
 def print_all(request, uuid):
 
-    pcv = get_object_or_404(PettyCashVoucher, uuid=uuid)
+    pcv = get_object_or_404(
+        PettyCashVoucher,
+        uuid=uuid,
+        entity=request.user.entity
+    )
 
     # ==========================================
     # ENTITY
@@ -1242,47 +1370,51 @@ def print_all(request, uuid):
         is_active=True
     ).first()
 
-    # ==========================================
-    # INSPECTION COMMITTEE
-    # ==========================================
-    inspectors = User.objects.filter(
-        groups__name="Inspection",
-        entity=entity,
-        is_active=True
-    )
+    sheets = [
+        build_print_sheet(
+            generate_pcv_excel(pcv, entity, administrator, custodian),
+            orientation="portrait",
+            name="PCV",
+            max_row=47,
+            max_col=14,
+            print_area="A1:N47",
+        ),
+        build_print_sheet(
+            generate_pr_excel(pcv, administrator),
+            orientation="portrait",
+            name="PR",
+            max_row=29,
+            max_col=6,
+            print_area="A1:F29",
+        ),
+        build_print_sheet(
+            generate_iar_excel(pcv),
+            orientation="portrait",
+            name="IAR",
+            max_row=35,
+            max_col=5,
+            print_area="A1:E35",
+            html_overrides=iar_checkbox_overrides(),
+        ),
+    ]
 
-    # ==========================================
-    # SUPPLY OFFICER (Acceptance)
-    # ==========================================
-    acceptance = User.objects.filter(
-        groups__name="Supply",
-        entity=entity,
-        is_active=True
-    ).first()
+    if pcv.has_cnrr:
+        sheets.append(
+            build_print_sheet(
+                generate_cnrr_excel(pcv, administrator),
+                orientation="landscape",
+                name="CNRR",
+                max_row=24,
+                max_col=21,
+                print_area="A1:U24",
+            )
+        )
 
-    # ==========================================
-    # ITEMS
-    # ==========================================
-    items = pcv.items.all()
-
-    # Blank rows for PR / IAR formatting
-    blank_rows = range(max(0, 10 - items.count()))
-
-    context = {
-        "pcv": pcv,
-        "entity": entity,
-        "administrator": administrator,
-        "custodian": custodian,
-        "inspectors": inspectors,
-        "acceptance": acceptance,
-        "items": items,
-        "blank_rows": blank_rows,
-    }
-
-    return render(
+    return render_excel_print_response(
         request,
-        "pettycash/print/print_all.html",
-        context
+        f"PCV Documents {pcv.pcv_no or pcv.uuid}",
+        sheets,
+        f"{pcv.pcv_no or pcv.uuid}-documents.pdf",
     )
 
 
@@ -2089,8 +2221,11 @@ def my_vouchers(request):
 
     vouchers = (
         PettyCashVoucher.objects
-        .filter(requester=request.user)
-        .select_related("expense_category")
+        .filter(
+            requester=request.user,
+            is_replenished=False
+        )
+        .select_related("expense_category", "fund")
         .order_by("-created_at")
     )
 
@@ -2113,6 +2248,49 @@ def my_vouchers(request):
     return render(
         request,
         "pettycash/my_vouchers.html",
+        context
+    )
+
+
+@login_required
+def archived_vouchers(request):
+
+    search = request.GET.get("q", "")
+
+    vouchers = (
+        PettyCashVoucher.objects
+        .filter(
+            requester=request.user,
+            is_replenished=True
+        )
+        .select_related(
+            "expense_category",
+            "fund",
+            "replenishment",
+        )
+        .order_by("-updated_at", "-created_at")
+    )
+
+    if search:
+        vouchers = vouchers.filter(
+            Q(pcv_no__icontains=search) |
+            Q(purpose__icontains=search) |
+            Q(expense_category__name__icontains=search) |
+            Q(replenishment__report_number__icontains=search)
+        )
+
+    paginator = Paginator(vouchers, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        "page_obj": page_obj,
+        "search": search,
+    }
+
+    return render(
+        request,
+        "pettycash/archived_vouchers.html",
         context
     )
 
@@ -2264,14 +2442,10 @@ def generate_iar(request, uuid):
         messages.warning(request, "IAR already issued.")
         return redirect("pettycash:supply_iar_pending")
 
-    # Example: IAR-2026-0001 format
-    year = timezone.now().year
-    count = PettyCashVoucher.objects.filter(
-        entity=voucher.entity,
-        iar_no__startswith=f"IAR-{year}"
-    ).count() + 1
-
-    voucher.iar_no = f"IAR-{year}-{count:04d}"
+    voucher.iar_no = DocumentNumberService.generate(
+        voucher.entity,
+        "IAR"
+    )
     voucher.save()
 
     messages.success(request, "IAR generated successfully.")

@@ -32,8 +32,8 @@ class ExpenseCategoryAdmin(admin.ModelAdmin):
 
     list_display = ("code", "name", "entity", "is_active")
     list_filter = ("entity", "is_active")
-    search_fields = ("code", "name")
-    ordering = ("code",)
+    search_fields = ("code", "name", "description")
+    ordering = ("code", "name")
 
 
 # ==========================================================

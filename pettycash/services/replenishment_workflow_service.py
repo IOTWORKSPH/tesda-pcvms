@@ -183,15 +183,21 @@ class ReplenishmentWorkflowService:
         replenishment.vouchers.update(is_replenished=True)
 
         # Update replenishment
+        cash_on_hand = (fund.fund_amount or Decimal("0.00")) - amount
+        if cash_on_hand < Decimal("0.00"):
+            cash_on_hand = Decimal("0.00")
+
         replenishment.check_number = check_number
         replenishment.check_date = check_date
         replenishment.check_amount = amount
+        replenishment.cash_on_hand = cash_on_hand
         replenishment.status = ReplenishmentStatus.RELEASED
         replenishment.save(
             update_fields=[
                 "check_number",
                 "check_date",
                 "check_amount",
+                "cash_on_hand",
                 "status",
             ]
         )

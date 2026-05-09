@@ -3,6 +3,8 @@ from django.conf import settings
 import os
 from users.models import User
 
+from pettycash.services.excel.document_numbers import preliminary_document_number
+
 
 def generate_iar_excel(voucher):
 
@@ -21,6 +23,11 @@ def generate_iar_excel(voucher):
     ws = wb.active
 
     entity = voucher.entity
+    document_date = (
+        voucher.purchase_date
+        or (voucher.release_date.date() if voucher.release_date else None)
+        or voucher.created_at.date()
+    )
 
     # =====================================================
     # HEADER
@@ -29,24 +36,20 @@ def generate_iar_excel(voucher):
     # Entity Name
     ws["B5"] = entity.name
 
-    # Fund Cluster (you said fixed = 102)
-    ws["E5"] = "102"
+    # Fund Cluster
+    ws["E5"] = voucher.fund.fund_cluster.code if voucher.fund else ""
 
     # Supplier
     ws["B7"] = voucher.supplier.name if voucher.supplier else ""
 
-    # IAR Number (leave blank series format)
-    if voucher.purchase_date:
-        ws["E7"] = f"{voucher.purchase_date.strftime('%Y-%m')}-_____"
-    else:
-        ws["E7"] = "_____"
+    # IAR Number
+    ws["E7"] = preliminary_document_number("IAR", document_date)
 
     # Invoice Number
     ws["E9"] = voucher.official_receipt_number or ""
 
     # Date Purchased
-    if voucher.purchase_date:
-        ws["E10"] = voucher.purchase_date.strftime("%B %d, %Y")
+    ws["E10"] = document_date.strftime("%B %d, %Y")
 
     # =====================================================
     # ITEMS TABLE
@@ -66,11 +69,10 @@ def generate_iar_excel(voucher):
     # DATES (BOTTOM)
     # =====================================================
 
-    if voucher.purchase_date:
-        formatted_date = voucher.purchase_date.strftime("%B %d, %Y")
+    formatted_date = document_date.strftime("%B %d, %Y")
 
-        ws["B23"] = formatted_date
-        ws["D23"] = formatted_date
+    ws["B23"] = formatted_date
+    ws["D23"] = formatted_date
 
     # =====================================================
     # INSPECTION TEAM (GROUP: Inspection)

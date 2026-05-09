@@ -2,10 +2,11 @@
 
 from django.utils.dateparse import parse_date
 from django.utils import timezone
+from django.db.models import Q
 from decimal import Decimal
 from collections import defaultdict
 
-from finance.models import PettyCashFund, LedgerEntry
+from finance.models import PettyCashFund, LedgerEntry, ReferenceType
 from pettycash.models import (
     PettyCashVoucher,
     ExpenseCategory,
@@ -19,24 +20,36 @@ def _attach_report_display_numbers(vouchers):
     Report-only numbering based on purchase date order.
     Does NOT overwrite official document numbers in the database.
     """
+    ordered_vouchers = sorted(
+        vouchers,
+        key=lambda voucher: (
+            voucher.purchase_date or timezone.localdate(),
+            voucher.created_at or timezone.now(),
+            voucher.id,
+        )
+    )
     counters = defaultdict(int)
 
-    for voucher in vouchers:
-        year = (
-            voucher.purchase_date.year
-            if voucher.purchase_date
-            else timezone.now().year
+    for voucher in ordered_vouchers:
+        document_date = voucher.purchase_date or timezone.now().date()
+        year = document_date.year
+        month = document_date.month
+
+        counters[("PCV", year, month)] += 1
+        counters[("PR", year, month)] += 1
+        counters[("IAR", year, month)] += 1
+
+        voucher.report_pcv_no = (
+            f"PCV-{year}-{month:02d}-{counters[('PCV', year, month)]:04d}"
+        )
+        voucher.report_pr_no = (
+            f"PR-{year}-{month:02d}-{counters[('PR', year, month)]:04d}"
+        )
+        voucher.report_iar_no = (
+            f"IAR-{year}-{month:02d}-{counters[('IAR', year, month)]:04d}"
         )
 
-        counters[("PCV", year)] += 1
-        counters[("PR", year)] += 1
-        counters[("IAR", year)] += 1
-
-        voucher.report_pcv_no = f"PCV-{year}-{counters[('PCV', year)]:04d}"
-        voucher.report_pr_no = f"PR-{year}-{counters[('PR', year)]:04d}"
-        voucher.report_iar_no = f"IAR-{year}-{counters[('IAR', year)]:04d}"
-
-    return vouchers
+    return ordered_vouchers
 
 
 def _get_previous_replenishment(fund, replenishment_obj=None):
@@ -55,22 +68,33 @@ def _get_previous_replenishment(fund, replenishment_obj=None):
     return qs.order_by("-created_at").first()
 
 
-def _get_previous_cash_on_hand(previous_replenishment):
+def _get_previous_replenishment_amount(previous_replenishment):
     """
-    Safely resolve previous cash on hand.
-    Priority:
-    1. stored cash_on_hand field if available
-    2. opening_balance - total_expenses
+    Amount restored by the last released replenishment.
+    Check amount is the official source once released; total expenses is a
+    fallback for older records that may not have check_amount populated.
     """
-    stored_cash_on_hand = getattr(previous_replenishment, "cash_on_hand", None)
-    if stored_cash_on_hand is not None:
-        return stored_cash_on_hand
+    return (
+        previous_replenishment.check_amount
+        or previous_replenishment.total_expenses
+        or Decimal("0.00")
+    )
 
-    opening_balance = previous_replenishment.opening_balance or Decimal("0.00")
-    total_expenses = previous_replenishment.total_expenses or Decimal("0.00")
 
-    computed_cash_on_hand = opening_balance - total_expenses
-    return computed_cash_on_hand if computed_cash_on_hand >= Decimal("0.00") else Decimal("0.00")
+def _get_previous_cash_on_hand(fund, previous_replenishment):
+    """
+    Appendix 50 opening cash on hand under the imprest system:
+    allocated fund less the previous replenishment amount.
+
+    This intentionally does not trust historical Replenishment.cash_on_hand
+    values because older records defaulted to 0 before release saved the
+    computed snapshot.
+    """
+    allocated_fund = fund.fund_amount or Decimal("0.00")
+    previous_amount = _get_previous_replenishment_amount(previous_replenishment)
+    cash_on_hand = allocated_fund - previous_amount
+
+    return cash_on_hand if cash_on_hand >= Decimal("0.00") else Decimal("0.00")
 
 
 def _get_voucher_amount(voucher):
@@ -89,11 +113,21 @@ def _get_voucher_amount(voucher):
 
 def _get_initial_fund_entry(fund):
     """
-    Get the earliest positive/debit ledger entry as initial fund basis.
+    Get the initial funding ledger entry, not a later replenishment receipt.
     """
     return (
         LedgerEntry.objects
-        .filter(fund=fund, debit__gt=0)
+        .filter(
+            fund=fund,
+            debit__gt=0,
+            reference_type=ReferenceType.ADJUSTMENT,
+        )
+        .filter(
+            Q(reference_no__startswith="CHK-")
+            | Q(reference_no="CASH-OPENING")
+            | Q(description__icontains="Initial Fund")
+            | Q(description__icontains="opening petty cash fund")
+        )
         .order_by("transaction_date", "id")
         .first()
     )
@@ -208,12 +242,8 @@ def build_replenishment_context(request):
     previous_replenishment = _get_previous_replenishment(fund, replenishment_obj)
 
     if previous_replenishment:
-        prev_cash_on_hand = _get_previous_cash_on_hand(previous_replenishment)
-        prev_replenishment_amount = (
-            previous_replenishment.check_amount
-            or previous_replenishment.total_expenses
-            or Decimal("0.00")
-        )
+        prev_cash_on_hand = _get_previous_cash_on_hand(fund, previous_replenishment)
+        prev_replenishment_amount = _get_previous_replenishment_amount(previous_replenishment)
         opening_balance = prev_cash_on_hand + prev_replenishment_amount
 
         # Row 1: Cash on Hand
@@ -253,11 +283,7 @@ def build_replenishment_context(request):
         # FIRST REPLENISHMENT
         initial_fund_entry = _get_initial_fund_entry(fund)
 
-        initial_fund_amount = (
-            initial_fund_entry.debit
-            if initial_fund_entry and initial_fund_entry.debit
-            else (fund.fund_amount or Decimal("0.00"))
-        )
+        initial_fund_amount = fund.fund_amount or Decimal("0.00")
 
         initial_fund_date = (
             initial_fund_entry.transaction_date

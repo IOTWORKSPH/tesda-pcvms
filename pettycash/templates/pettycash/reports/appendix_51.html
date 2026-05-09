@@ -24,6 +24,14 @@ td, th {
 .no-border td {
     border: none !important;
 }
+
+.uacs-code {
+    display: block;
+    font-size: 10px;
+    font-weight: bold;
+    margin-top: 2px;
+    text-align: center;
+}
 </style>
 
 <div>
@@ -104,7 +112,9 @@ td, th {
             <th></th>
 
             {% for category in expense_categories %}
-                <th></th>
+                <th>
+                    <span class="uacs-code">{{ category.code }}</span>
+                </th>
             {% endfor %}
         </tr>
 

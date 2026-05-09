@@ -3,7 +3,8 @@
 from openpyxl import load_workbook
 from django.conf import settings
 import os
-from users.models import User
+
+from pettycash.services.excel.document_numbers import preliminary_document_number
 
 
 def generate_pcv_excel(voucher, entity, administrator, custodian):
@@ -24,8 +25,14 @@ def generate_pcv_excel(voucher, entity, administrator, custodian):
     # HEADER
     # =====================================================
 
-    ws["N2"] = f"{voucher.purchase_date.strftime('%Y-%m')}-_____"
-    ws["N4"] = voucher.purchase_date.strftime("%B %d, %Y")
+    document_date = (
+        voucher.purchase_date
+        or (voucher.release_date.date() if voucher.release_date else None)
+        or voucher.created_at.date()
+    )
+
+    ws["N2"] = preliminary_document_number("PCV", document_date)
+    ws["N4"] = document_date.strftime("%B %d, %Y")
 
     ws["C4"] = entity.name
     ws["N8"] = voucher.fund.responsibility_center.code
@@ -50,10 +57,8 @@ def generate_pcv_excel(voucher, entity, administrator, custodian):
 
     ws["N13"] = float(voucher.amount_requested)
 
-    if voucher.status in ["LIQUIDATED", "POSTED"]:
-        ws["N14"] = float(voucher.amount_liquidated)
-    else:
-        ws["N14"] = 0
+    paid_amount = voucher.amount_liquidated or voucher.amount_requested
+    ws["N14"] = float(paid_amount or 0)
 
     ws["N15"] = voucher.official_receipt_number or ""
 
@@ -75,15 +80,15 @@ def generate_pcv_excel(voucher, entity, administrator, custodian):
     if custodian:
         ws["J27"] = custodian.get_full_name().upper()
 
-    ws["C31"] = voucher.purchase_date.strftime("%B %d, %Y")
-    ws["J31"] = voucher.purchase_date.strftime("%B %d, %Y")
+    ws["C31"] = document_date.strftime("%B %d, %Y")
+    ws["J31"] = document_date.strftime("%B %d, %Y")
 
     ws["C35"] = custodian.get_full_name().upper() if custodian else ""
 
     ws["C41"] = voucher.requester.get_full_name().upper()
     ws["J41"] = voucher.requester.get_full_name().upper()
 
-    ws["C45"] = voucher.purchase_date.strftime("%B %d, %Y")
-    ws["J45"] = voucher.purchase_date.strftime("%B %d, %Y")
+    ws["C45"] = document_date.strftime("%B %d, %Y")
+    ws["J45"] = document_date.strftime("%B %d, %Y")
 
     return wb

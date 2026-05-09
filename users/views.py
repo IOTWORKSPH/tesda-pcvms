@@ -109,7 +109,8 @@ def dashboard_staff(request):
     # BASE QUERY (FOR TABLE DISPLAY)
     # =====================================================
     qs = PettyCashVoucher.objects.filter(
-        requester=user
+        requester=user,
+        is_replenished=False
     ).select_related(
         "fund",
         "expense_category",
@@ -155,7 +156,10 @@ def dashboard_staff(request):
     # =====================================================
     # KPI COUNTS (ALWAYS FULL DATA — NOT FILTERED)
     # =====================================================
-    base_qs = PettyCashVoucher.objects.filter(requester=user)
+    base_qs = PettyCashVoucher.objects.filter(
+        requester=user,
+        is_replenished=False
+    )
 
     draft_count = base_qs.filter(
         status=VoucherStatus.DRAFT

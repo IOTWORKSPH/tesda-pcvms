@@ -1,9 +1,12 @@
 # pettycash/services/excel/pr_excel.py
 
+from copy import copy
+
 from openpyxl import load_workbook
 from django.conf import settings
 import os
-from users.models import User
+
+from pettycash.services.excel.document_numbers import preliminary_document_number
 
 
 
@@ -27,15 +30,20 @@ def generate_pr_excel(voucher, administrator):
     # HEADER DETAILS
     # =====================================================
 
+    document_date = (
+        voucher.purchase_date
+        or (voucher.release_date.date() if voucher.release_date else None)
+        or voucher.created_at.date()
+    )
+
     # PR Number
-    ws["C8"] = f"PR No.: {voucher.purchase_date.strftime('%Y-%m')}-_____"
+    ws["C8"] = f"PR No.: {preliminary_document_number('PR', document_date)}"
 
     # Date
-    if voucher.purchase_date:
-        ws["E8"] = voucher.purchase_date.strftime("%B %d, %Y")
+    ws["E8"] = document_date.strftime("%B %d, %Y")
 
-    # Fund Source (static or from model)
-    ws["F7"] = "102"
+    # Fund Source
+    ws["F7"] = voucher.fund.fund_cluster.code if voucher.fund else ""
 
     # Office / Section
     ws["A8"] = f"Office/Section: {voucher.entity.name}"
@@ -92,6 +100,10 @@ def generate_pr_excel(voucher, administrator):
     # Requestor
     ws["C28"] = voucher.requester.get_full_name().upper()
     ws["C29"] = getattr(voucher.requester, "position", "")
+    for cell_ref in ("C28", "C29"):
+        alignment = copy(ws[cell_ref].alignment)
+        alignment.horizontal = "left"
+        ws[cell_ref].alignment = alignment
 
     # Administrator (Approving Officer)
     if administrator:

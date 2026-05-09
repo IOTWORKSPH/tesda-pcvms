@@ -9,6 +9,7 @@ urlpatterns = [
     path("cash-advance/new/",views.create_cash_advance,name="create_cash_advance"),
     path("cash-advance/<uuid:uuid>/liquidate/",views.liquidate_cash_advance,name="liquidate_cash_advance"),
     path("my-vouchers/",views.my_vouchers,name="my_vouchers"),
+    path("my-vouchers/archive/",views.archived_vouchers,name="archived_vouchers"),
     path("refund/new/",views.create_reimbursement,name="create_reimbursement"),
     path("pcv/<uuid:uuid>/",views.pcv_detail,name="pcv_detail"),
 

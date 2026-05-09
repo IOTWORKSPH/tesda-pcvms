@@ -18,27 +18,46 @@ def generate_cnrr_excel(voucher, administrator):
     wb = load_workbook(template_path)
     ws = wb.active
 
+    requester = voucher.requester
     entity = voucher.entity
 
     # ================= HEADER =================
-    fullname = voucher.requester.get_full_name().upper()
+    fullname = requester.get_full_name().upper()
+    employee_number = getattr(requester, "employee_number", "") or ""
+    office = getattr(requester, "office", "") or "TESDA"
+    division = entity.name if entity else ""
 
     ws["C5"] = fullname
     ws["N5"] = fullname
 
-    ws["A6"] = entity.name
-    ws["L6"] = entity.name
+    ws["I5"] = employee_number
+    ws["T5"] = employee_number
+
+    ws["C6"] = office
+    ws["N6"] = office
+
+    ws["C7"] = division
+    ws["N7"] = division
 
     # ================= PARTICULARS =================
-    category = voucher.expense_category.name if voucher.expense_category else ""
+    for row in range(9, 18):
+        ws[f"A{row}"] = ""
+        ws[f"I{row}"] = None
+        ws[f"L{row}"] = ""
+        ws[f"T{row}"] = None
 
-    ws["A9"] = category
-    ws["L9"] = category
+    total_amount = 0
 
-    amount = float(voucher.amount_liquidated or voucher.amount_requested or 0)
+    for row, item in zip(range(9, 18), voucher.items.all()):
+        line_total = item.quantity * item.unit_cost
+        total_amount += line_total
 
-    ws["I9"] = amount
-    ws["T9"] = amount
+        ws[f"A{row}"] = item.description
+        ws[f"L{row}"] = item.description
+        ws[f"I{row}"] = float(line_total)
+        ws[f"T{row}"] = float(line_total)
+
+    amount = float(total_amount or voucher.amount_liquidated or voucher.amount_requested or 0)
 
     ws["I18"] = amount
     ws["T18"] = amount

@@ -110,6 +110,38 @@ document.addEventListener("DOMContentLoaded", function() {
     }, 3000); // 3 seconds
 
 });
+
+document.addEventListener("DOMContentLoaded", function() {
+    document.querySelectorAll(".expense-category-select").forEach(function(select) {
+        let descriptionEl = select.parentElement.querySelector(".expense-category-description");
+
+        if (!descriptionEl) {
+            descriptionEl = document.createElement("small");
+            descriptionEl.className = "expense-category-description text-muted d-block mt-1";
+            select.insertAdjacentElement("afterend", descriptionEl);
+        }
+
+        function updateDescription() {
+            const option = select.options[select.selectedIndex];
+            const description = option ? (option.dataset.description || "") : "";
+            const tooltipText = description || "Select a UACS expense category";
+
+            select.setAttribute("title", tooltipText);
+            descriptionEl.textContent = description;
+            descriptionEl.classList.toggle("d-none", !description);
+
+            if (window.jQuery && jQuery.fn.tooltip) {
+                jQuery(select)
+                    .attr("data-original-title", tooltipText)
+                    .tooltip("dispose")
+                    .tooltip({ trigger: "hover focus", placement: "top" });
+            }
+        }
+
+        select.addEventListener("change", updateDescription);
+        updateDescription();
+    });
+});
 </script>
 
 {% block extra_js %}{% endblock %}

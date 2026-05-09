@@ -220,6 +220,15 @@
                                                 Print IAR
                                             </a>
 
+                                            {% if voucher.has_cnrr %}
+                                            <a class="dropdown-item"
+                                            href="{% url 'pettycash:print_cnrr' voucher.uuid %}"
+                                            target="_blank">
+                                                <i class="fas fa-file-medical text-danger mr-2"></i>
+                                                Print CNRR
+                                            </a>
+                                            {% endif %}
+
                                             <div class="dropdown-divider"></div>
 
                                             <a class="dropdown-item font-weight-bold"
@@ -232,6 +241,13 @@
                                         </div>
 
                                     </div>
+
+                                    <!-- EXPORT EXCEL -->
+                                    <a href="{% url 'pettycash:export_voucher_excel' voucher.uuid %}"
+                                    class="btn btn-outline-success"
+                                    title="Export Excel">
+                                        <i class="fas fa-file-excel"></i>
+                                    </a>
 
                                 </div>
 

@@ -50,14 +50,15 @@ class ExpenseCategory(TimeStampedModel):
         related_name="expense_categories"
     )
 
-    code = models.CharField(max_length=50)
-    name = models.CharField(max_length=150)
+    code = models.CharField("UACS Code", max_length=50)
+    name = models.CharField("Category", max_length=150)
+    description = models.TextField(blank=True)
 
     is_active = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ("entity", "code")
-        ordering = ["code"]
+        ordering = ["code", "name"]
 
     def __str__(self):
         return f"{self.code} - {self.name}"

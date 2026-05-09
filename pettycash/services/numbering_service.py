@@ -1,8 +1,7 @@
 
 #numbering_service.py codes
 from django.db import transaction
-from django.db.models import Max
-from datetime import datetime
+from django.utils import timezone
 
 from pettycash.models import PettyCashVoucher
 
@@ -16,7 +15,9 @@ class DocumentNumberService:
         doc_type: 'PCV', 'PR', 'IAR'
         """
 
-        year = datetime.now().year
+        today = timezone.localdate()
+        year = today.year
+        month = f"{today.month:02d}"
 
         field_map = {
             "PCV": "pcv_no",
@@ -36,7 +37,7 @@ class DocumentNumberService:
             .filter(
                 entity=entity,
                 **{
-                    f"{field_name}__startswith": f"{doc_type}-{year}-"
+                    f"{field_name}__startswith": f"{doc_type}-{year}-{month}-"
                 }
             )
             .order_by(f"-{field_name}")
@@ -51,4 +52,4 @@ class DocumentNumberService:
         else:
             new_series = 1
 
-        return f"{doc_type}-{year}-{new_series:04d}"
+        return f"{doc_type}-{year}-{month}-{new_series:04d}"

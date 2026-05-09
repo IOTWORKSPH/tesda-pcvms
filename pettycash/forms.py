@@ -10,6 +10,37 @@ from .models import (
 )
 
 
+class ExpenseCategorySelect(forms.Select):
+    def create_option(
+        self,
+        name,
+        value,
+        label,
+        selected,
+        index,
+        subindex=None,
+        attrs=None,
+    ):
+        option = super().create_option(
+            name,
+            value,
+            label,
+            selected,
+            index,
+            subindex=subindex,
+            attrs=attrs,
+        )
+
+        category = getattr(value, "instance", None)
+        if category:
+            description = category.description or ""
+            option["attrs"]["title"] = description
+            option["attrs"]["data-description"] = description
+            option["attrs"]["data-uacs-code"] = category.code
+
+        return option
+
+
 # ==========================================================
 # CASH ADVANCE FORM
 # ==========================================================
@@ -27,7 +58,11 @@ class CashAdvanceForm(forms.ModelForm):
 
         widgets = {
             "fund": forms.Select(attrs={"class": "form-control"}),
-            "expense_category": forms.Select(attrs={"class": "form-control"}),
+            "expense_category": ExpenseCategorySelect(attrs={
+                "class": "form-control expense-category-select",
+                "data-toggle": "tooltip",
+                "title": "Select a UACS expense category",
+            }),
             "purpose": forms.Textarea(attrs={
                 "class": "form-control",
                 "rows": 3
@@ -59,6 +94,7 @@ class CashAdvanceForm(forms.ModelForm):
             # 🔐 SHOW ONLY ENTITY EXPENSE CATEGORIES
             self.fields["expense_category"].queryset = (
                 user.entity.expense_categories.filter(is_active=True)
+                .order_by("code", "name")
             )
 
             # ⭐ AUTO SELECT DEFAULT FUND
@@ -131,8 +167,10 @@ class RefundForm(forms.ModelForm):
                 "class": "form-control",
                 "rows": 3
             }),
-            "expense_category": forms.Select(attrs={
-                "class": "form-control"
+            "expense_category": ExpenseCategorySelect(attrs={
+                "class": "form-control expense-category-select",
+                "data-toggle": "tooltip",
+                "title": "Select a UACS expense category",
             }),
             "fund": forms.Select(attrs={
                 "class": "form-control"
@@ -168,6 +206,7 @@ class RefundForm(forms.ModelForm):
             # 🔐 ENTITY EXPENSE CATEGORIES
             self.fields["expense_category"].queryset = (
                 user.entity.expense_categories.filter(is_active=True)
+                .order_by("code", "name")
             )
 
         # Populate supplier if editing
