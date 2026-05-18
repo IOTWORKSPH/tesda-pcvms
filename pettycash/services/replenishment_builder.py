@@ -244,11 +244,12 @@ def build_replenishment_context(request):
     if previous_replenishment:
         prev_cash_on_hand = _get_previous_cash_on_hand(fund, previous_replenishment)
         prev_replenishment_amount = _get_previous_replenishment_amount(previous_replenishment)
+        previous_report_created_date = _get_report_creation_date(previous_replenishment)
         opening_balance = prev_cash_on_hand + prev_replenishment_amount
 
         # Row 1: Cash on Hand
         records.append({
-            "date": report_created_date,
+            "date": previous_report_created_date,
             "reference": "",
             "payee": "",
             "particulars": "Cash on Hand",
