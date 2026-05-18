@@ -43,7 +43,8 @@
         <table class="table table-hover table-striped table-sm">
             <thead class="thead-light">
                 <tr>
-                    <th>Date</th>
+                    <th>Enc</th>
+                    <th>Purch</th>
                     <th>PCV No</th>
                     <th>Type</th>
                     <th>Purpose</th>
@@ -58,6 +59,7 @@
                 <tr>
 
                     <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+                    <td>{{ voucher.purchase_date|date:"M d, Y"|default:"-" }}</td>
 
                     <td>{{ voucher.pcv_no|default:"—" }}</td>
 
@@ -210,7 +212,7 @@
 
             {% empty %}
                 <tr>
-                    <td colspan="7" class="text-center py-4">
+                    <td colspan="8" class="text-center py-4">
                         No vouchers found.
                     </td>
                 </tr>

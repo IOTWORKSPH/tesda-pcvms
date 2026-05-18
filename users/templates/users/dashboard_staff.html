@@ -197,7 +197,8 @@
             <thead class="thead-light">
                 <tr>
                     <th>PCV No.</th>
-                    <th>Date</th>
+                    <th>Enc</th>
+                    <th>Purch</th>
                     <th>Purpose</th>
                     <th class="text-right">Amount</th>
                     <th class="text-center">Type</th>
@@ -219,6 +220,10 @@
 
                     <td>
                         {{ pcv.created_at|date:"m/d/y" }}
+                    </td>
+
+                    <td>
+                        {{ pcv.purchase_date|date:"m/d/y"|default:"-" }}
                     </td>
 
                     <td class="text-truncate" style="max-width: 200px;">
