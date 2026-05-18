@@ -396,6 +396,15 @@ def build_replenishment_context(request):
             "breakdown": breakdown,
         })
 
+    expense_category_summary = [
+        {
+            "code": category.code,
+            "name": category.name,
+            "amount": category_totals.get(category.id, Decimal("0.00")),
+        }
+        for category in expense_categories
+    ]
+
     return {
         "fund": fund,
         "vouchers": vouchers,
@@ -403,6 +412,7 @@ def build_replenishment_context(request):
         "register_rows": register_rows,
         "expense_categories": expense_categories,
         "category_totals": category_totals,
+        "expense_category_summary": expense_category_summary,
 
         "report_number": report_number,
         "sheet_number": sheet_number,

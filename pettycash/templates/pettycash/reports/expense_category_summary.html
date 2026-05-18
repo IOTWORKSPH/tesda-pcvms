@@ -1,0 +1,79 @@
+{% load money %}
+
+<style>
+
+body {
+    font-family: "Times New Roman", serif;
+    font-size: 11px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td, th {
+    border: 1px solid black;
+    padding: 5px;
+}
+
+.center { text-align: center; }
+.right { text-align: right; }
+.bold { font-weight: bold; }
+
+</style>
+
+<div>
+
+    <div class="center" style="font-size:11px;">
+        Republic of the Philippines
+    </div>
+
+    <div class="center bold" style="font-size:12px;">
+        TECHNICAL EDUCATION AND SKILLS DEVELOPMENT AUTHORITY
+    </div>
+
+    <div class="center bold">
+        {{ fund.entity.name|upper }}
+    </div>
+
+    <div class="center" style="margin-bottom:15px;">
+        {{ fund.entity.address }}
+    </div>
+
+    <div class="center bold" style="font-size:14px; margin-bottom:15px;">
+        SUMMARY OF EXPENSES PER EXPENSE CATEGORY
+    </div>
+
+    <table>
+        <thead>
+            <tr class="bold center">
+                <th style="width:25%;">UACS Code</th>
+                <th style="width:50%;">Expense Category</th>
+                <th style="width:25%;">Amount</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for category in expense_category_summary %}
+            <tr>
+                <td class="center">{{ category.code }}</td>
+                <td>{{ category.name }}</td>
+                <td class="right">{{ category.amount|money }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3" class="center">
+                    No expense categories available.
+                </td>
+            </tr>
+            {% endfor %}
+
+            <tr class="bold">
+                <td colspan="2" class="right">TOTAL</td>
+                <td class="right">{{ replenishment_amount|money }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+</div>

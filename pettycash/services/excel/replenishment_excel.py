@@ -8,6 +8,7 @@ from .appendix_49_excel import generate_appendix_49
 from .appendix_50_excel import generate_appendix_50
 from .appendix_51_excel import generate_appendix_51
 from .summary_excel import generate_summary
+from .expense_category_summary_excel import generate_expense_category_summary
 
 
 def generate_replenishment_excel(context):
@@ -18,6 +19,7 @@ def generate_replenishment_excel(context):
     generate_appendix_50(wb, context, styles)
     generate_appendix_51(wb, context, styles)
     generate_summary(wb, context, styles)
+    generate_expense_category_summary(wb, context, styles)
 
     report_number = context.get("report_number")
     filename = (
