@@ -136,13 +136,13 @@ def _get_initial_fund_entry(fund):
 def _get_report_creation_date(replenishment_obj=None):
     """
     Current replenishment report creation date:
-    - existing replenishment: date draft/report was created
+    - existing replenishment: local date the draft/report was created
     - preview mode: today
     """
     if replenishment_obj and replenishment_obj.created_at:
-        return replenishment_obj.created_at.date()
+        return timezone.localtime(replenishment_obj.created_at).date()
 
-    return timezone.now().date()
+    return timezone.localdate()
 
 
 def build_replenishment_context(request):
