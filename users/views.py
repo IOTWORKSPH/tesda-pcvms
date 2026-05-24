@@ -667,6 +667,12 @@ def dashboard_custodian(request):
     if not fund:
         return render(request, "pettycash/no_fund.html")
 
+    queue_filter = request.GET.get("queue", "all")
+    search_query = request.GET.get("q", "")
+    valid_queues = {"all", "release", "reimbursement", "liquidation"}
+    if queue_filter not in valid_queues:
+        queue_filter = "all"
+
     # =====================================================
     # FUND POSITION
     # =====================================================
@@ -737,21 +743,78 @@ def dashboard_custodian(request):
     for_release = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.APPROVED,
-        transaction_type=TransactionType.CASH_ADVANCE
-    ).select_related("requester")
+        transaction_type=TransactionType.CASH_ADVANCE,
+        is_release_posted=False,
+    ).select_related("requester", "expense_category", "supplier")
 
     for_reimbursement = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.APPROVED,
-        transaction_type=TransactionType.REIMBURSEMENT
-    ).select_related("requester")
+        transaction_type=TransactionType.REIMBURSEMENT,
+        is_posted_to_ledger=False,
+    ).select_related("requester", "expense_category", "supplier")
 
     for_liquidation = PettyCashVoucher.objects.filter(
         fund=fund,
         status=VoucherStatus.LIQUIDATED,
         transaction_type=TransactionType.CASH_ADVANCE,
-        is_posted_to_ledger=False
-    ).select_related("requester")
+        is_posted_to_ledger=False,
+    ).select_related("requester", "expense_category", "supplier")
+
+    action_vouchers = PettyCashVoucher.objects.filter(
+        Q(
+            fund=fund,
+            status=VoucherStatus.APPROVED,
+            transaction_type=TransactionType.CASH_ADVANCE,
+            is_release_posted=False,
+        ) |
+        Q(
+            fund=fund,
+            status=VoucherStatus.APPROVED,
+            transaction_type=TransactionType.REIMBURSEMENT,
+            is_posted_to_ledger=False,
+        ) |
+        Q(
+            fund=fund,
+            status=VoucherStatus.LIQUIDATED,
+            transaction_type=TransactionType.CASH_ADVANCE,
+            is_posted_to_ledger=False,
+        )
+    ).exclude(
+        status=VoucherStatus.POSTED
+    ).select_related(
+        "requester",
+        "expense_category",
+        "supplier",
+    )
+
+    if queue_filter == "release":
+        action_vouchers = action_vouchers.filter(
+            status=VoucherStatus.APPROVED,
+            transaction_type=TransactionType.CASH_ADVANCE,
+        )
+    elif queue_filter == "reimbursement":
+        action_vouchers = action_vouchers.filter(
+            status=VoucherStatus.APPROVED,
+            transaction_type=TransactionType.REIMBURSEMENT,
+        )
+    elif queue_filter == "liquidation":
+        action_vouchers = action_vouchers.filter(
+            status=VoucherStatus.LIQUIDATED,
+            transaction_type=TransactionType.CASH_ADVANCE,
+        )
+
+    if search_query:
+        action_vouchers = action_vouchers.filter(
+            Q(pcv_no__icontains=search_query) |
+            Q(purpose__icontains=search_query) |
+            Q(requester__first_name__icontains=search_query) |
+            Q(requester__last_name__icontains=search_query) |
+            Q(expense_category__name__icontains=search_query) |
+            Q(supplier__name__icontains=search_query)
+        )
+
+    action_vouchers = action_vouchers.order_by("created_at")
 
     unliquidated_cash_advances = PettyCashVoucher.objects.filter(
         fund=fund,
@@ -834,12 +897,16 @@ def dashboard_custodian(request):
         "for_release": for_release,
         "for_reimbursement": for_reimbursement,
         "for_liquidation": for_liquidation,
+        "action_vouchers": action_vouchers[:50],
         "unliquidated_cash_advances": unliquidated_cash_advances,
         "aging_items": aging_items[:8],
         "overdue_liquidation_count": overdue_liquidation_count,
         "for_release_count": for_release.count(),
         "for_reimbursement_count": for_reimbursement.count(),
         "for_liquidation_count": for_liquidation.count(),
+        "action_queue_count": for_release.count() + for_reimbursement.count() + for_liquidation.count(),
+        "active_queue": queue_filter,
+        "search_query": search_query,
         "unliquidated_count": unliquidated_cash_advances.count(),
         "ledger_snapshot": ledger_snapshot,
         "total_fund_expense": total_fund_expense,

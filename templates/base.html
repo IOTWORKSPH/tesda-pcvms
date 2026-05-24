@@ -289,6 +289,24 @@
             border-radius: 8px;
         }
 
+        .pcv-print-menu {
+            min-width: 220px;
+        }
+
+        .pcv-print-menu.pcv-dropdown-portal {
+            position: fixed !important;
+            z-index: 30000 !important;
+            max-width: min(280px, calc(100vw - 16px));
+            max-height: calc(100vh - 16px);
+            overflow-y: auto;
+            transform: none !important;
+            will-change: top, left;
+        }
+
+        .pcv-print-menu .dropdown-item {
+            white-space: nowrap;
+        }
+
         .modal-backdrop {
             z-index: 20040 !important;
             background: #0f172a;
@@ -691,6 +709,101 @@ document.addEventListener("DOMContentLoaded", function() {
 document.addEventListener("DOMContentLoaded", function() {
     if (window.jQuery) {
         jQuery(".table-responsive [data-toggle='dropdown']").attr("data-boundary", "viewport");
+
+        const printDropdowns = new Set();
+        const viewportPadding = 8;
+
+        function positionPrintDropdown(toggle, menu) {
+            if (!toggle || !menu) {
+                return;
+            }
+
+            menu.style.display = "block";
+            menu.style.visibility = "hidden";
+            menu.style.inset = "auto";
+            menu.style.transform = "none";
+
+            const toggleRect = toggle.getBoundingClientRect();
+            const menuWidth = menu.offsetWidth;
+            const menuHeight = menu.offsetHeight;
+            const gap = 6;
+            const spaceAbove = toggleRect.top - viewportPadding;
+            const spaceBelow = window.innerHeight - toggleRect.bottom - viewportPadding;
+            const openAbove = spaceAbove >= menuHeight || spaceAbove > spaceBelow;
+
+            let top = openAbove ? toggleRect.top - menuHeight - gap : toggleRect.bottom + gap;
+            let left = toggleRect.right - menuWidth;
+
+            top = Math.max(viewportPadding, Math.min(top, window.innerHeight - menuHeight - viewportPadding));
+            left = Math.max(viewportPadding, Math.min(left, window.innerWidth - menuWidth - viewportPadding));
+
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            menu.style.visibility = "";
+        }
+
+        function restorePrintDropdown(menu) {
+            if (!menu || !menu._pcvDropdownPlaceholder) {
+                return;
+            }
+
+            menu._pcvDropdownPlaceholder.parentNode.insertBefore(menu, menu._pcvDropdownPlaceholder);
+            menu._pcvDropdownPlaceholder.remove();
+            menu._pcvDropdownPlaceholder = null;
+            if (menu._pcvDropdownToggle) {
+                menu._pcvDropdownToggle._pcvDropdownMenu = null;
+                menu._pcvDropdownToggle = null;
+            }
+            menu.classList.remove("pcv-dropdown-portal");
+            menu.style.display = "";
+            menu.style.visibility = "";
+            menu.style.inset = "";
+            menu.style.top = "";
+            menu.style.left = "";
+            menu.style.transform = "";
+            menu.style.willChange = "";
+            printDropdowns.delete(menu);
+        }
+
+        function repositionOpenPrintDropdowns() {
+            printDropdowns.forEach(function(menu) {
+                positionPrintDropdown(menu._pcvDropdownToggle, menu);
+            });
+        }
+
+        jQuery(document).on("show.bs.dropdown", ".table-responsive .pcv-action-group", function(event) {
+            const toggle = event.relatedTarget;
+            const menu = this.querySelector(".pcv-print-menu");
+
+            if (!toggle || !menu) {
+                return;
+            }
+
+            const placeholder = document.createComment("pcv-print-menu-placeholder");
+            menu.parentNode.insertBefore(placeholder, menu);
+            menu._pcvDropdownPlaceholder = placeholder;
+            menu._pcvDropdownToggle = toggle;
+            toggle._pcvDropdownMenu = menu;
+            menu.classList.add("pcv-dropdown-portal");
+            document.body.appendChild(menu);
+            printDropdowns.add(menu);
+            positionPrintDropdown(toggle, menu);
+        });
+
+        jQuery(document).on("shown.bs.dropdown", ".pcv-action-group", function(event) {
+            const toggle = event.relatedTarget;
+            const menu = toggle ? toggle._pcvDropdownMenu || document.querySelector(".pcv-print-menu.pcv-dropdown-portal.show") : null;
+            if (menu && menu._pcvDropdownToggle === toggle) {
+                positionPrintDropdown(toggle, menu);
+            }
+        });
+
+        jQuery(document).on("hidden.bs.dropdown", ".pcv-action-group", function() {
+            document.querySelectorAll(".pcv-print-menu.pcv-dropdown-portal").forEach(restorePrintDropdown);
+        });
+
+        window.addEventListener("resize", repositionOpenPrintDropdowns, { passive: true });
+        window.addEventListener("scroll", repositionOpenPrintDropdowns, true);
 
         jQuery(document).on("show.bs.modal", ".modal", function() {
             const modal = this;
