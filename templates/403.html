@@ -1,12 +1,18 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
-    <title>Access Denied</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Access Denied | TESDA PCVMS</title>
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="description" content="Access denied page for TESDA PCVMS.">
+    <meta name="theme-color" content="#0877d9">
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/pcvms-icon.svg' %}">
 
     <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+          href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"
+          crossorigin="anonymous">
 
     <style>
         body {
@@ -43,7 +49,7 @@
     <h3>Access Forbidden</h3>
     <p>You do not have permission to access this page.</p>
 
-    <a href="{% url 'users:role_redirect' %}" class="btn btn-primary btn-home">
+    <a href="{% url 'users:role_redirect' %}" class="btn btn-primary btn-home" aria-label="Go back to dashboard">
         Go Back to Dashboard
     </a>
 </div>

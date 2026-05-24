@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load money %}
 
-{% block title %}Administrator Dashboard | TESDA PCVMS{% endblock %}
+{% block title %}Entity Head Dashboard | TESDA PCVMS{% endblock %}
 
 {% block extra_css %}
     {% include "partials/dashboard_styles.html" %}
@@ -12,54 +12,154 @@
     <div class="dash-hero">
         <div>
             <div class="dash-eyebrow">
-                <i class="fas fa-user-shield"></i>
-                Administrator command center
+                <i class="fas fa-user-tie"></i>
+                Entity Head command center
             </div>
-            <h1 class="dash-title">Entity-wide petty cash control</h1>
+            <h1 class="dash-title">Petty cash oversight and approvals</h1>
             <p class="dash-subtitle">
-                Prioritize approvals, monitor released cash advances, and keep fund utilization visible for management review.
+                Decide on approvals, watch fund health, monitor liquidation risk, and keep entity spending ready for management review.
             </p>
         </div>
         <div class="dash-actions">
             <a href="?status=FOR_APPROVAL" class="dash-btn dash-btn-primary">
                 <i class="fas fa-file-signature"></i>
-                Review Approvals
+                Review approvals
+            </a>
+            <a href="?status=RELEASED" class="dash-btn">
+                <i class="fas fa-triangle-exclamation"></i>
+                Liquidation risk
             </a>
             <a href="{% url 'users:dashboard_administrator' %}" class="dash-btn">
                 <i class="fas fa-table-columns"></i>
-                All Work
+                All work
             </a>
         </div>
     </div>
 
     <div class="dash-grid">
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">For approval <i class="fas fa-file-signature tone-amber"></i></div>
+            <div class="dash-card-label">Approval queue <i class="fas fa-file-signature tone-amber"></i></div>
             <div class="dash-card-value">{{ for_approval }}</div>
-            <div class="dash-card-note">{{ approval_amount|money }} awaiting administrator decision</div>
+            <div class="dash-card-note">{{ approval_amount|money }} awaiting Entity Head decision</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Awaiting release <i class="fas fa-cash-register tone-blue"></i></div>
-            <div class="dash-card-value">{{ awaiting_release }}</div>
-            <div class="dash-card-note">Approved cash advances for custodian release</div>
+            <div class="dash-card-label">Ready to approve <i class="fas fa-circle-check tone-green"></i></div>
+            <div class="dash-card-value">{{ ready_for_approval }}</div>
+            <div class="dash-card-note">{{ fund_exception_count }} fund exception{{ fund_exception_count|pluralize }}</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Unliquidated <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-label">Released exposure <i class="fas fa-triangle-exclamation tone-red"></i></div>
             <div class="dash-card-value">{{ overdue_liquidation }}</div>
-            <div class="dash-card-note">{{ released_amount|money }} currently released</div>
+            <div class="dash-card-note">{{ released_amount|money }} currently unliquidated</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">This week <i class="fas fa-calendar-week tone-green"></i></div>
-            <div class="dash-card-value">{{ vouchers_this_week }}</div>
-            <div class="dash-card-note">Non-draft voucher activity</div>
+            <div class="dash-card-label">Month-to-date posted <i class="fas fa-calendar-check tone-blue"></i></div>
+            <div class="dash-card-value">{{ posted_this_month|money }}</div>
+            <div class="dash-card-note">{{ vouchers_this_week }} voucher{{ vouchers_this_week|pluralize }} active this week</div>
+        </div>
+    </div>
+
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Decision readiness</h2>
+                <span class="badge {% if fund_exception_count %}badge-warning{% else %}badge-success{% endif %}">
+                    {{ ready_for_approval }} clear
+                </span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    <a href="?status=FOR_APPROVAL" class="dash-list-item text-decoration-none">
+                        <div>
+                            <strong class="text-dark">Pending approval review</strong>
+                            <div class="text-muted small">Requests waiting for Entity Head decision</div>
+                        </div>
+                        <strong>{{ for_approval }}</strong>
+                    </a>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Fund exceptions</strong>
+                            <div class="text-muted small">Amount exceeds current fund balance</div>
+                        </div>
+                        <strong class="{% if fund_exception_count %}tone-red{% endif %}">{{ fund_exception_count }}</strong>
+                    </div>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Aging approvals</strong>
+                            <div class="text-muted small">Open for 3 days or longer</div>
+                        </div>
+                        <strong class="{% if approval_aging_count %}tone-amber{% endif %}">{{ approval_aging_count }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Cash movement</h2>
+                <span class="badge {% if utilization_percent >= 75 %}badge-danger{% elif utilization_percent >= 50 %}badge-warning{% else %}badge-success{% endif %}">
+                    {{ utilization_percent }}% utilized
+                </span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Authorized funds</strong>
+                            <div class="text-muted small">Entity petty cash ceiling</div>
+                        </div>
+                        <strong>{{ total_fund_amount|money }}</strong>
+                    </div>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Available cash</strong>
+                            <div class="text-muted small">Current fund balance</div>
+                        </div>
+                        <strong class="tone-green">{{ total_current_balance|money }}</strong>
+                    </div>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Reimbursements ready</strong>
+                            <div class="text-muted small">{{ reimbursement_ready }} approved refund{{ reimbursement_ready|pluralize }}</div>
+                        </div>
+                        <strong>{{ reimbursement_ready_amount|money }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Liquidation risk</h2>
+                <span class="badge {% if liquidation_overdue %}badge-danger{% elif liquidation_at_risk %}badge-warning{% else %}badge-success{% endif %}">
+                    {{ liquidation_overdue }} overdue
+                </span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for item in liquidation_aging_items %}
+                        <a href="{% url 'pettycash:pcv_detail' item.uuid %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">{{ item.pcv_no|default:"Pending PCV" }}</strong>
+                                <div class="text-muted small">{{ item.requester.get_full_name }} | {{ item.amount_requested|money }}</div>
+                            </div>
+                            <span class="badge {% if item.risk == 'danger' %}badge-danger{% elif item.risk == 'warning' %}badge-warning{% else %}badge-success{% endif %}">
+                                {{ item.days_open }}d
+                            </span>
+                        </a>
+                    {% empty %}
+                        <div class="dash-empty">No released cash advances at risk.</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="dash-panel">
         <div class="dash-panel-header">
-            <h2 class="dash-panel-title">Fund portfolio</h2>
+            <h2 class="dash-panel-title">Fund portfolio by custodian</h2>
             <span class="badge {% if utilization_percent >= 75 %}badge-danger{% elif utilization_percent >= 50 %}badge-warning{% else %}badge-success{% endif %}">
-                {{ utilization_percent }}% utilized
+                {{ total_utilized_amount|money }} utilized
             </span>
         </div>
         <div class="dash-panel-body">
@@ -77,8 +177,26 @@
                     <div class="dash-card-value tone-amber">{{ total_utilized_amount|money }}</div>
                 </div>
             </div>
-            <div class="dash-progress">
+            <div class="dash-progress mb-3">
                 <div class="dash-progress-bar" style="width: {{ utilization_percent }}%"></div>
+            </div>
+            <div class="dash-grid dash-grid-3">
+                {% for fund in fund_cards %}
+                    <div class="dash-card">
+                        <div class="dash-card-label">
+                            {{ fund.name }}
+                            <span class="badge {% if fund.health == 'danger' %}badge-danger{% elif fund.health == 'warning' %}badge-warning{% else %}badge-success{% endif %}">
+                                {{ fund.utilization_percent }}%
+                            </span>
+                        </div>
+                        <div class="dash-card-value">{{ fund.current_balance|money }}</div>
+                        <div class="dash-card-note">
+                            {{ fund.custodian.get_full_name }} | {{ fund.responsibility_center.code }} | {{ fund.utilized_amount|money }} used
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="dash-empty">No petty cash funds configured.</div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -86,36 +204,54 @@
     <div class="dash-panel">
         <div class="dash-panel-header">
             <h2 class="dash-panel-title">Voucher work queue</h2>
-            {% if active_status %}
+            {% if active_status or active_type or search_query %}
                 <a href="{% url 'users:dashboard_administrator' %}" class="dash-btn">
                     <i class="fas fa-filter-circle-xmark"></i>
-                    Clear Filter
+                    Clear filters
                 </a>
             {% endif %}
         </div>
         <div class="dash-panel-body">
             <div class="dash-tabs">
                 <a class="dash-tab {% if not active_status %}active{% endif %}" href="{% url 'users:dashboard_administrator' %}">All</a>
-                <a class="dash-tab {% if active_status == 'FOR_APPROVAL' %}active{% endif %}" href="?status=FOR_APPROVAL">For Approval</a>
-                <a class="dash-tab {% if active_status == 'APPROVED' %}active{% endif %}" href="?status=APPROVED">Awaiting Release</a>
-                <a class="dash-tab {% if active_status == 'RELEASED' %}active{% endif %}" href="?status=RELEASED">Unliquidated</a>
-                <a class="dash-tab {% if active_status == 'LIQUIDATED' %}active{% endif %}" href="?status=LIQUIDATED">Finalization</a>
+                <a class="dash-tab {% if active_status == 'FOR_APPROVAL' %}active{% endif %}" href="?status=FOR_APPROVAL">For Approval {{ for_approval }}</a>
+                <a class="dash-tab {% if active_status == 'APPROVED' %}active{% endif %}" href="?status=APPROVED">Awaiting Release {{ awaiting_release }}</a>
+                <a class="dash-tab {% if active_status == 'RELEASED' %}active{% endif %}" href="?status=RELEASED">Unliquidated {{ overdue_liquidation }}</a>
+                <a class="dash-tab {% if active_status == 'LIQUIDATED' %}active{% endif %}" href="?status=LIQUIDATED">Finalization {{ unposted }}</a>
             </div>
+
+            <form method="get" class="dash-toolbar">
+                {% if active_status %}<input type="hidden" name="status" value="{{ active_status }}">{% endif %}
+                <select name="type" class="form-control" style="max-width: 220px;">
+                    <option value="">All transaction types</option>
+                    <option value="CASH_ADVANCE" {% if active_type == "CASH_ADVANCE" %}selected{% endif %}>Cash advances</option>
+                    <option value="REIMBURSEMENT" {% if active_type == "REIMBURSEMENT" %}selected{% endif %}>Reimbursements</option>
+                </select>
+                <div class="input-group" style="max-width: 560px;">
+                    <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search PCV, requester, purpose, or category">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
 
         <form method="post" action="{% url 'pettycash:bulk_approve' %}" id="bulkForm">
             {% csrf_token %}
             <div class="table-responsive">
-                <table class="table table-hover dash-table">
+                <table class="table table-hover dash-table mb-0">
                     <thead>
                         <tr>
-                            <th style="width:40px;"><input type="checkbox" id="select-all"></th>
+                            <th style="width:40px;"><input type="checkbox" id="select-all" title="Select all approvable vouchers"></th>
                             <th>PCV</th>
                             <th>Requester</th>
+                            <th>Category</th>
                             <th>Type</th>
                             <th class="text-right">Amount</th>
                             <th>Status</th>
-                            <th>Age</th>
+                            <th>Signal</th>
                             <th class="text-right">Action</th>
                         </tr>
                     </thead>
@@ -132,24 +268,46 @@
                                 <div class="text-muted small">{{ voucher.created_at|date:"M d, Y" }}</div>
                             </td>
                             <td>{{ voucher.requester.get_full_name }}</td>
-                            <td>{{ voucher.get_transaction_type_display }}</td>
+                            <td class="text-truncate" style="max-width: 220px;">{{ voucher.expense_category.name }}</td>
+                            <td>
+                                {% if voucher.transaction_type == "CASH_ADVANCE" %}
+                                    <span class="badge badge-success">Cash Advance</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Reimbursement</span>
+                                {% endif %}
+                            </td>
                             <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
                             <td><span class="badge badge-light border">{{ voucher.get_status_display }}</span></td>
                             <td>
-                                {% if voucher.days_pending != None %}
+                                {% if voucher.has_fund_exception %}
+                                    <span class="badge badge-danger">Fund exception</span>
+                                {% elif voucher.days_pending != None %}
                                     <span class="badge {% if voucher.days_pending > 3 %}badge-danger{% elif voucher.days_pending > 1 %}badge-warning{% else %}badge-success{% endif %}">
-                                        {{ voucher.days_pending }}d
+                                        {{ voucher.days_pending }}d pending
                                     </span>
                                 {% else %}
-                                    <span class="text-muted">-</span>
+                                    <span class="badge badge-light border">Monitor</span>
                                 {% endif %}
                             </td>
                             <td class="text-right">
-                                <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-primary">Review</a>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-outline-primary" title="Review">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if voucher.status == "FOR_APPROVAL" and not voucher.has_fund_exception %}
+                                        <button type="submit"
+                                                form="approve-{{ voucher.id }}"
+                                                class="btn btn-outline-success"
+                                                title="Approve"
+                                                onclick="return confirm('Approve this voucher?');">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="8" class="dash-empty">No vouchers found for this view.</td></tr>
+                        <tr><td colspan="9" class="dash-empty">No vouchers found for this view.</td></tr>
                     {% endfor %}
                     </tbody>
                 </table>
@@ -157,22 +315,75 @@
             <div class="dash-panel-body border-top">
                 <button type="button" class="btn btn-success" data-toggle="modal" data-target="#confirmApproveSelected" id="approve-selected-btn" disabled>
                     <i class="fas fa-check"></i>
-                    Approve Selected
+                    Approve selected
                 </button>
                 <button type="button" class="btn btn-danger" data-toggle="modal" data-target="#confirmRejectSelected" id="reject-selected-btn" disabled>
                     <i class="fas fa-times"></i>
-                    Reject Selected
+                    Reject selected
                 </button>
             </div>
         </form>
+
+        {% for voucher in vouchers %}
+            {% if voucher.status == "FOR_APPROVAL" and not voucher.has_fund_exception %}
+                <form method="post" action="{% url 'pettycash:approve_voucher' voucher.uuid %}" id="approve-{{ voucher.id }}">
+                    {% csrf_token %}
+                </form>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="dash-grid dash-grid-2">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Top expense categories</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for row in category_spend %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ row.expense_category__name|default:"Uncategorized" }}</strong>
+                                <div class="text-muted small">{{ row.count }} voucher{{ row.count|pluralize }}</div>
+                            </div>
+                            <strong>{{ row.total|money }}</strong>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No category spend yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Requester activity</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for row in requester_activity %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ row.requester__first_name }} {{ row.requester__last_name }}</strong>
+                                <div class="text-muted small">{{ row.count }} request{{ row.count|pluralize }}</div>
+                            </div>
+                            <strong>{{ row.total|money }}</strong>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No requester activity yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="dash-panel">
         <div class="dash-panel-header">
             <h2 class="dash-panel-title">Recent audit trail</h2>
+            <span class="badge badge-light border">Entity activity</span>
         </div>
         <div class="table-responsive">
-            <table class="table table-hover dash-table">
+            <table class="table table-hover dash-table mb-0">
                 <thead>
                     <tr>
                         <th>Date</th>
@@ -187,7 +398,7 @@
                         <td>{{ log.created_at|date:"M d, Y H:i" }}</td>
                         <td>{{ log.user.get_full_name }}</td>
                         <td>{{ log.get_action_display }}</td>
-                        <td>{{ log.description|truncatechars:80 }}</td>
+                        <td>{{ log.description|truncatechars:100 }}</td>
                     </tr>
                     {% empty %}
                     <tr><td colspan="4" class="dash-empty">No recent activity.</td></tr>
@@ -202,9 +413,9 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-success"><h5 class="modal-title text-white">Confirm Approval</h5></div>
-            <div class="modal-body">Approve selected vouchers?</div>
+            <div class="modal-body">Approve selected vouchers that have passed fund checks?</div>
             <div class="modal-footer">
-                <button type="submit" form="bulkForm" class="btn btn-success">Yes, Approve</button>
+                <button type="submit" form="bulkForm" class="btn btn-success">Yes, approve</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
             </div>
         </div>
@@ -215,9 +426,9 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger"><h5 class="modal-title text-white">Confirm Rejection</h5></div>
-            <div class="modal-body">Reject selected vouchers and return them to draft?</div>
+            <div class="modal-body">Reject selected vouchers and return them to draft for staff correction?</div>
             <div class="modal-footer">
-                <button type="submit" form="bulkForm" name="reject_selected" value="true" class="btn btn-danger">Yes, Reject</button>
+                <button type="submit" form="bulkForm" name="reject_selected" value="true" class="btn btn-danger">Yes, reject</button>
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
             </div>
         </div>

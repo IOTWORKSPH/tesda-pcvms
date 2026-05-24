@@ -1,0 +1,17 @@
+{
+  "name": "TESDA PCVMS",
+  "short_name": "PCVMS",
+  "description": "Petty Cash Voucher Management System for TESDA entity workflows.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f6fb",
+  "theme_color": "#0877d9",
+  "icons": [
+    {
+      "src": "/static/img/pcvms-icon.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

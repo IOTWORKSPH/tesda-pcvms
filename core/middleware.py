@@ -19,6 +19,7 @@ class EntityPermissionMiddleware:
             or path.startswith("/static")
             or path.startswith("/media")
             or path == reverse("users:login")
+            or path == "/robots.txt"
         ):
             return self.get_response(request)
 
@@ -42,3 +43,21 @@ class EntityPermissionMiddleware:
         request.current_entity = request.user.entity
 
         return self.get_response(request)
+
+
+class FrontendSecurityHeadersMiddleware:
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        response.setdefault(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+        )
+        response.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+        response.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+
+        return response

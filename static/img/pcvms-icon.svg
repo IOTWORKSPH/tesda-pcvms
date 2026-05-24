@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="TESDA PCVMS">
+  <rect width="128" height="128" rx="24" fill="#0877d9"/>
+  <path fill="#19a7ce" d="M24 90h80v14H24z"/>
+  <path fill="#fff" d="M36 28h56a8 8 0 0 1 8 8v54H28V36a8 8 0 0 1 8-8zm8 16v10h40V44H44zm0 18v8h40v-8H44zm0 16v8h26v-8H44z"/>
+  <path fill="#f8c21c" d="M82 76h18v28H82z"/>
+</svg>

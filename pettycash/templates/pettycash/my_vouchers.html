@@ -85,7 +85,7 @@
                 </a>
             </form>
 
-            <div class="table-responsive" style="overflow: visible;">
+            <div class="table-responsive">
                 <table class="table table-hover dash-table">
                     <thead>
                         <tr>
@@ -145,27 +145,27 @@
                                             <i class="fas fa-print"></i>
                                         </button>
                                         <div class="dropdown-menu dropdown-menu-right shadow">
-                                            <a class="dropdown-item" href="{% url 'pettycash:print_pcv' voucher.uuid %}" target="_blank">
+                                            <a class="dropdown-item" href="{% url 'pettycash:print_pcv' voucher.uuid %}" target="_blank" rel="noopener noreferrer">
                                                 <i class="fas fa-file-invoice mr-2 text-primary"></i>Print PCV
                                             </a>
                                             {% if voucher.pr_no %}
-                                                <a class="dropdown-item" href="{% url 'pettycash:print_pr' voucher.uuid %}" target="_blank">
+                                                <a class="dropdown-item" href="{% url 'pettycash:print_pr' voucher.uuid %}" target="_blank" rel="noopener noreferrer">
                                                     <i class="fas fa-file-alt mr-2 text-info"></i>Print PR
                                                 </a>
                                             {% endif %}
                                             {% if voucher.iar_no %}
-                                                <a class="dropdown-item" href="{% url 'pettycash:print_iar' voucher.uuid %}" target="_blank">
+                                                <a class="dropdown-item" href="{% url 'pettycash:print_iar' voucher.uuid %}" target="_blank" rel="noopener noreferrer">
                                                     <i class="fas fa-clipboard-check mr-2 text-success"></i>Print IAR
                                                 </a>
                                             {% endif %}
                                             {% if voucher.has_cnrr %}
-                                                <a class="dropdown-item" href="{% url 'pettycash:print_cnrr' voucher.uuid %}" target="_blank">
+                                                <a class="dropdown-item" href="{% url 'pettycash:print_cnrr' voucher.uuid %}" target="_blank" rel="noopener noreferrer">
                                                     <i class="fas fa-file-medical mr-2 text-danger"></i>Print CNRR
                                                 </a>
                                             {% endif %}
                                             {% if voucher.pr_no or voucher.iar_no %}
                                                 <div class="dropdown-divider"></div>
-                                                <a class="dropdown-item font-weight-bold" href="{% url 'pettycash:print_all' voucher.uuid %}" target="_blank">
+                                                <a class="dropdown-item font-weight-bold" href="{% url 'pettycash:print_all' voucher.uuid %}" target="_blank" rel="noopener noreferrer">
                                                     <i class="fas fa-print mr-2 text-dark"></i>Print All Documents
                                                 </a>
                                             {% endif %}

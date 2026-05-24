@@ -507,8 +507,8 @@
 
                         <button class="btn btn-sm btn-outline-secondary mb-3"
                                 type="button"
-                                data-bs-toggle="collapse"
-                                data-bs-target="#reviewHistoryCollapse">
+                                data-toggle="collapse"
+                                data-target="#reviewHistoryCollapse">
                             <i class="fas fa-history me-1"></i>
                             View Previous Review History
                         </button>
@@ -582,7 +582,7 @@
 
                         {% if receipt.file %}
                             <a href="{{ receipt.file.url }}"
-                            target="_blank"
+                            target="_blank" rel="noopener noreferrer"
                             class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-eye me-1"></i> View
                             </a>

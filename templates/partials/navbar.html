@@ -1,8 +1,8 @@
-<nav class="main-header navbar navbar-expand navbar-white navbar-light border-bottom shadow-sm">
+<nav class="main-header navbar navbar-expand navbar-white navbar-light border-bottom shadow-sm" aria-label="Primary navigation">
 
     <ul class="navbar-nav align-items-center">
         <li class="nav-item">
-            <a class="nav-link pcv-nav-toggle" data-widget="pushmenu" href="#" role="button" title="Toggle sidebar">
+            <a class="nav-link pcv-nav-toggle" data-widget="pushmenu" href="#" role="button" title="Toggle sidebar" aria-label="Toggle sidebar">
                 <i class="fas fa-bars"></i>
             </a>
         </li>
@@ -35,7 +35,7 @@
         </li>
 
         <li class="nav-item dropdown mr-1">
-            <a class="nav-link pcv-nav-action position-relative" data-toggle="dropdown" href="#" title="Notifications">
+            <a class="nav-link pcv-nav-action position-relative" data-toggle="dropdown" href="#" title="Notifications" aria-label="Open notifications">
                 <i class="far fa-bell fa-lg"></i>
                 {% if unread_notifications_count > 0 %}
                     <span class="badge badge-danger navbar-badge">{{ unread_notifications_count }}</span>
@@ -87,7 +87,7 @@
         </li>
 
         <li class="nav-item dropdown">
-            <a class="nav-link pcv-chip" data-toggle="dropdown" href="#">
+            <a class="nav-link pcv-chip" data-toggle="dropdown" href="#" aria-label="Open user menu">
                 <i class="fas fa-user-circle"></i>
                 <span class="pcv-user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
             </a>
@@ -106,10 +106,10 @@
                     <div class="dropdown-divider"></div>
                 {% endif %}
 
-                <a href="#" class="dropdown-item">
+                <span class="dropdown-item text-muted" aria-disabled="true">
                     <i class="fas fa-user-edit mr-2"></i>
                     Profile Settings
-                </a>
+                </span>
 
                 <div class="dropdown-divider"></div>
 

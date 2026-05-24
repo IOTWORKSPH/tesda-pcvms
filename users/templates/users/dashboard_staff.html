@@ -210,7 +210,7 @@
                                         </a>
                                     {% endif %}
                                     {% if pcv.status != "DRAFT" %}
-                                        <a href="{% url 'pettycash:print_pcv' pcv.uuid %}" target="_blank" class="btn btn-outline-secondary" title="Print PCV">
+                                        <a href="{% url 'pettycash:print_pcv' pcv.uuid %}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary" title="Print PCV">
                                             <i class="fas fa-print"></i>
                                         </a>
                                     {% endif %}

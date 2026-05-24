@@ -98,7 +98,7 @@
                             {% if r.status == "SUBMITTED_TO_ACCOUNTING" %}
                                 <button class="btn btn-sm btn-success" data-toggle="modal" data-target="#releaseModal{{ r.pk }}">Replenish</button>
                             {% endif %}
-                            <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" target="_blank" class="d-inline">
+                            <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" target="_blank" rel="noopener noreferrer" class="d-inline">
                                 {% csrf_token %}
                                 <input type="hidden" name="replenishment_id" value="{{ r.pk }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger">PDF</button>

@@ -1,25 +1,48 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{% block title %}TESDA PCVMS{% endblock %}</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="{% block meta_description %}TESDA Petty Cash Voucher Management System for secure voucher, liquidation, replenishment, and fund monitoring workflows.{% endblock %}">
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="theme-color" content="#0877d9">
+    <meta name="color-scheme" content="light">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="TESDA PCVMS">
+    <meta property="og:title" content="TESDA PCVMS">
+    <meta property="og:description" content="Secure petty cash voucher management for TESDA entity workflows.">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" type="image/svg+xml" href="{% static 'img/pcvms-icon.svg' %}">
+    <link rel="manifest" href="{% static 'site.webmanifest' %}">
+    <link rel="canonical" href="{{ request.build_absolute_uri }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
     <!-- Google Font -->
     <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700">
+          href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=swap">
 
     <!-- Font Awesome 6 -->
     <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer">
 
     <!-- Bootstrap 4 (Latest Stable) -->
     <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
+          href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css"
+          crossorigin="anonymous">
 
     <!-- AdminLTE 3.2 -->
     <link rel="stylesheet"
-          href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+          href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css"
+          crossorigin="anonymous">
 
     <style>
         :root {
@@ -33,6 +56,30 @@
 
         body {
             background: #f3f6fb;
+            color: var(--pcv-shell-ink);
+            overflow-x: hidden;
+            text-size-adjust: 100%;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .skip-link {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 30000;
+            padding: 10px 14px;
+            color: #fff;
+            background: var(--pcv-shell-blue);
+            border-radius: 8px;
+            font-weight: 800;
+            transform: translateY(-140%);
+            transition: transform 0.18s ease;
+        }
+
+        .skip-link:focus {
+            color: #fff;
+            transform: translateY(0);
+            outline: 3px solid rgba(25, 167, 206, 0.45);
         }
 
         .main-header.navbar {
@@ -169,6 +216,127 @@
             font-weight: 800;
         }
 
+        .content-wrapper {
+            min-width: 0;
+        }
+
+        .table-responsive {
+            position: relative;
+            width: 100%;
+            overflow-x: auto !important;
+            overflow-y: visible;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-color: #b8c7da #eef3f9;
+            scrollbar-width: thin;
+        }
+
+        .table-responsive::-webkit-scrollbar {
+            height: 10px;
+        }
+
+        .table-responsive::-webkit-scrollbar-track {
+            background: #eef3f9;
+            border-radius: 999px;
+        }
+
+        .table-responsive::-webkit-scrollbar-thumb {
+            background: #b8c7da;
+            border-radius: 999px;
+        }
+
+        .table-responsive > .table {
+            min-width: 760px;
+            margin-bottom: 0;
+        }
+
+        .table-responsive::before {
+            content: "Swipe left/right to view table";
+            display: none;
+            margin: 0 0 8px;
+            color: var(--pcv-shell-muted);
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .table th,
+        .table td {
+            vertical-align: middle !important;
+        }
+
+        .btn,
+        .nav-link,
+        .dropdown-item,
+        button,
+        input,
+        select,
+        textarea {
+            touch-action: manipulation;
+        }
+
+        .btn,
+        .dash-btn {
+            min-height: 38px;
+        }
+
+        .btn-group.btn-group-sm > .btn,
+        .btn-sm {
+            min-height: 34px;
+        }
+
+        .dropdown-menu {
+            z-index: 21000;
+            border: 1px solid var(--pcv-shell-line);
+            border-radius: 8px;
+        }
+
+        .modal-backdrop {
+            z-index: 20040 !important;
+            background: #0f172a;
+        }
+
+        .modal {
+            z-index: 20050 !important;
+            padding-right: 0 !important;
+        }
+
+        .modal-dialog {
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            overflow: hidden;
+            border: 0;
+            border-radius: 8px;
+            box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
+        }
+
+        .modal-header {
+            align-items: center;
+            border-bottom: 1px solid var(--pcv-shell-line);
+        }
+
+        .modal-body {
+            max-height: calc(100vh - 220px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .modal-footer {
+            gap: 8px;
+            border-top: 1px solid var(--pcv-shell-line);
+        }
+
+        body.modal-open {
+            overflow: hidden !important;
+            padding-right: 0 !important;
+        }
+
+        body.modal-open .main-header,
+        body.modal-open .main-sidebar,
+        body.modal-open .content-wrapper {
+            z-index: auto;
+        }
+
         .pcv-main-sidebar {
             background: var(--pcv-shell-sidebar);
             box-shadow: 12px 0 30px rgba(15, 23, 42, 0.14);
@@ -301,6 +469,98 @@
             .pcv-dropdown-footer {
                 grid-template-columns: 1fr;
             }
+
+            .table-responsive {
+                margin-left: -2px;
+                padding-bottom: 8px;
+            }
+
+            .table-responsive::before {
+                display: block;
+            }
+
+            .table-responsive > .table {
+                min-width: 840px;
+            }
+
+            .table-responsive .btn-group {
+                display: inline-flex;
+                flex-wrap: nowrap;
+            }
+
+            .modal {
+                padding-left: 8px !important;
+                padding-right: 8px !important;
+            }
+
+            .modal-dialog {
+                display: flex;
+                align-items: flex-end;
+                min-height: calc(100% - 16px);
+                margin: 8px auto;
+            }
+
+            .modal-dialog-centered {
+                min-height: calc(100% - 16px);
+            }
+
+            .modal-content {
+                width: 100%;
+                max-height: calc(100vh - 16px);
+                border-radius: 12px 12px 8px 8px;
+            }
+
+            .modal-body {
+                max-height: calc(100vh - 190px);
+            }
+
+            .modal-footer {
+                position: sticky;
+                bottom: 0;
+                display: grid;
+                grid-template-columns: 1fr;
+                padding: 12px;
+                background: #fff;
+            }
+
+            .modal-footer .btn,
+            .modal-footer button,
+            .modal-footer form {
+                width: 100%;
+            }
+
+            .modal-footer form .btn,
+            .modal-footer form button {
+                width: 100%;
+            }
+
+            .dropdown-menu-right {
+                right: 8px !important;
+                left: auto !important;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .pcv-chip {
+                padding-left: 10px;
+                padding-right: 10px;
+            }
+
+            .pcv-chip-primary {
+                max-width: 82px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .pcv-notification-menu {
+                width: calc(100vw - 16px);
+            }
+
+            #global-alert-container {
+                left: 10px !important;
+                right: 10px !important;
+                width: auto !important;
+            }
         }
     </style>
 
@@ -309,13 +569,15 @@
 
 <body class="hold-transition sidebar-mini layout-fixed">
 
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
 <div class="wrapper">
 
     {% include "partials/navbar.html" %}
     {% include "partials/sidebar.html" %}
 
     <!-- Content Wrapper -->
-    <div class="content-wrapper p-3">
+    <main id="main-content" class="content-wrapper p-3" tabindex="-1">
 
         <!-- ================= FLOATING GLOBAL ALERTS ================= -->
         {% if request.user.is_authenticated and messages %}
@@ -358,18 +620,18 @@
         {% block content %}
         {% endblock %}
 
-    </div>
+    </main>
 
 </div>
 
 <!-- jQuery (Latest Stable 3.7.1) -->
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" crossorigin="anonymous"></script>
 
 <!-- Bootstrap Bundle -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
 <!-- AdminLTE -->
-<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js" crossorigin="anonymous"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
@@ -423,6 +685,71 @@ document.addEventListener("DOMContentLoaded", function() {
 
         select.addEventListener("change", updateDescription);
         updateDescription();
+    });
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    if (window.jQuery) {
+        jQuery(".table-responsive [data-toggle='dropdown']").attr("data-boundary", "viewport");
+
+        jQuery(document).on("show.bs.modal", ".modal", function() {
+            const modal = this;
+            document.body.appendChild(modal);
+            setTimeout(function() {
+                const focusable = modal.querySelector(
+                    "button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])"
+                );
+                if (focusable) {
+                    focusable.focus({ preventScroll: true });
+                }
+            }, 180);
+        });
+
+        jQuery(document).on("shown.bs.modal", ".modal", function() {
+            document.body.classList.add("pcv-modal-active");
+        });
+
+        jQuery(document).on("hidden.bs.modal", ".modal", function() {
+            if (!document.querySelector(".modal.show")) {
+                document.body.classList.remove("pcv-modal-active");
+                document.querySelectorAll(".modal-backdrop").forEach(function(backdrop, index, all) {
+                    if (index < all.length - 1) {
+                        backdrop.remove();
+                    }
+                });
+            }
+        });
+    }
+
+    document.querySelectorAll(".table-responsive").forEach(function(wrapper) {
+        if (wrapper.scrollWidth > wrapper.clientWidth) {
+            wrapper.classList.add("is-scrollable");
+        }
+    });
+
+    document.querySelectorAll('a[target="_blank"]').forEach(function(link) {
+        const rel = new Set((link.getAttribute("rel") || "").split(/\s+/).filter(Boolean));
+        rel.add("noopener");
+        rel.add("noreferrer");
+        link.setAttribute("rel", Array.from(rel).join(" "));
+    });
+
+    document.querySelectorAll("a[title], button[title]").forEach(function(control) {
+        if (!control.getAttribute("aria-label")) {
+            control.setAttribute("aria-label", control.getAttribute("title"));
+        }
+    });
+
+    document.querySelectorAll("button.close").forEach(function(button) {
+        if (!button.getAttribute("aria-label")) {
+            button.setAttribute("aria-label", "Close");
+        }
+    });
+
+    document.querySelectorAll("i.fas, i.far, i.fa, span.fas, span.far, span.fa").forEach(function(icon) {
+        if (!icon.getAttribute("aria-hidden") && !icon.getAttribute("aria-label")) {
+            icon.setAttribute("aria-hidden", "true");
+        }
     });
 });
 </script>

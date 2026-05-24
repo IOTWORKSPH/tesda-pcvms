@@ -7,6 +7,7 @@ from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 
 from users.views import login_view
+from core.views import robots_txt
 
 
 urlpatterns = [
@@ -20,6 +21,7 @@ urlpatterns = [
     # ROOT
     # =========================================
     path("", login_view, name="root-login"),
+    path("robots.txt", robots_txt, name="robots_txt"),
 
     # =========================================
     # APP URLS

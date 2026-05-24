@@ -286,21 +286,37 @@ def dashboard_administrator(request):
 
     entity = request.user.entity
     status_filter = request.GET.get("status")
+    type_filter = request.GET.get("type")
+    search_query = request.GET.get("q", "")
     today = timezone.now().date()
 
     # Base Query (Exclude Draft)
-    vouchers = PettyCashVoucher.objects.filter(
+    voucher_scope = PettyCashVoucher.objects.filter(
         entity=entity
     ).exclude(
         status=VoucherStatus.DRAFT
     ).select_related(
-        "requester", "fund"
+        "requester", "fund", "expense_category", "supplier"
     ).order_by("-created_at")
+
+    vouchers = voucher_scope
 
     if status_filter:
         vouchers = vouchers.filter(status=status_filter)
 
-    vouchers = vouchers[:50]  # limit for performance
+    if type_filter:
+        vouchers = vouchers.filter(transaction_type=type_filter)
+
+    if search_query:
+        vouchers = vouchers.filter(
+            Q(pcv_no__icontains=search_query) |
+            Q(purpose__icontains=search_query) |
+            Q(requester__first_name__icontains=search_query) |
+            Q(requester__last_name__icontains=search_query) |
+            Q(expense_category__name__icontains=search_query)
+        )
+
+    vouchers = list(vouchers[:50])  # limit for performance
 
     # =========================
     # KPI COUNTS (Corrected)
@@ -334,7 +350,11 @@ def dashboard_administrator(request):
     ).count()
 
     # Fund Summary
-    funds = PettyCashFund.objects.filter(entity=entity)
+    funds = PettyCashFund.objects.filter(entity=entity).select_related(
+        "custodian",
+        "fund_cluster",
+        "responsibility_center",
+    )
 
     total_fund_amount = funds.aggregate(
         total=Sum("fund_amount")
@@ -370,14 +390,112 @@ def dashboard_administrator(request):
         transaction_type=TransactionType.CASH_ADVANCE
     ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
+    reimbursement_ready = PettyCashVoucher.objects.filter(
+        entity=entity,
+        status=VoucherStatus.APPROVED,
+        transaction_type=TransactionType.REIMBURSEMENT
+    ).count()
+
+    reimbursement_ready_amount = PettyCashVoucher.objects.filter(
+        entity=entity,
+        status=VoucherStatus.APPROVED,
+        transaction_type=TransactionType.REIMBURSEMENT
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    posted_this_month = voucher_scope.filter(
+        status=VoucherStatus.POSTED,
+        created_at__year=today.year,
+        created_at__month=today.month,
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    approval_qs = PettyCashVoucher.objects.filter(
+        entity=entity,
+        status=VoucherStatus.FOR_APPROVAL
+    ).select_related("requester", "fund", "expense_category")
+
+    ready_for_approval = 0
+    fund_exception_count = 0
+    approval_aging_count = 0
+    for approval in approval_qs:
+        if approval.amount_requested <= approval.fund.current_balance:
+            ready_for_approval += 1
+        else:
+            fund_exception_count += 1
+
+        if (today - approval.created_at.date()).days >= 3:
+            approval_aging_count += 1
+
+    unliquidated_qs = PettyCashVoucher.objects.filter(
+        entity=entity,
+        status=VoucherStatus.RELEASED,
+        transaction_type=TransactionType.CASH_ADVANCE
+    ).select_related("requester", "fund")
+
+    liquidation_at_risk = 0
+    liquidation_overdue = 0
+    liquidation_aging_items = []
+    for released in unliquidated_qs:
+        days_open = 0
+        if released.release_date:
+            days_open = (today - released.release_date.date()).days
+
+        if days_open >= 15:
+            liquidation_overdue += 1
+            risk = "danger"
+        elif days_open >= 7:
+            liquidation_at_risk += 1
+            risk = "warning"
+        else:
+            risk = "normal"
+
+        released.days_open = days_open
+        released.risk = risk
+        liquidation_aging_items.append(released)
+
+    fund_cards = []
+    for fund in funds:
+        used = fund.fund_amount - fund.current_balance
+        fund_utilization = Decimal("0.00")
+        if fund.fund_amount > 0:
+            fund_utilization = round((used / fund.fund_amount) * Decimal("100"), 2)
+
+        fund.utilized_amount = used
+        fund.utilization_percent = fund_utilization
+        fund.health = (
+            "danger" if fund_utilization >= 75
+            else "warning" if fund_utilization >= 50
+            else "healthy"
+        )
+        fund_cards.append(fund)
+
+    category_spend = voucher_scope.values(
+        "expense_category__name"
+    ).annotate(
+        total=Sum("amount_requested"),
+        count=Count("id"),
+    ).order_by("-total")[:5]
+
+    requester_activity = voucher_scope.values(
+        "requester__first_name",
+        "requester__last_name",
+    ).annotate(
+        total=Sum("amount_requested"),
+        count=Count("id"),
+    ).order_by("-count", "-total")[:5]
+
     # Approval Aging
     for voucher in vouchers:
         if voucher.status == VoucherStatus.FOR_APPROVAL:
             voucher.days_pending = (
-                timezone.now().date() - voucher.created_at.date()
+                today - voucher.created_at.date()
             ).days
         else:
             voucher.days_pending = None
+
+        voucher.has_fund_exception = (
+            voucher.status == VoucherStatus.FOR_APPROVAL and
+            voucher.amount_requested > voucher.fund.current_balance
+        )
 
     # Recent Logs
     recent_logs = AuditLog.objects.filter(
@@ -397,8 +515,22 @@ def dashboard_administrator(request):
         "vouchers_this_week": vouchers_this_week,
         "approval_amount": approval_amount,
         "released_amount": released_amount,
+        "reimbursement_ready": reimbursement_ready,
+        "reimbursement_ready_amount": reimbursement_ready_amount,
+        "posted_this_month": posted_this_month,
+        "ready_for_approval": ready_for_approval,
+        "fund_exception_count": fund_exception_count,
+        "approval_aging_count": approval_aging_count,
+        "liquidation_at_risk": liquidation_at_risk,
+        "liquidation_overdue": liquidation_overdue,
+        "liquidation_aging_items": liquidation_aging_items[:5],
+        "fund_cards": fund_cards,
+        "category_spend": category_spend,
+        "requester_activity": requester_activity,
         "recent_logs": recent_logs,
         "active_status": status_filter,
+        "active_type": type_filter,
+        "search_query": search_query,
     }
 
     return render(
