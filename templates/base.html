@@ -691,6 +691,10 @@ document.addEventListener("DOMContentLoaded", function() {
 document.addEventListener("DOMContentLoaded", function() {
     if (window.jQuery) {
         jQuery(".table-responsive [data-toggle='dropdown']").attr("data-boundary", "viewport");
+        jQuery(".table-responsive .pcv-action-group [data-toggle='dropdown']").attr({
+            "data-flip": "false",
+            "data-display": "static"
+        });
 
         jQuery(document).on("show.bs.modal", ".modal", function() {
             const modal = this;
