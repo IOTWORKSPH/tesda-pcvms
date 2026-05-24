@@ -1,115 +1,129 @@
 {% extends "base.html" %}
 {% load humanize %}
 
-{% block title %}Notifications{% endblock %}
+{% block title %}Notifications | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
 
 {% block content %}
-
-<div class="container-fluid">
-
-    <!-- HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h4 class="font-weight-bold text-primary mb-0">
-            Notifications
-        </h4>
-
-        <form method="get" class="form-inline">
-            <input type="text"
-                   name="q"
-                   value="{{ search_query }}"
-                   class="form-control form-control-sm mr-2"
-                   placeholder="Search notification...">
-            <button class="btn btn-sm btn-primary">
-                <i class="fas fa-search"></i>
-            </button>
-        </form>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-bell"></i>
+                Notification center
+            </div>
+            <h1 class="dash-title">Notifications</h1>
+            <p class="dash-subtitle">
+                Track voucher approvals, releases, liquidation feedback, and other system updates that need attention.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <form method="post" action="{% url 'pettycash:mark_all_notifications_read' %}">
+                {% csrf_token %}
+                <button type="submit" class="dash-btn dash-btn-primary">
+                    <i class="fas fa-check-double"></i>
+                    Mark all read
+                </button>
+            </form>
+            <a href="{% url 'users:role_redirect' %}" class="dash-btn">
+                <i class="fas fa-arrow-left"></i>
+                Dashboard
+            </a>
+        </div>
     </div>
 
-    <!-- CARD -->
-    <div class="card shadow-sm">
-
-        <div class="card-header bg-white font-weight-bold">
-            All Notifications
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Unread <i class="fas fa-circle-exclamation tone-red"></i></div>
+            <div class="dash-card-value">{{ unread_count }}</div>
+            <div class="dash-card-note">Updates still needing review</div>
         </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Read <i class="fas fa-check-circle tone-green"></i></div>
+            <div class="dash-card-value">{{ read_count }}</div>
+            <div class="dash-card-note">Already opened or marked read</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Total <i class="fas fa-inbox tone-blue"></i></div>
+            <div class="dash-card-value">{{ total_count }}</div>
+            <div class="dash-card-note">All notification history</div>
+        </div>
+    </div>
 
-        <div class="list-group list-group-flush">
-
-            {% if page_obj %}
-
-                {% for note in page_obj %}
-
-                <a href="{% url 'pettycash:notification_redirect' note.id %}"
-                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center
-                   {% if not note.is_read %}bg-light font-weight-bold{% endif %}">
-
-                    <div>
-                        <div>
-                            {{ note.message }}
-                        </div>
-
-                        <small class="text-muted">
-                            PCV:
-                            {{ note.voucher.pcv_no|default:"—" }}
-                            •
-                            {{ note.created_at|timesince }} ago
-                        </small>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Inbox</h2>
+            <span class="badge badge-light border">Latest first</span>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="dash-toolbar">
+                <div class="input-group" style="max-width: 620px;">
+                    <input type="text"
+                           name="q"
+                           value="{{ search_query }}"
+                           class="form-control"
+                           placeholder="Search message or PCV number">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
                     </div>
-
-                    {% if not note.is_read %}
-                        <span class="badge badge-danger">
-                            New
-                        </span>
-                    {% endif %}
-
-                </a>
-
-                {% endfor %}
-
-            {% else %}
-
-                <div class="list-group-item text-center text-muted">
-                    No notifications found.
                 </div>
+                <a href="{% url 'pettycash:notifications_list' %}" class="dash-btn">
+                    <i class="fas fa-rotate-left"></i>
+                    Reset
+                </a>
+            </form>
 
+            <div class="dash-list">
+                {% for note in page_obj %}
+                    <a href="{% url 'pettycash:notification_redirect' note.id %}"
+                       class="dash-list-item text-decoration-none {% if not note.is_read %}border-primary{% endif %}">
+                        <div class="d-flex align-items-start" style="gap: 12px;">
+                            <span class="pcv-notification-icon">
+                                <i class="fas fa-file-invoice"></i>
+                            </span>
+                            <div>
+                                <strong class="text-dark">{{ note.message }}</strong>
+                                <div class="text-muted small mt-1">
+                                    PCV: {{ note.voucher.pcv_no|default:"Pending PCV" }} · {{ note.created_at|date:"M d, Y h:i A" }} · {{ note.created_at|timesince }} ago
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            {% if not note.is_read %}
+                                <span class="badge badge-danger">New</span>
+                            {% else %}
+                                <span class="badge badge-light border">Read</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                {% empty %}
+                    <div class="dash-empty">No notifications found.</div>
+                {% endfor %}
+            </div>
+
+            {% if page_obj.has_other_pages %}
+                <div class="d-flex justify-content-center align-items-center flex-wrap mt-3">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="dash-btn mr-2">
+                            Previous
+                        </a>
+                    {% endif %}
+                    <span class="text-muted font-weight-bold mx-2">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}" class="dash-btn ml-2">
+                            Next
+                        </a>
+                    {% endif %}
+                </div>
             {% endif %}
-
         </div>
-
     </div>
-
-    <!-- PAGINATION -->
-    {% if page_obj.has_other_pages %}
-    <nav class="mt-3">
-        <ul class="pagination justify-content-center">
-
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link"
-                   href="?page={{ page_obj.previous_page_number }}">
-                   Previous
-                </a>
-            </li>
-            {% endif %}
-
-            <li class="page-item active">
-                <span class="page-link">
-                    {{ page_obj.number }}
-                </span>
-            </li>
-
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link"
-                   href="?page={{ page_obj.next_page_number }}">
-                   Next
-                </a>
-            </li>
-            {% endif %}
-
-        </ul>
-    </nav>
-    {% endif %}
-
 </div>
-
 {% endblock %}

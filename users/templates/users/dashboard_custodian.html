@@ -1,637 +1,241 @@
-<!-- ============================= -->
-<!-- DASHBOARD CUSTODIAN HTML DASHBOARD -->
-<!-- ============================= -->
-
 {% extends "base.html" %}
 {% load money %}
 {% load humanize %}
 
+{% block title %}Custodian Dashboard | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
-
-<section class="content-header">
-    <div class="container-fluid">
-        <h1>Petty Cash Custodian Dashboard</h1>
-        <small>
-            Fund: {{ fund.name }} |
-            RCC: {{ fund.responsibility_center.code }} |
-            Cluster: {{ fund.fund_cluster.code }}
-        </small>
-    </div>
-</section>
-
-<section class="content">
-<div class="container-fluid">
-
-<!-- ============================= -->
-<!-- FUND SUMMARY -->
-<!-- ============================= -->
-
-<div class="row">
-
-    <div class="col-md-3">
-        <div class="small-box bg-info">
-            <div class="inner">
-                <h4>{{ total_fund|money }}</h4>
-                <p>Total Authorized Fund</p>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-cash-register"></i>
+                Custodian control center
             </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="small-box bg-success">
-            <div class="inner">
-                <h4>{{ current_balance|money }}</h4>
-                <p>Actual Cash on Hand</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="small-box bg-warning">
-            <div class="inner">
-                <h4>{{ utilized_amount|money }}</h4>
-                <p>Total Utilized</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="small-box bg-primary">
-            <div class="inner">
-                <h4>{{ utilization_percent }}%</h4>
-                <p>Fund Utilization</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- ================= RESET PETTY CASH (Uncomment below codes to show reset button)================= -->
-    <!-- <div class="card border-danger mt-4">
-
-        <div class="card-header bg-danger text-white">
-            ⚠ System Reset (Testing Only)
-        </div>
-
-        <div class="card-body">
-
-            <p class="mb-3">
-                Reset all petty cash transactions for your entity.
-                This includes vouchers, ledger entries, and replenishment records.
+            <h1 class="dash-title">Fund health and release operations</h1>
+            <p class="dash-subtitle">
+                {{ fund.name }} | RCC {{ fund.responsibility_center.code }} | Fund Cluster {{ fund.fund_cluster.code }}
             </p>
-
-            <button class="btn btn-danger"
-                    data-toggle="modal"
-                    data-target="#resetModal">
-                <i class="fas fa-trash"></i> Reset Petty Cash
-            </button>
-
         </div>
-    </div> -->
-
-</div>
-<!-- ============================= -->
-<!-- REPLENISHMENT ALERT -->
-<!-- ============================= -->
-
-{% if show_replenishment_alert %}
-<div class="alert alert-danger shadow-sm d-flex justify-content-between align-items-center">
-    <div>
-        <strong>⚠ Replenishment Required:</strong>
-        Fund utilization has reached 
-        <strong>{{ utilization_percent }}%</strong>.
-        It is recommended to prepare a replenishment report.
+        <div class="dash-actions">
+            <a href="{% url 'pettycash:replenishment_list' %}" class="dash-btn">
+                <i class="fas fa-folder-open"></i>
+                Replenishments
+            </a>
+            <a href="{% url 'pettycash:create_replenishment' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-file-invoice-dollar"></i>
+                New Replenishment
+            </a>
+        </div>
     </div>
-    <div>
-        <a href="{% url 'pettycash:create_replenishment' %}"
-           class="btn btn-light btn-sm">
-            <i class="fas fa-file-invoice-dollar mr-1"></i>
-            Generate Report
-        </a>
+
+    {% if show_replenishment_alert %}
+        <div class="alert alert-danger shadow-sm">
+            <strong>Replenishment recommended.</strong>
+            Fund utilization is {{ utilization_percent }}%. Prepare the replenishment package before operating cash becomes too low.
+        </div>
+    {% elif active_replenishment_exists %}
+        <div class="alert alert-info shadow-sm">
+            A replenishment request is already being processed.
+        </div>
+    {% endif %}
+
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Authorized fund <i class="fas fa-vault tone-blue"></i></div>
+            <div class="dash-card-value">{{ total_fund|money }}</div>
+            <div class="dash-card-note">Approved petty cash fund ceiling</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Cash on hand <i class="fas fa-wallet tone-green"></i></div>
+            <div class="dash-card-value">{{ current_balance|money }}</div>
+            <div class="dash-card-note">{{ available_percent }}% available</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Utilized <i class="fas fa-chart-line tone-amber"></i></div>
+            <div class="dash-card-value">{{ utilized_amount|money }}</div>
+            <div class="dash-card-note">{{ utilization_percent }}% fund utilization</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">At-risk liquidations <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-value">{{ overdue_liquidation_count }}</div>
+            <div class="dash-card-note">Cash advances open for 15+ days</div>
+        </div>
     </div>
-</div>
-{% endif %}
 
-{% if active_replenishment_exists %}
-<div class="alert alert-info shadow-sm">
-    ℹ A replenishment request is currently being processed.
-</div>
-{% endif %}
-
-<!-- ========================================= -->
-<!-- FINANCIAL BREAKDOWN -->
-<!-- ========================================= -->
-
-<div class="row">
-
-    <div class="col-md-4">
-        <div class="card border-danger shadow-sm">
-            <div class="card-body text-center">
-                <h5 class="text-danger">
-                    {{ unliquidated_amount|money }}
-                </h5>
-                <p class="mb-0">Unliquidated Exposure</p>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Fund utilization</h2>
+            <span class="badge {% if utilization_percent >= 75 %}badge-danger{% elif utilization_percent >= 50 %}badge-warning{% else %}badge-success{% endif %}">
+                {% if utilization_percent >= 75 %}Replenishment Recommended{% elif utilization_percent >= 50 %}Monitor Closely{% else %}Healthy{% endif %}
+            </span>
+        </div>
+        <div class="dash-panel-body">
+            <div class="dash-progress mb-3">
+                <div class="dash-progress-bar" style="width: {{ utilization_percent }}%"></div>
+            </div>
+            <div class="dash-grid dash-grid-3 mb-0">
+                <div class="dash-card">
+                    <div class="dash-card-label">Unliquidated exposure</div>
+                    <div class="dash-card-value tone-red">{{ unliquidated_amount|money }}</div>
+                    <div class="dash-card-note">{{ unliquidated_count }} active cash advance{{ unliquidated_count|pluralize }}</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-card-label">Pending finalization</div>
+                    <div class="dash-card-value tone-amber">{{ pending_finalization_amount|money }}</div>
+                    <div class="dash-card-note">{{ for_liquidation_count }} liquidated item{{ for_liquidation_count|pluralize }}</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-card-label">Posted reimbursements</div>
+                    <div class="dash-card-value tone-green">{{ reimbursed_amount|money }}</div>
+                    <div class="dash-card-note">Unreplenished reimbursement total</div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-4">
-        <div class="card border-warning shadow-sm">
-            <div class="card-body text-center">
-                <h5 class="text-warning">
-                    {{ pending_finalization_amount|money }}
-                </h5>
-                <p class="mb-0">Pending Finalization</p>
+    <div class="dash-grid dash-grid-2">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Action queues</h2>
             </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card border-success shadow-sm">
-            <div class="card-body text-center">
-                <h5 class="text-success">
-                    {{ reimbursed_amount|money }}
-                </h5>
-                <p class="mb-0">Unreplenished Reimbursements Posted</p>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-
-<!-- ============================= -->
-<!-- UTILIZATION PROGRESS BAR -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-body">
-        <div class="progress">
-            <div class="progress-bar bg-info"
-                 role="progressbar"
-                 style="width: {{ utilization_percent }}%">
-                {{ utilization_percent }}%
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- REPLENISHMENT ACTION -->
-<!-- ============================= -->
-
-<div class="card border-danger">
-
-    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">
-            Replenishment Management
-        </h5>
-    </div>
-
-    <div class="card-body">
-
-        <div class="row align-items-center">
-
-            <div class="col-md-8">
-                <strong>Current Utilization:</strong>
-                {{ utilization_percent }}%
-
-                {% if utilization_percent >= 75 %}
-                    <span class="badge badge-danger ml-2">
-                        Replenishment Recommended
-                    </span>
-                {% elif utilization_percent >= 50 %}
-                    <span class="badge badge-warning ml-2">
-                        Monitor Closely
-                    </span>
-                {% else %}
-                    <span class="badge badge-success ml-2">
-                        Fund Healthy
-                    </span>
-                {% endif %}
-            </div>
-
-            <div class="col-md-4 text-right">
-
-                <a href="{% url 'pettycash:replenishment_list' %}"
-                class="btn btn-outline-secondary btn-sm mr-2">
-                    <i class="fas fa-folder-open mr-1"></i>
-                    View Records
-                </a>
-
-                <a href="{% url 'pettycash:create_replenishment' %}"
-                class="btn btn-danger btn-sm shadow-sm">
-                    <i class="fas fa-file-invoice-dollar mr-1"></i>
-                    New Replenishment
-                </a>
-
-            </div>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- ============================= -->
-<!-- LEDGER SNAPSHOT -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-header bg-dark text-white">
-        <h3 class="card-title">Recent Ledger Entries</h3>
-    </div>
-    <div class="card-body table-responsive">
-        <table class="table table-sm table-bordered">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Reference</th>
-                    <th>Debit</th>
-                    <th>Credit</th>
-                    <th>Balance</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in ledger_snapshot %}
-                <tr>
-                    <td>{{ entry.transaction_date }}</td>
-                    <td>{{ entry.reference_no }}</td>
-                    <td>{{ entry.debit|money }}</td>
-                    <td>{{ entry.credit|money }}</td>
-                    <td>{{ entry.running_balance|money }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">No ledger activity.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- OPERATIONAL QUEUE -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-header bg-primary text-white">
-        <h3 class="card-title">Approved – For Cash Release</h3>
-    </div>
-    <div class="card-body table-responsive">
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>PCV No</th>
-                    <th>Requester</th>
-                    <th>Type</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for voucher in for_release %}
-                <tr>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>{{ voucher.get_transaction_type_display }}</td>
-                    <td>{{ voucher.amount_requested|money }}</td>
-                    <td><span class="badge badge-info">{{ voucher.status }}</span></td>
-                    <td>
-                        <form method="post"
-                              action="{% url 'pettycash:release_cash' voucher.id %}">
-                            {% csrf_token %}
-                            <button type="button"
-                                    class="btn btn-sm btn-success"
-                                    data-toggle="modal"
-                                    data-target="#releaseModal{{ voucher.id }}">
-                                Release Cash
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-
-                <!-- MODAL MUST BE INSIDE LOOP -->
-                <div class="modal fade" id="releaseModal{{ voucher.id }}">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                        <div class="modal-header bg-success">
-                            <h5 class="modal-title">Confirm Cash Release</h5>
-                            <button type="button" class="close" data-dismiss="modal">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            Are you sure you want to release
-                            <strong>{{ voucher.amount_requested|money }}</strong>
-                            for PCV <strong>{{ voucher.pcv_no }}</strong>?
-                        </div>
-                        <div class="modal-footer">
-                            <form method="post"
-                                action="{% url 'pettycash:release_cash' voucher.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-success">
-                                    Yes, Release Cash
-                                </button>
-                            </form>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                                Cancel
-                            </button>
-                        </div>
-                        </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    <div class="dash-list-item">
+                        <div><strong>Cash releases</strong><div class="text-muted small">Approved cash advances ready for release</div></div>
+                        <span class="badge badge-primary">{{ for_release_count }}</span>
+                    </div>
+                    <div class="dash-list-item">
+                        <div><strong>Reimbursement payments</strong><div class="text-muted small">Approved reimbursements ready to post</div></div>
+                        <span class="badge badge-info">{{ for_reimbursement_count }}</span>
+                    </div>
+                    <div class="dash-list-item">
+                        <div><strong>Liquidation review</strong><div class="text-muted small">Liquidated advances pending final check</div></div>
+                        <span class="badge badge-warning">{{ for_liquidation_count }}</span>
                     </div>
                 </div>
-
-            {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center">No vouchers pending release.</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- APPROVED – REIMBURSEMENT -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-header bg-info text-white">
-        <h3 class="card-title">Approved – For Reimbursement</h3>
-    </div>
-    <div class="card-body table-responsive">
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>PCV No</th>
-                    <th>Requester</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for voucher in for_reimbursement %}
-                <tr>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>{{ voucher.amount_requested|money }}</td>
-                    <td><span class="badge badge-info">{{ voucher.status }}</span></td>
-                    <td>
-                        <form method="post"
-                              action="{% url 'pettycash:post_reimbursement' voucher.id %}">
-                            {% csrf_token %}
-                            <button type="button"
-                                    class="btn btn-sm btn-primary"
-                                    data-toggle="modal"
-                                    data-target="#reimburseModal{{ voucher.id }}">
-                                Pay & Post
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                
-                <div class="modal fade" id="reimburseModal{{ voucher.id }}">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                        <div class="modal-header bg-primary">
-                            <h5 class="modal-title">Confirm Reimbursement Payment</h5>
-                            <button type="button" class="close" data-dismiss="modal">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            Confirm payment and ledger posting of
-                            <strong>{{ voucher.amount_requested|money }}</strong>
-                            for PCV <strong>{{ voucher.pcv_no }}</strong>?
-                        </div>
-                        <div class="modal-footer">
-                            <form method="post"
-                                action="{% url 'pettycash:post_reimbursement' voucher.id %}">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-primary">
-                                    Yes, Pay & Post
-                                </button>
-                            </form>
-                            <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                                Cancel
-                            </button>
-                        </div>
-                        </div>
-                    </div>
-                    </div>
-
-
-
-            {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">No reimbursements pending.</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- LIQUIDATION FINALIZATION -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-header bg-warning text-dark">
-        <h3 class="card-title">Liquidated – Pending Finalization</h3>
-    </div>
-    <div class="card-body table-responsive">
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>PCV No</th>
-                    <th>Requester</th>
-                    <th>Variance</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-            {% for voucher in for_liquidation %}
-                <tr>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>
-                        {% if voucher.variance_type == "EXCESS" %}
-                            <span class="badge bg-success">
-                                Excess ₱{{ voucher.variance_display|floatformat:2|intcomma }}
-                            </span>
-
-                        {% elif voucher.variance_type == "SHORTAGE" %}
-                            <span class="badge bg-danger">
-                                Shortage ₱{{ voucher.variance_display|floatformat:2|intcomma }}
-                            </span>
-
-                        {% else %}
-                            <span class="badge bg-secondary">
-                                No Variance
-                            </span>
-                        {% endif %}
-                        </td>
-                    <td>
-                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-                        class="btn btn-sm btn-info">
-                            <i class="fas fa-eye"></i> View Details
-                        </a>
-                    </td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center">No liquidation pending.</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- UNLIQUIDATED CASH ADVANCES -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-header bg-danger text-white">
-        <h3 class="card-title">
-            Released – Awaiting Liquidation
-        </h3>
-    </div>
-
-    <div class="card-body table-responsive">
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>PCV No</th>
-                    <th>Requester</th>
-                    <th>Amount Released</th>
-                    <th>Status</th>
-                    <th>View</th>
-                </tr>
-            </thead>
-            <tbody>
-
-            {% for voucher in unliquidated_cash_advances %}
-                <tr>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>{{ voucher.amount_requested|money }}</td>
-                    <td>
-                        <span class="badge badge-danger">
-                            Unliquidated
-                        </span>
-                    </td>
-                    <td>
-                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-                           class="btn btn-sm btn-outline-dark">
-                            View
-                        </a>
-                    </td>
-                </tr>
-
-            {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">
-                        No unliquidated cash advances.
-                    </td>
-                </tr>
-            {% endfor %}
-
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- REPLENISHMENT ALERT -->
-<!-- ============================= -->
-
-{% if utilization_percent >= 75 %}
-<div class="alert alert-danger">
-    Balance below 30%. 
-    <a href="{% url 'pettycash:replenishment_report' %}"
-       class="btn btn-sm btn-light">
-       Prepare Replenishment Report
-    </a>
-</div>
-{% endif %}
-
-</div>
-</section>
-
-<!-- ================= RESET CONFIRMATION MODAL ================= -->
-<div class="modal fade" id="resetModal">
-  <div class="modal-dialog">
-    <div class="modal-content">
-
-      <div class="modal-header bg-danger">
-        <h5 class="modal-title text-white">
-            ⚠ Confirm Reset
-        </h5>
-      </div>
-
-      <div class="modal-body">
-
-        <ul class="text-danger">
-            <li>Reset all vouchers to draft</li>
-            <li>Delete ledger entries</li>
-            <li>Delete replenishment records</li>
-            <li>Restore fund balance</li>
-        </ul>
-
-        <div class="alert alert-warning">
-            This action is irreversible unless you backup.
+            </div>
         </div>
 
-        <label>Type <strong>RESET</strong> to confirm:</label>
-        <input type="text" id="confirmText" class="form-control">
-
-      </div>
-
-      <div class="modal-footer">
-
-        <!-- BACKUP -->
-        <a href="{% url 'pettycash:backup_pettycash' %}"
-           class="btn btn-secondary">
-            <i class="fas fa-download"></i> Backup First
-        </a>
-
-        <!-- RESET -->
-        <form method="post"
-              action="{% url 'pettycash:reset_pettycash' %}">
-            {% csrf_token %}
-
-            <input type="hidden" name="confirm" id="confirmHidden">
-
-            <button type="submit"
-                    class="btn btn-danger"
-                    id="resetBtn"
-                    disabled>
-                Reset Now
-            </button>
-        </form>
-
-      </div>
-
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Liquidation aging</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for voucher in aging_items %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ voucher.pcv_no }}</strong>
+                                <div class="text-muted small">{{ voucher.requester.get_full_name }} | {{ voucher.amount_requested|money }}</div>
+                            </div>
+                            <span class="badge {% if voucher.risk == 'danger' %}badge-danger{% elif voucher.risk == 'warning' %}badge-warning{% else %}badge-success{% endif %}">
+                                {{ voucher.days_open }}d
+                            </span>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No released cash advances awaiting liquidation.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Approved for cash release</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>PCV</th>
+                        <th>Requester</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for voucher in for_release %}
+                    <tr>
+                        <td><strong>{{ voucher.pcv_no }}</strong></td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td class="text-right">
+                            <button type="button" class="btn btn-sm btn-success" data-toggle="modal" data-target="#releaseModal{{ voucher.id }}">
+                                Release Cash
+                            </button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4" class="dash-empty">No vouchers pending release.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Recent ledger activity</h2>
+            <a href="{% url 'pettycash:custodian_fund_ledger' %}" class="dash-btn">
+                <i class="fas fa-book"></i>
+                Open Ledger
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th class="text-right">Debit</th>
+                        <th class="text-right">Credit</th>
+                        <th class="text-right">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in ledger_snapshot %}
+                    <tr>
+                        <td>{{ entry.transaction_date }}</td>
+                        <td>{{ entry.reference_no }}</td>
+                        <td class="text-right">{{ entry.debit|money }}</td>
+                        <td class="text-right">{{ entry.credit|money }}</td>
+                        <td class="text-right font-weight-bold">{{ entry.running_balance|money }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="dash-empty">No ledger activity.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
-<script>
-document.getElementById("confirmText").addEventListener("input", function() {
-
-    const value = this.value.trim();
-    const btn = document.getElementById("resetBtn");
-
-    if (value === "RESET") {
-        btn.disabled = false;
-        document.getElementById("confirmHidden").value = "RESET";
-    } else {
-        btn.disabled = true;
-    }
-
-});
-</script>
-
+{% for voucher in for_release %}
+<div class="modal fade" id="releaseModal{{ voucher.id }}">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success">
+                <h5 class="modal-title">Confirm Cash Release</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                Release <strong>{{ voucher.amount_requested|money }}</strong> for PCV <strong>{{ voucher.pcv_no }}</strong>?
+            </div>
+            <div class="modal-footer">
+                <form method="post" action="{% url 'pettycash:release_cash' voucher.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Yes, Release Cash</button>
+                </form>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}

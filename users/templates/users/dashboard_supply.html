@@ -1,147 +1,131 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Supply Dashboard | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
-
-<section class="content-header">
-    <div class="container-fluid">
-        <h1>Supply Officer Dashboard</h1>
-        <small>Inventory and IAR Management</small>
-    </div>
-</section>
-
-<section class="content">
-<div class="container-fluid">
-
-<!-- ============================= -->
-<!-- KPI CARDS -->
-<!-- ============================= -->
-
-<div class="row">
-
-    <div class="col-md-4">
-        <div class="small-box bg-warning">
-            <div class="inner">
-                <h3>{{ pending_count }}</h3>
-                <p>Pending IAR Issuance</p>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-boxes-stacked"></i>
+                Supply officer workspace
             </div>
-            <a href="{% url 'pettycash:supply_iar_pending' %}"
-               class="small-box-footer">
-                Process Now <i class="fas fa-arrow-circle-right"></i>
+            <h1 class="dash-title">IAR issuance and purchased item registry</h1>
+            <p class="dash-subtitle">
+                Keep inspection and acceptance reports moving, monitor monthly issuance, and open the registry without hunting through menus.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'pettycash:supply_iar_pending' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-file-signature"></i>
+                Issue IAR
+            </a>
+            <a href="{% url 'pettycash:supply_items' %}" class="dash-btn">
+                <i class="fas fa-warehouse"></i>
+                Registry
             </a>
         </div>
     </div>
 
-    <div class="col-md-4">
-        <div class="small-box bg-success">
-            <div class="inner">
-                <h3>{{ issued_count }}</h3>
-                <p>IAR Issued This Month</p>
-            </div>
-            <a href="{% url 'pettycash:supply_items' %}"
-               class="small-box-footer">
-                View Records <i class="fas fa-arrow-circle-right"></i>
-            </a>
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Pending IAR <i class="fas fa-hourglass-half tone-amber"></i></div>
+            <div class="dash-card-value">{{ pending_count }}</div>
+            <div class="dash-card-note">{{ pending_amount|money }} awaiting issuance</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Issued this month <i class="fas fa-circle-check tone-green"></i></div>
+            <div class="dash-card-value">{{ issued_count }}</div>
+            <div class="dash-card-note">{{ issued_amount|money }} documented this month</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Items processed <i class="fas fa-box-open tone-blue"></i></div>
+            <div class="dash-card-value">{{ total_items }}</div>
+            <div class="dash-card-note">{{ processed_vouchers }} voucher{{ processed_vouchers|pluralize }} with IAR</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">IAR completion <i class="fas fa-chart-simple tone-blue"></i></div>
+            <div class="dash-card-value">{{ iar_completion_rate }}%</div>
+            <div class="dash-card-note">Processed vs. pending workload</div>
         </div>
     </div>
 
-    <div class="col-md-4">
-        <div class="small-box bg-info">
-            <div class="inner">
-                <h3>{{ total_items }}</h3>
-                <p>Total Items Processed</p>
-            </div>
-            <a href="{% url 'pettycash:supply_items' %}"
-               class="small-box-footer">
-                Open Registry <i class="fas fa-arrow-circle-right"></i>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">IAR workflow health</h2>
+            <a href="{% url 'pettycash:supply_iar_pending' %}" class="dash-btn">
+                <i class="fas fa-arrow-right"></i>
+                Process Queue
             </a>
+        </div>
+        <div class="dash-panel-body">
+            <div class="dash-progress mb-3">
+                <div class="dash-progress-bar" style="width: {{ iar_completion_rate }}%"></div>
+            </div>
+            <div class="dash-list">
+                <div class="dash-list-item">
+                    <div>
+                        <strong>Pending documents</strong>
+                        <div class="text-muted small">Approved vouchers without IAR number</div>
+                    </div>
+                    <span class="badge badge-warning">{{ pending_count }}</span>
+                </div>
+                <div class="dash-list-item">
+                    <div>
+                        <strong>Registry depth</strong>
+                        <div class="text-muted small">Total purchased items recorded from issued IARs</div>
+                    </div>
+                    <span class="badge badge-primary">{{ total_items }}</span>
+                </div>
+            </div>
         </div>
     </div>
 
-</div>
-
-<!-- ============================= -->
-<!-- QUICK ACTIONS -->
-<!-- ============================= -->
-
-<div class="card mb-4">
-    <div class="card-header bg-primary text-white">
-        Quick Actions
-    </div>
-    <div class="card-body">
-
-        <a href="{% url 'pettycash:supply_iar_pending' %}"
-           class="btn btn-warning mr-2">
-            <i class="fas fa-file-signature mr-1"></i>
-            Issue IAR
-        </a>
-
-        <a href="{% url 'pettycash:supply_items' %}"
-           class="btn btn-success">
-            <i class="fas fa-warehouse mr-1"></i>
-            View Registry
-        </a>
-
-    </div>
-</div>
-
-<!-- ============================= -->
-<!-- RECENT IAR RECORDS -->
-<!-- ============================= -->
-
-<div class="card">
-    <div class="card-header bg-dark text-white">
-        Recent IAR Records
-    </div>
-
-    <div class="card-body table-responsive">
-
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>PCV No</th>
-                    <th>IAR No</th>
-                    <th>Requester</th>
-                    <th>Amount</th>
-                    <th>View</th>
-                </tr>
-            </thead>
-
-            <tbody>
-                {% for voucher in recent_iars %}
-                <tr>
-                    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>
-                        <span class="badge badge-success">
-                            {{ voucher.iar_no }}
-                        </span>
-                    </td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>{{ voucher.amount_requested|money }}</td>
-                    <td>
-                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-                           class="btn btn-sm btn-outline-info">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center">
-                        No IAR records found.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-
-        </table>
-
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Recent IAR records</h2>
+            <a href="{% url 'pettycash:supply_items' %}" class="dash-btn">
+                <i class="fas fa-warehouse"></i>
+                Open Registry
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>PCV</th>
+                        <th>IAR</th>
+                        <th>Requester</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">View</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in recent_iars %}
+                    <tr>
+                        <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+                        <td><strong>{{ voucher.pcv_no }}</strong></td>
+                        <td><span class="badge badge-success">{{ voucher.iar_no }}</span></td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td class="text-right">
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="dash-empty">No IAR records found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
-
-</div>
-</section>
-
 {% endblock %}

@@ -1,91 +1,136 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Liquidation Monitoring | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
-
-<div class="container-fluid">
-
-    <h4 class="mb-3 text-danger">
-        Unliquidated Cash Advances
-    </h4>
-
-    <div class="card">
-        <div class="card-body table-responsive">
-            <div class="card mb-3">
-                <div class="card-body">
-
-                    <form method="get" class="form-row">
-
-                        <div class="col-md-4 mb-2">
-                            <input type="text"
-                                name="search"
-                                value="{{ search }}"
-                                class="form-control"
-                                placeholder="Search PCV or Requester">
-                        </div>
-
-                        <div class="col-md-3 mb-2">
-                            <input type="date"
-                                name="date_from"
-                                value="{{ date_from }}"
-                                class="form-control">
-                        </div>
-
-                        <div class="col-md-3 mb-2">
-                            <input type="date"
-                                name="date_to"
-                                value="{{ date_to }}"
-                                class="form-control">
-                        </div>
-
-                        <div class="col-md-2 mb-2">
-                            <button type="submit"
-                                    class="btn btn-primary btn-block">
-                                Filter
-                            </button>
-                        </div>
-
-                    </form>
-
-                </div>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-file-invoice-dollar"></i>
+                Liquidation monitoring
             </div>
-
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>PCV No</th>
-                        <th>Requester</th>
-                        <th>Amount Released</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-
-                {% for voucher in vouchers %}
-                <tr>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>{{ voucher.amount_requested|money }}</td>
-                    <td>
-                        <span class="badge badge-warning">
-                            Unliquidated
-                        </span>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="4" class="text-center">
-                        No unliquidated advances.
-                    </td>
-                </tr>
-                {% endfor %}
-
-                </tbody>
-            </table>
-
+            <h1 class="dash-title">Released cash advances awaiting liquidation</h1>
+            <p class="dash-subtitle">
+                Track employee accountability, aging risk, and evidence follow-up for every released cash advance.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'pettycash:custodian_release_list' %}" class="dash-btn">
+                <i class="fas fa-hand-holding-dollar"></i>
+                Release Queue
+            </a>
+            <a href="{% url 'pettycash:replenishment_report' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-sync-alt"></i>
+                Replenishment
+            </a>
         </div>
     </div>
 
-</div>
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Open advances <i class="fas fa-layer-group tone-blue"></i></div>
+            <div class="dash-card-value">{{ vouchers|length }}</div>
+            <div class="dash-card-note">Released and not yet liquidated</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Exposure <i class="fas fa-receipt tone-amber"></i></div>
+            <div class="dash-card-value">{{ total_unliquidated|money }}</div>
+            <div class="dash-card-note">Total cash currently accountable</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Watch list <i class="fas fa-clock tone-amber"></i></div>
+            <div class="dash-card-value">{{ warning_count }}</div>
+            <div class="dash-card-note">Open for 7 to 14 days</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Overdue <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-value">{{ overdue_count }}</div>
+            <div class="dash-card-note">Open for 15+ days</div>
+        </div>
+    </div>
 
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Monitoring filters</h2>
+            <a href="{% url 'pettycash:custodian_unliquidated' %}" class="dash-btn">
+                <i class="fas fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="form-row">
+                <div class="col-md-4 mb-2">
+                    <label class="small font-weight-bold text-muted">Search</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="PCV no. or requester">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted">Released From</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted">Released To</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-filter"></i>
+                        Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Liquidation aging register</h2>
+            <span class="badge {% if overdue_count %}badge-danger{% elif warning_count %}badge-warning{% else %}badge-success{% endif %}">
+                {% if overdue_count %}Escalation needed{% elif warning_count %}Monitor{% else %}On track{% endif %}
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>PCV</th>
+                        <th>Requester</th>
+                        <th>Released</th>
+                        <th class="text-right">Amount</th>
+                        <th>Aging</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for voucher in vouchers %}
+                    <tr>
+                        <td><strong>{{ voucher.pcv_no }}</strong></td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td>{{ voucher.release_date|date:"M d, Y"|default:"-" }}</td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td>
+                            <span class="badge {% if voucher.risk == 'danger' %}badge-danger{% elif voucher.risk == 'warning' %}badge-warning{% else %}badge-success{% endif %}">
+                                {{ voucher.days_open }} day{{ voucher.days_open|pluralize }}
+                            </span>
+                        </td>
+                        <td class="text-right">
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                                Review
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="dash-empty">No unliquidated advances.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

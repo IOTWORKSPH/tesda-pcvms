@@ -1,99 +1,147 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Release Cash | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
-
-<div class="container-fluid">
-
-    <h4 class="mb-3">Release Cash</h4>
-
-    <div class="card">
-        <div class="card-body table-responsive">
-            <div class="card mb-3">
-                <div class="card-body">
-
-                    <form method="get" class="form-row">
-
-                        <div class="col-md-4 mb-2">
-                            <input type="text"
-                                name="search"
-                                value="{{ search }}"
-                                class="form-control"
-                                placeholder="Search PCV or Requester">
-                        </div>
-
-                        <div class="col-md-3 mb-2">
-                            <input type="date"
-                                name="date_from"
-                                value="{{ date_from }}"
-                                class="form-control">
-                        </div>
-
-                        <div class="col-md-3 mb-2">
-                            <input type="date"
-                                name="date_to"
-                                value="{{ date_to }}"
-                                class="form-control">
-                        </div>
-
-                        <div class="col-md-2 mb-2">
-                            <button type="submit"
-                                    class="btn btn-primary btn-block">
-                                Filter
-                            </button>
-                        </div>
-
-                    </form>
-
-                </div>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-hand-holding-dollar"></i>
+                Custodian release queue
             </div>
-
-            <table class="table table-bordered">
-                <thead>
-                    <tr>
-                        <th>PCV No</th>
-                        <th>Requester</th>
-                        <th>Type</th>
-                        <th>Amount</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-
-                {% for voucher in vouchers %}
-                <tr>
-                    <td>{{ voucher.pcv_no }}</td>
-                    <td>{{ voucher.requester.get_full_name }}</td>
-                    <td>{{ voucher.get_transaction_type_display }}</td>
-                    <td>{{ voucher.amount_requested|money }}</td>
-                    <td>
-                        {% if voucher.transaction_type == "CASH_ADVANCE" %}
-                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-                               class="btn btn-success btn-sm">
-                               Release
-                            </a>
-                        {% else %}
-                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-                               class="btn btn-primary btn-sm">
-                               Pay & Post
-                            </a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">
-                        No approved vouchers.
-                    </td>
-                </tr>
-                {% endfor %}
-
-                </tbody>
-            </table>
-
+            <h1 class="dash-title">Approved vouchers ready for payment</h1>
+            <p class="dash-subtitle">
+                Validate approval, requester, amount, and available fund balance before releasing cash or posting reimbursement.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_custodian' %}" class="dash-btn">
+                <i class="fas fa-table-columns"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:custodian_fund_ledger' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-book"></i>
+                Fund Ledger
+            </a>
         </div>
     </div>
 
-</div>
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Ready to pay <i class="fas fa-file-circle-check tone-blue"></i></div>
+            <div class="dash-card-value">{{ vouchers|length }}</div>
+            <div class="dash-card-note">Approved vouchers in current queue</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Cash advances <i class="fas fa-money-bill-wave tone-green"></i></div>
+            <div class="dash-card-value">{{ cash_advance_count }}</div>
+            <div class="dash-card-note">Require physical cash release</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Reimbursements <i class="fas fa-rotate-left tone-amber"></i></div>
+            <div class="dash-card-value">{{ reimbursement_count }}</div>
+            <div class="dash-card-note">Ready for payment and ledger posting</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Projected balance <i class="fas fa-wallet tone-blue"></i></div>
+            <div class="dash-card-value">{{ fund_balance_after_queue|money }}</div>
+            <div class="dash-card-note">If all queued items are paid</div>
+        </div>
+    </div>
 
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Queue filters</h2>
+            <a href="{% url 'pettycash:custodian_release_list' %}" class="dash-btn">
+                <i class="fas fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="form-row">
+                <div class="col-md-4 mb-2">
+                    <label class="small font-weight-bold text-muted">Search</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="PCV no. or requester">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted">From</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted">To</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-filter"></i>
+                        Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Payment queue</h2>
+            <span class="badge {% if fund_balance_after_queue < 0 %}badge-danger{% else %}badge-success{% endif %}">
+                {% if fund_balance_after_queue < 0 %}Insufficient projected balance{% else %}Balance sufficient{% endif %}
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>PCV</th>
+                        <th>Requester</th>
+                        <th>Type</th>
+                        <th class="text-right">Amount</th>
+                        <th>Control Check</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for voucher in vouchers %}
+                    <tr>
+                        <td>
+                            <strong>{{ voucher.pcv_no }}</strong>
+                            <div class="text-muted small">{{ voucher.created_at|date:"M d, Y" }}</div>
+                        </td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td>
+                            {% if voucher.transaction_type == "CASH_ADVANCE" %}
+                                <span class="badge badge-success">Cash Advance</span>
+                            {% else %}
+                                <span class="badge badge-info">Reimbursement</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td>
+                            <span class="badge badge-light border">Approved</span>
+                            <span class="badge badge-light border">Entity matched</span>
+                        </td>
+                        <td class="text-right">
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm {% if voucher.transaction_type == 'CASH_ADVANCE' %}btn-success{% else %}btn-primary{% endif %}">
+                                {% if voucher.transaction_type == "CASH_ADVANCE" %}
+                                    Release
+                                {% else %}
+                                    Pay & Post
+                                {% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="dash-empty">No approved vouchers are waiting for custodian action.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

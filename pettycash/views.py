@@ -240,9 +240,11 @@ def notifications_list(request):
 
     search_query = request.GET.get("q")
 
-    notifications = Notification.objects.filter(
+    base_notifications = Notification.objects.filter(
         user=request.user
-    ).select_related("voucher").order_by("-created_at")
+    ).select_related("voucher")
+
+    notifications = base_notifications.order_by("-created_at")
 
     # Optional search
     if search_query:
@@ -250,6 +252,10 @@ def notifications_list(request):
             Q(message__icontains=search_query) |
             Q(voucher__pcv_no__icontains=search_query)
         )
+
+    unread_count = base_notifications.filter(is_read=False).count()
+    read_count = base_notifications.filter(is_read=True).count()
+    total_count = base_notifications.count()
 
     # Pagination (10 per page)
     paginator = Paginator(notifications, 10)
@@ -259,6 +265,9 @@ def notifications_list(request):
     context = {
         "page_obj": page_obj,
         "search_query": search_query,
+        "unread_count": unread_count,
+        "read_count": read_count,
+        "total_count": total_count,
     }
 
     return render(
@@ -1500,7 +1509,7 @@ def custodian_release_list(request):
     ).first()
 
     if not fund:
-        return render(request, "users/no_fund.html")
+        return render(request, "pettycash/no_fund.html")
 
     search = request.GET.get("search", "")
     date_from = request.GET.get("date_from", "")
@@ -1532,12 +1541,26 @@ def custodian_release_list(request):
 
     vouchers = vouchers.order_by("-created_at")
 
+    cash_advances = vouchers.filter(
+        transaction_type=TransactionType.CASH_ADVANCE
+    )
+    reimbursements = vouchers.filter(
+        transaction_type=TransactionType.REIMBURSEMENT
+    )
+    total_release_amount = vouchers.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
     return render(
         request,
         "pettycash/custodian/release_list.html",
         {
             "fund": fund,
             "vouchers": vouchers,
+            "cash_advance_count": cash_advances.count(),
+            "reimbursement_count": reimbursements.count(),
+            "total_release_amount": total_release_amount,
+            "fund_balance_after_queue": fund.current_balance - total_release_amount,
             "search": search,
             "date_from": date_from,
             "date_to": date_to,
@@ -1556,6 +1579,9 @@ def custodian_unliquidated(request):
         custodian=request.user,
         is_active=True
     ).first()
+
+    if not fund:
+        return render(request, "pettycash/no_fund.html")
 
     search = request.GET.get("search", "")
     date_from = request.GET.get("date_from", "")
@@ -1586,12 +1612,36 @@ def custodian_unliquidated(request):
 
     vouchers = vouchers.order_by("-updated_at")
 
+    today = timezone.now().date()
+    total_unliquidated = vouchers.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+    overdue_count = 0
+    warning_count = 0
+    for voucher in vouchers:
+        if voucher.release_date:
+            days_open = (today - voucher.release_date.date()).days
+        else:
+            days_open = 0
+        voucher.days_open = days_open
+        if days_open >= 15:
+            voucher.risk = "danger"
+            overdue_count += 1
+        elif days_open >= 7:
+            voucher.risk = "warning"
+            warning_count += 1
+        else:
+            voucher.risk = "normal"
+
     return render(
         request,
         "pettycash/custodian/unliquidated.html",
         {
             "fund": fund,
             "vouchers": vouchers,
+            "total_unliquidated": total_unliquidated,
+            "overdue_count": overdue_count,
+            "warning_count": warning_count,
             "search": search,
             "date_from": date_from,
             "date_to": date_to,
@@ -1610,6 +1660,9 @@ def custodian_fund_ledger(request):
         custodian=request.user,
         is_active=True
     ).first()
+
+    if not fund:
+        return render(request, "pettycash/no_fund.html")
 
     search = request.GET.get("search", "")
     date_from = request.GET.get("date_from", "")
@@ -1632,7 +1685,19 @@ def custodian_fund_ledger(request):
             transaction_date__lte=parse_date(date_to)
         )
 
-    entries = entries.order_by("-transaction_date")
+    entries = entries.order_by("-transaction_date", "-id")
+
+    total_debit = entries.aggregate(total=Sum("debit"))["total"] or Decimal("0.00")
+    total_credit = entries.aggregate(total=Sum("credit"))["total"] or Decimal("0.00")
+    latest_entry = LedgerEntry.objects.filter(fund=fund).order_by(
+        "-transaction_date", "-id"
+    ).first()
+    ledger_balance = (
+        latest_entry.running_balance
+        if latest_entry
+        else fund.current_balance
+    )
+    variance = fund.current_balance - ledger_balance
 
     return render(
         request,
@@ -1640,6 +1705,10 @@ def custodian_fund_ledger(request):
         {
             "fund": fund,
             "entries": entries,
+            "total_debit": total_debit,
+            "total_credit": total_credit,
+            "ledger_balance": ledger_balance,
+            "variance": variance,
             "search": search,
             "date_from": date_from,
             "date_to": date_to,
@@ -1771,7 +1840,7 @@ def replenishment_report(request):
     ).first()
 
     if not fund:
-        return render(request, "users/no_fund.html")
+        return render(request, "pettycash/no_fund.html")
 
     from_date = request.GET.get("date_from")
     to_date = request.GET.get("date_to")
@@ -1806,6 +1875,13 @@ def replenishment_report(request):
         total=Sum("amount_requested")
     )["total"] or Decimal("0.00")
 
+    utilized_percent = Decimal("0.00")
+    if fund.fund_amount > 0:
+        utilized_percent = round(
+            ((fund.fund_amount - fund.current_balance) / fund.fund_amount) * Decimal("100"),
+            2,
+        )
+
     return render(
         request,
         "pettycash/reports/replenishment_report.html",
@@ -1813,6 +1889,9 @@ def replenishment_report(request):
             "fund": fund,
             "vouchers": vouchers,
             "total": total,
+            "eligible_count": vouchers.count(),
+            "utilized_percent": utilized_percent,
+            "projected_balance_after_replenishment": fund.current_balance + total,
             "date_from": from_date,
             "date_to": to_date,
             "search_query": search_query,
@@ -2032,7 +2111,9 @@ def create_replenishment(request):
         {
             "fund": fund,
             "vouchers": vouchers,
-            "total_expenses": total_expenses
+            "total_expenses": total_expenses,
+            "voucher_count": vouchers.count(),
+            "projected_balance": fund.current_balance + total_expenses,
         }
     )
 
@@ -2053,12 +2134,25 @@ def replenishment_list(request):
         fund=fund
     ).order_by("-created_at")
 
+    draft_count = replenishments.filter(status=ReplenishmentStatus.DRAFT).count()
+    submitted_count = replenishments.filter(
+        status=ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING
+    ).count()
+    released_count = replenishments.filter(status=ReplenishmentStatus.RELEASED).count()
+    total_replenished = replenishments.filter(
+        status=ReplenishmentStatus.RELEASED
+    ).aggregate(total=Sum("total_expenses"))["total"] or Decimal("0.00")
+
     return render(
         request,
         "pettycash/custodian/replenishment_list.html",
         {
             "fund": fund,
-            "replenishments": replenishments
+            "replenishments": replenishments,
+            "draft_count": draft_count,
+            "submitted_count": submitted_count,
+            "released_count": released_count,
+            "total_replenished": total_replenished,
         }
     )
 
@@ -2086,6 +2180,7 @@ def replenishment_detail(request, pk):
     context = {
         "replenishment": replenishment,
         "vouchers": vouchers,
+        "voucher_count": vouchers.count(),
         "is_admin": is_admin,
         "is_custodian": is_custodian,
     }
@@ -2218,8 +2313,9 @@ def create_initial_fund(request):
 def my_vouchers(request):
 
     search = request.GET.get("q", "")
+    status_filter = request.GET.get("status", "")
 
-    vouchers = (
+    base_vouchers = (
         PettyCashVoucher.objects
         .filter(
             requester=request.user,
@@ -2229,12 +2325,45 @@ def my_vouchers(request):
         .order_by("-created_at")
     )
 
+    vouchers = base_vouchers
+
+    if status_filter == "UNLIQUIDATED":
+        vouchers = vouchers.filter(
+            transaction_type=TransactionType.CASH_ADVANCE,
+            status=VoucherStatus.RELEASED,
+        )
+    elif status_filter == "FOR_REFUND":
+        vouchers = vouchers.filter(
+            transaction_type=TransactionType.REIMBURSEMENT,
+            status=VoucherStatus.APPROVED,
+        )
+    elif status_filter:
+        vouchers = vouchers.filter(status=status_filter)
+
     if search:
         vouchers = vouchers.filter(
             Q(pcv_no__icontains=search) |
             Q(purpose__icontains=search) |
             Q(expense_category__name__icontains=search)
         )
+
+    draft_count = base_vouchers.filter(status=VoucherStatus.DRAFT).count()
+    approval_count = base_vouchers.filter(status=VoucherStatus.FOR_APPROVAL).count()
+    release_count = base_vouchers.filter(
+        transaction_type=TransactionType.CASH_ADVANCE,
+        status=VoucherStatus.APPROVED,
+    ).count()
+    liquidation_count = base_vouchers.filter(
+        transaction_type=TransactionType.CASH_ADVANCE,
+        status=VoucherStatus.RELEASED,
+    ).count()
+    refund_count = base_vouchers.filter(
+        transaction_type=TransactionType.REIMBURSEMENT,
+        status=VoucherStatus.APPROVED,
+    ).count()
+    active_total = base_vouchers.exclude(
+        status__in=[VoucherStatus.POSTED, VoucherStatus.CANCELLED]
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
     paginator = Paginator(vouchers, 10)
     page_number = request.GET.get("page")
@@ -2243,6 +2372,14 @@ def my_vouchers(request):
     context = {
         "page_obj": page_obj,
         "search": search,
+        "status_filter": status_filter,
+        "draft_count": draft_count,
+        "approval_count": approval_count,
+        "release_count": release_count,
+        "liquidation_count": liquidation_count,
+        "refund_count": refund_count,
+        "active_total": active_total,
+        "active_request_count": base_vouchers.count(),
     }
 
     return render(
@@ -2257,7 +2394,7 @@ def archived_vouchers(request):
 
     search = request.GET.get("q", "")
 
-    vouchers = (
+    base_vouchers = (
         PettyCashVoucher.objects
         .filter(
             requester=request.user,
@@ -2271,6 +2408,8 @@ def archived_vouchers(request):
         .order_by("-updated_at", "-created_at")
     )
 
+    vouchers = base_vouchers
+
     if search:
         vouchers = vouchers.filter(
             Q(pcv_no__icontains=search) |
@@ -2279,6 +2418,15 @@ def archived_vouchers(request):
             Q(replenishment__report_number__icontains=search)
         )
 
+    archive_count = base_vouchers.count()
+    cash_advance_count = base_vouchers.filter(
+        transaction_type=TransactionType.CASH_ADVANCE
+    ).count()
+    reimbursement_count = base_vouchers.filter(
+        transaction_type=TransactionType.REIMBURSEMENT
+    ).count()
+    archive_total = sum((voucher.actual_amount for voucher in base_vouchers), Decimal("0.00"))
+
     paginator = Paginator(vouchers, 10)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
@@ -2286,6 +2434,10 @@ def archived_vouchers(request):
     context = {
         "page_obj": page_obj,
         "search": search,
+        "archive_count": archive_count,
+        "cash_advance_count": cash_advance_count,
+        "reimbursement_count": reimbursement_count,
+        "archive_total": archive_total,
     }
 
     return render(

@@ -21,6 +21,289 @@
     <link rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
 
+    <style>
+        :root {
+            --pcv-shell-ink: #0f172a;
+            --pcv-shell-muted: #64748b;
+            --pcv-shell-line: #dbe5f1;
+            --pcv-shell-blue: #0877d9;
+            --pcv-shell-cyan: #19a7ce;
+            --pcv-shell-sidebar: #2f363d;
+        }
+
+        body {
+            background: #f3f6fb;
+        }
+
+        .main-header.navbar {
+            min-height: 62px;
+            padding: 0 18px;
+            border-bottom: 1px solid var(--pcv-shell-line) !important;
+            background: rgba(255, 255, 255, 0.96) !important;
+            backdrop-filter: blur(14px);
+        }
+
+        .pcv-nav-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            color: var(--pcv-shell-ink);
+        }
+
+        .pcv-nav-toggle:hover,
+        .pcv-nav-action:hover {
+            color: var(--pcv-shell-blue);
+            background: #eef7ff;
+        }
+
+        .pcv-navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--pcv-shell-ink);
+            font-weight: 800;
+        }
+
+        .pcv-navbar-mark,
+        .pcv-sidebar-mark {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            color: #fff;
+            background: linear-gradient(135deg, var(--pcv-shell-blue), var(--pcv-shell-cyan));
+        }
+
+        .pcv-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 34px;
+            padding: 7px 12px;
+            border: 1px solid var(--pcv-shell-line);
+            border-radius: 8px;
+            color: var(--pcv-shell-ink);
+            background: #fff;
+            font-size: 0.82rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .pcv-chip-primary {
+            color: #fff;
+            border-color: transparent;
+            background: linear-gradient(90deg, var(--pcv-shell-blue), var(--pcv-shell-cyan));
+        }
+
+        .pcv-nav-action {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            color: var(--pcv-shell-ink);
+        }
+
+        .pcv-notification-menu {
+            width: min(380px, calc(100vw - 28px));
+            padding: 0;
+            overflow: hidden;
+            border: 1px solid var(--pcv-shell-line);
+            border-radius: 8px;
+        }
+
+        .pcv-dropdown-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 14px 16px;
+            background: #f7fbff;
+            border-bottom: 1px solid var(--pcv-shell-line);
+        }
+
+        .pcv-notification-item {
+            display: flex;
+            gap: 12px;
+            padding: 13px 16px;
+            color: var(--pcv-shell-ink);
+            white-space: normal;
+        }
+
+        .pcv-notification-item:hover {
+            background: #f5f9ff;
+            color: var(--pcv-shell-ink);
+        }
+
+        .pcv-notification-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 34px;
+            height: 34px;
+            border-radius: 8px;
+            color: var(--pcv-shell-blue);
+            background: #eaf4ff;
+        }
+
+        .pcv-dropdown-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-top: 1px solid var(--pcv-shell-line);
+            background: #f8fafc;
+        }
+
+        .pcv-dropdown-footer a,
+        .pcv-dropdown-footer button {
+            width: 100%;
+            min-height: 42px;
+            border: 0;
+            background: transparent;
+            color: var(--pcv-shell-blue);
+            font-weight: 800;
+        }
+
+        .pcv-main-sidebar {
+            background: var(--pcv-shell-sidebar);
+            box-shadow: 12px 0 30px rgba(15, 23, 42, 0.14);
+        }
+
+        .pcv-main-sidebar .brand-link {
+            min-height: 62px;
+            padding: 13px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+        }
+
+        .pcv-main-sidebar .brand-link,
+        .pcv-main-sidebar .brand-link:hover {
+            color: #fff;
+        }
+
+        .pcv-brand-content {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .pcv-brand-title {
+            display: block;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .pcv-brand-subtitle {
+            display: block;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 0.76rem;
+            line-height: 1.1;
+        }
+
+        .pcv-sidebar-user {
+            margin: 12px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .pcv-main-sidebar .nav-header {
+            padding: 14px 16px 7px;
+            color: rgba(255, 255, 255, 0.65);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        .pcv-main-sidebar .nav-sidebar > .nav-item > .nav-link,
+        .pcv-main-sidebar .nav-treeview > .nav-item > .nav-link {
+            min-height: 42px;
+            margin: 2px 10px;
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        .pcv-main-sidebar .nav-sidebar .nav-link p {
+            font-weight: 700;
+        }
+
+        .pcv-main-sidebar .nav-sidebar .nav-link.active,
+        .pcv-main-sidebar .nav-sidebar .menu-open > .nav-link,
+        .pcv-main-sidebar .nav-sidebar .nav-link:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .pcv-main-sidebar .nav-treeview {
+            padding: 3px 0 8px;
+        }
+
+        .pcv-main-sidebar .nav-treeview .nav-link {
+            padding-left: 18px;
+            font-size: 0.92rem;
+        }
+
+        .sidebar-collapse .pcv-main-sidebar .brand-link {
+            padding-left: 13px;
+            padding-right: 13px;
+        }
+
+        .sidebar-collapse .pcv-brand-copy,
+        .sidebar-collapse .pcv-sidebar-user,
+        .sidebar-collapse .pcv-main-sidebar .nav-header,
+        .sidebar-collapse .pcv-main-sidebar .nav-sidebar .nav-link p,
+        .sidebar-collapse .pcv-main-sidebar .right {
+            display: none !important;
+        }
+
+        .sidebar-collapse .pcv-main-sidebar .nav-sidebar > .nav-item > .nav-link,
+        .sidebar-collapse .pcv-main-sidebar .nav-treeview > .nav-item > .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            margin: 5px auto;
+            padding: 0;
+        }
+
+        .sidebar-collapse .pcv-main-sidebar .nav-icon,
+        .sidebar-collapse .pcv-main-sidebar .nav-treeview .fas {
+            width: auto;
+            margin: 0 !important;
+            font-size: 1.05rem;
+            text-align: center;
+        }
+
+        @media (max-width: 767.98px) {
+            .main-header.navbar {
+                padding: 0 10px;
+            }
+
+            .pcv-navbar-brand .pcv-brand-copy,
+            .pcv-chip-role,
+            .pcv-user-name {
+                display: none !important;
+            }
+
+            .content-wrapper {
+                padding: 12px !important;
+            }
+
+            .pcv-dropdown-footer {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
     {% block extra_css %}{% endblock %}
 </head>
 

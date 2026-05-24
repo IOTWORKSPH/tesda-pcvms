@@ -1,87 +1,135 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Fund Ledger | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
-
-<div class="container-fluid">
-
-    <h4 class="mb-3">Fund Ledger</h4>
-
-    <div class="card">
-        <div class="card-body table-responsive">
-            <div class="card mb-3">
-                <div class="card-body">
-
-                    <form method="get" class="form-row">
-
-                        <div class="col-md-4 mb-2">
-                            <input type="text"
-                                name="search"
-                                value="{{ search }}"
-                                class="form-control"
-                                placeholder="Search PCV or Requester">
-                        </div>
-
-                        <div class="col-md-3 mb-2">
-                            <input type="date"
-                                name="date_from"
-                                value="{{ date_from }}"
-                                class="form-control">
-                        </div>
-
-                        <div class="col-md-3 mb-2">
-                            <input type="date"
-                                name="date_to"
-                                value="{{ date_to }}"
-                                class="form-control">
-                        </div>
-
-                        <div class="col-md-2 mb-2">
-                            <button type="submit"
-                                    class="btn btn-primary btn-block">
-                                Filter
-                            </button>
-                        </div>
-
-                    </form>
-
-                </div>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-book"></i>
+                Fund ledger
             </div>
+            <h1 class="dash-title">Cash movement and reconciliation trail</h1>
+            <p class="dash-subtitle">
+                Review debit, credit, and running balance activity for {{ fund.name }}. Use this view for daily cash count and audit preparation.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_custodian' %}" class="dash-btn">
+                <i class="fas fa-table-columns"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:replenishment_report' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-file-invoice-dollar"></i>
+                Replenishment
+            </a>
+        </div>
+    </div>
 
-            <table class="table table-bordered table-sm">
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Book balance <i class="fas fa-scale-balanced tone-blue"></i></div>
+            <div class="dash-card-value">{{ ledger_balance|money }}</div>
+            <div class="dash-card-note">Latest ledger running balance</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Fund balance <i class="fas fa-wallet tone-green"></i></div>
+            <div class="dash-card-value">{{ fund.current_balance|money }}</div>
+            <div class="dash-card-note">Current fund cash balance</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Debit total <i class="fas fa-arrow-trend-up tone-green"></i></div>
+            <div class="dash-card-value">{{ total_debit|money }}</div>
+            <div class="dash-card-note">Filtered replenishment inflows</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Credit total <i class="fas fa-arrow-trend-down tone-amber"></i></div>
+            <div class="dash-card-value">{{ total_credit|money }}</div>
+            <div class="dash-card-note">Filtered disbursements</div>
+        </div>
+    </div>
+
+    {% if variance != 0 %}
+        <div class="alert alert-danger shadow-sm">
+            <strong>Reconciliation variance detected:</strong> {{ variance|money }} between fund balance and latest ledger balance.
+        </div>
+    {% else %}
+        <div class="alert alert-success shadow-sm">
+            <strong>Reconciled:</strong> current fund balance matches the latest ledger running balance.
+        </div>
+    {% endif %}
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Ledger filters</h2>
+            <a href="{% url 'pettycash:custodian_fund_ledger' %}" class="dash-btn">
+                <i class="fas fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="form-row">
+                <div class="col-md-4 mb-2">
+                    <label class="small font-weight-bold text-muted">Reference</label>
+                    <input type="text" name="search" value="{{ search }}" class="form-control" placeholder="PCV, replenishment, adjustment">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted">From</label>
+                    <input type="date" name="date_from" value="{{ date_from }}" class="form-control">
+                </div>
+                <div class="col-md-3 mb-2">
+                    <label class="small font-weight-bold text-muted">To</label>
+                    <input type="date" name="date_to" value="{{ date_to }}" class="form-control">
+                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary btn-block">
+                        <i class="fas fa-filter"></i>
+                        Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Ledger entries</h2>
+            <span class="badge badge-light border">{{ entries|length }} entries</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
                 <thead>
                     <tr>
                         <th>Date</th>
                         <th>Reference</th>
-                        <th>Debit</th>
-                        <th>Credit</th>
-                        <th>Balance</th>
+                        <th>Description</th>
+                        <th class="text-right">Debit</th>
+                        <th class="text-right">Credit</th>
+                        <th class="text-right">Balance</th>
                     </tr>
                 </thead>
                 <tbody>
-
                 {% for entry in entries %}
-                <tr>
-                    <td>{{ entry.transaction_date }}</td>
-                    <td>{{ entry.reference_no }}</td>
-                    <td>{{ entry.debit|money }}</td>
-                    <td>{{ entry.credit|money }}</td>
-                    <td>{{ entry.running_balance|money }}</td>
-                </tr>
+                    <tr>
+                        <td>{{ entry.transaction_date }}</td>
+                        <td><strong>{{ entry.reference_no }}</strong></td>
+                        <td>{{ entry.description|default:"-"|truncatechars:80 }}</td>
+                        <td class="text-right tone-green">{{ entry.debit|money }}</td>
+                        <td class="text-right tone-amber">{{ entry.credit|money }}</td>
+                        <td class="text-right font-weight-bold">{{ entry.running_balance|money }}</td>
+                    </tr>
                 {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center">
-                        No ledger entries.
-                    </td>
-                </tr>
+                    <tr><td colspan="6" class="dash-empty">No ledger entries found.</td></tr>
                 {% endfor %}
-
                 </tbody>
             </table>
-
         </div>
     </div>
-
 </div>
-
 {% endblock %}

@@ -101,6 +101,7 @@ def role_redirect(request):
 def dashboard_staff(request):
 
     user = request.user
+    today = timezone.now().date()
 
     status_filter = request.GET.get("status")
     search_query = request.GET.get("q")
@@ -193,6 +194,57 @@ def dashboard_staff(request):
         status=VoucherStatus.RELEASED
     ).count()
 
+    awaiting_release_amount = base_qs.filter(
+        transaction_type=TransactionType.CASH_ADVANCE,
+        status=VoucherStatus.APPROVED,
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    for_refund_amount = base_qs.filter(
+        transaction_type=TransactionType.REIMBURSEMENT,
+        status=VoucherStatus.APPROVED,
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    active_count = base_qs.exclude(
+        status__in=[VoucherStatus.POSTED, VoucherStatus.CANCELLED]
+    ).count()
+
+    completed_count = base_qs.filter(
+        status=VoucherStatus.POSTED
+    ).count()
+
+    total_requested_amount = base_qs.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
+    unliquidated_amount = base_qs.filter(
+        transaction_type=TransactionType.CASH_ADVANCE,
+        status=VoucherStatus.RELEASED,
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    recent_request_count = base_qs.filter(
+        created_at__date__gte=today - timedelta(days=7)
+    ).count()
+
+    total_visible = base_qs.count()
+    completion_percent = Decimal("0.00")
+    if total_visible > 0:
+        completion_percent = round(
+            Decimal(completed_count) / Decimal(total_visible) * Decimal("100"),
+            2,
+        )
+
+    next_action_pcvs = base_qs.filter(
+        Q(status=VoucherStatus.DRAFT) |
+        Q(transaction_type=TransactionType.CASH_ADVANCE, status=VoucherStatus.RELEASED) |
+        Q(transaction_type=TransactionType.REIMBURSEMENT, status=VoucherStatus.APPROVED)
+    ).select_related("fund", "expense_category", "supplier").order_by("-updated_at", "-created_at")[:5]
+
+    watched_pcvs = base_qs.filter(
+        Q(status=VoucherStatus.FOR_APPROVAL) |
+        Q(transaction_type=TransactionType.CASH_ADVANCE, status=VoucherStatus.APPROVED) |
+        Q(transaction_type=TransactionType.CASH_ADVANCE, status=VoucherStatus.LIQUIDATED)
+    ).select_related("fund", "expense_category", "supplier").order_by("-updated_at", "-created_at")[:5]
+
     # =====================================================
     # CONTEXT
     # =====================================================
@@ -203,7 +255,17 @@ def dashboard_staff(request):
         "for_refund_count": for_refund_count,
         "refunded_count": refunded_count,
         "settlement_count": settlement_count,
+        "awaiting_release_amount": awaiting_release_amount,
+        "for_refund_amount": for_refund_amount,
+        "active_count": active_count,
+        "completed_count": completed_count,
+        "total_requested_amount": total_requested_amount,
+        "unliquidated_amount": unliquidated_amount,
+        "recent_request_count": recent_request_count,
+        "completion_percent": completion_percent,
         "recent_pcvs": qs[:20],
+        "next_action_pcvs": next_action_pcvs,
+        "watched_pcvs": watched_pcvs,
         "active_status": status_filter,
         "search_query": search_query,
     }
@@ -224,6 +286,7 @@ def dashboard_administrator(request):
 
     entity = request.user.entity
     status_filter = request.GET.get("status")
+    today = timezone.now().date()
 
     # Base Query (Exclude Draft)
     vouchers = PettyCashVoucher.objects.filter(
@@ -281,10 +344,6 @@ def dashboard_administrator(request):
         total=Sum("current_balance")
     )["total"] or Decimal("0.00")
 
-    total_current_balance = funds.aggregate(
-        total=Sum("current_balance")
-    )["total"] or 0
-
     utilization_percent = Decimal("0.00")
 
     if total_fund_amount > 0:
@@ -292,6 +351,24 @@ def dashboard_administrator(request):
             (total_fund_amount - total_current_balance)
             / total_fund_amount
         ) * Decimal("100")
+
+    total_utilized_amount = total_fund_amount - total_current_balance
+
+    vouchers_this_week = PettyCashVoucher.objects.filter(
+        entity=entity,
+        created_at__date__gte=today - timedelta(days=7)
+    ).exclude(status=VoucherStatus.DRAFT).count()
+
+    approval_amount = PettyCashVoucher.objects.filter(
+        entity=entity,
+        status=VoucherStatus.FOR_APPROVAL
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    released_amount = PettyCashVoucher.objects.filter(
+        entity=entity,
+        status=VoucherStatus.RELEASED,
+        transaction_type=TransactionType.CASH_ADVANCE
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
 
     # Approval Aging
     for voucher in vouchers:
@@ -315,7 +392,11 @@ def dashboard_administrator(request):
         "unposted": pending_finalization,
         "total_fund_amount": total_fund_amount,
         "total_current_balance": total_current_balance,
+        "total_utilized_amount": total_utilized_amount,
         "utilization_percent": round(utilization_percent, 2),
+        "vouchers_this_week": vouchers_this_week,
+        "approval_amount": approval_amount,
+        "released_amount": released_amount,
         "recent_logs": recent_logs,
         "active_status": status_filter,
     }
@@ -356,6 +437,10 @@ def dashboard_custodian(request):
     utilization_percent = Decimal("0.00")
     if total_fund > 0:
         utilization_percent = round((utilized_amount / total_fund) * 100, 2)
+
+    available_percent = Decimal("0.00")
+    if total_fund > 0:
+        available_percent = round((current_balance / total_fund) * 100, 2)
 
     # =====================================================
     # CHECK IF REPLENISHMENT IS ALREADY IN PROCESS
@@ -429,6 +514,27 @@ def dashboard_custodian(request):
         transaction_type=TransactionType.CASH_ADVANCE
     ).select_related("requester")
 
+    today = timezone.now().date()
+    aging_items = []
+    overdue_liquidation_count = 0
+    for voucher in unliquidated_cash_advances:
+        if voucher.release_date:
+            days_open = (today - voucher.release_date.date()).days
+        else:
+            days_open = 0
+
+        if days_open >= 15:
+            risk = "danger"
+            overdue_liquidation_count += 1
+        elif days_open >= 7:
+            risk = "warning"
+        else:
+            risk = "normal"
+
+        voucher.days_open = days_open
+        voucher.risk = risk
+        aging_items.append(voucher)
+
     ledger_snapshot = LedgerEntry.objects.filter(
         fund=fund
     ).order_by("-transaction_date", "-id")[:10]
@@ -439,6 +545,7 @@ def dashboard_custodian(request):
         "current_balance": current_balance,
         "utilized_amount": utilized_amount,
         "utilization_percent": utilization_percent,
+        "available_percent": available_percent,
         "show_replenishment_alert": show_replenishment_alert,
         "active_replenishment_exists": active_replenishment_exists,
 
@@ -450,6 +557,12 @@ def dashboard_custodian(request):
         "for_reimbursement": for_reimbursement,
         "for_liquidation": for_liquidation,
         "unliquidated_cash_advances": unliquidated_cash_advances,
+        "aging_items": aging_items[:8],
+        "overdue_liquidation_count": overdue_liquidation_count,
+        "for_release_count": for_release.count(),
+        "for_reimbursement_count": for_reimbursement.count(),
+        "for_liquidation_count": for_liquidation.count(),
+        "unliquidated_count": unliquidated_cash_advances.count(),
         "ledger_snapshot": ledger_snapshot,
     }
 
@@ -496,9 +609,27 @@ def dashboard_inspection(request):
     # Recently liquidated
     recent = pending_inspection[:5]
 
+    total_pending_amount = pending_inspection.aggregate(
+        total=Sum("amount_liquidated")
+    )["total"] or Decimal("0.00")
+
+    ready_today = pending_inspection.filter(
+        purchase_date=timezone.now().date()
+    ).count()
+
+    overdue_rate = Decimal("0.00")
+    if total_pending > 0:
+        overdue_rate = round(
+            Decimal(overdue) / Decimal(total_pending) * Decimal("100"),
+            2,
+        )
+
     context = {
         "total_pending": total_pending,
         "overdue": overdue,
+        "ready_today": ready_today,
+        "total_pending_amount": total_pending_amount,
+        "overdue_rate": overdue_rate,
         "pending_inspection": pending_inspection,
         "recent": recent,
     }
@@ -548,10 +679,35 @@ def dashboard_supply(request):
         iar_no__isnull=False
     ).order_by("-created_at")[:10]
 
+    pending_amount = pending_iar.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
+    issued_amount = issued_this_month.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
+    processed_vouchers = PettyCashVoucher.objects.filter(
+        entity=entity,
+        iar_no__isnull=False
+    ).count()
+
+    iar_completion_rate = Decimal("0.00")
+    total_supply_scope = pending_count + processed_vouchers
+    if total_supply_scope > 0:
+        iar_completion_rate = round(
+            Decimal(processed_vouchers) / Decimal(total_supply_scope) * Decimal("100"),
+            2,
+        )
+
     context = {
         "pending_count": pending_count,
         "issued_count": issued_count,
         "total_items": total_items,
+        "pending_amount": pending_amount,
+        "issued_amount": issued_amount,
+        "processed_vouchers": processed_vouchers,
+        "iar_completion_rate": iar_completion_rate,
         "recent_iars": recent_iars,
     }
 

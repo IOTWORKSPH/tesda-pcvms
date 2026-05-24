@@ -1,0 +1,332 @@
+<style>
+    .pcv-dashboard {
+        --dash-ink: #0f172a;
+        --dash-muted: #64748b;
+        --dash-line: #dbe5f1;
+        --dash-soft: #f6f9fd;
+        --dash-blue: #0877d9;
+        --dash-cyan: #19a7ce;
+        --dash-green: #15803d;
+        --dash-amber: #d97706;
+        --dash-red: #dc2626;
+        color: var(--dash-ink);
+    }
+
+    .pcv-dashboard .dash-hero {
+        display: flex;
+        align-items: stretch;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+        padding: 22px;
+        border: 1px solid var(--dash-line);
+        border-radius: 8px;
+        background: linear-gradient(135deg, #ffffff 0%, #eef7ff 100%);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+    }
+
+    .pcv-dashboard .dash-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--dash-blue);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .pcv-dashboard .dash-title {
+        margin: 6px 0;
+        font-size: clamp(1.55rem, 2.4vw, 2.35rem);
+        font-weight: 800;
+        letter-spacing: 0;
+    }
+
+    .pcv-dashboard .dash-subtitle {
+        max-width: 760px;
+        margin: 0;
+        color: var(--dash-muted);
+        font-weight: 600;
+        line-height: 1.55;
+    }
+
+    .pcv-dashboard .dash-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .pcv-dashboard .dash-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 9px 14px;
+        border-radius: 6px;
+        font-weight: 800;
+        border: 1px solid var(--dash-line);
+        background: #fff;
+        color: var(--dash-ink);
+    }
+
+    .pcv-dashboard .dash-btn-primary {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(90deg, var(--dash-blue), var(--dash-cyan));
+        box-shadow: 0 12px 26px rgba(8, 119, 217, 0.2);
+    }
+
+    .pcv-dashboard .dash-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 16px;
+    }
+
+    .pcv-dashboard .dash-grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .pcv-dashboard .dash-grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pcv-dashboard .dash-card {
+        min-width: 0;
+        padding: 18px;
+        border: 1px solid var(--dash-line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+    }
+
+    .pcv-dashboard .dash-card-accent {
+        border-top: 4px solid var(--dash-blue);
+    }
+
+    .pcv-dashboard .dash-card-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--dash-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .pcv-dashboard .dash-card-value {
+        margin-top: 8px;
+        font-size: clamp(1.35rem, 2.1vw, 2rem);
+        font-weight: 800;
+        line-height: 1.1;
+    }
+
+    .pcv-dashboard .dash-card-note {
+        margin-top: 8px;
+        color: var(--dash-muted);
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .pcv-dashboard .dash-panel {
+        margin-bottom: 16px;
+        border: 1px solid var(--dash-line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.05);
+        overflow: hidden;
+    }
+
+    .pcv-dashboard .dash-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--dash-line);
+        background: var(--dash-soft);
+    }
+
+    .pcv-dashboard .dash-panel-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .pcv-dashboard .dash-panel-body {
+        padding: 18px;
+    }
+
+    .pcv-dashboard .dash-progress {
+        height: 12px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e5edf6;
+    }
+
+    .pcv-dashboard .dash-progress-bar {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--dash-blue), var(--dash-cyan));
+    }
+
+    .pcv-dashboard .dash-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .pcv-dashboard .dash-list-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 14px;
+        border: 1px solid #e7eef7;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .pcv-dashboard .dash-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .pcv-dashboard .dash-tab {
+        padding: 8px 12px;
+        border: 1px solid var(--dash-line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--dash-muted);
+        font-weight: 800;
+    }
+
+    .pcv-dashboard .dash-tab.active,
+    .pcv-dashboard .dash-tab:hover {
+        color: #fff;
+        border-color: var(--dash-blue);
+        background: var(--dash-blue);
+        text-decoration: none;
+    }
+
+    .pcv-dashboard .dash-table {
+        margin-bottom: 0;
+    }
+
+    .pcv-dashboard .dash-table th {
+        color: var(--dash-muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        border-top: 0;
+    }
+
+    .pcv-dashboard .dash-empty {
+        padding: 28px;
+        color: var(--dash-muted);
+        text-align: center;
+        font-weight: 700;
+    }
+
+    .pcv-dashboard .dash-form-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 16px;
+        align-items: start;
+    }
+
+    .pcv-dashboard .dash-field-label {
+        margin-bottom: 6px;
+        color: var(--dash-ink);
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+
+    .pcv-dashboard .dash-help {
+        margin-top: 6px;
+        color: var(--dash-muted);
+        font-size: 0.82rem;
+        font-weight: 600;
+    }
+
+    .pcv-dashboard .dash-mini-step {
+        display: flex;
+        gap: 10px;
+        padding: 12px 0;
+        border-bottom: 1px solid #e7eef7;
+    }
+
+    .pcv-dashboard .dash-mini-step:last-child {
+        border-bottom: 0;
+    }
+
+    .pcv-dashboard .dash-step-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 28px;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        color: #fff;
+        background: var(--dash-blue);
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .pcv-dashboard .dash-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+    }
+
+    .pcv-dashboard .tone-green { color: var(--dash-green); }
+    .pcv-dashboard .tone-amber { color: var(--dash-amber); }
+    .pcv-dashboard .tone-red { color: var(--dash-red); }
+    .pcv-dashboard .tone-blue { color: var(--dash-blue); }
+
+    @media (max-width: 991.98px) {
+        .pcv-dashboard .dash-hero {
+            flex-direction: column;
+            padding: 18px;
+        }
+
+        .pcv-dashboard .dash-actions {
+            justify-content: flex-start;
+        }
+
+        .pcv-dashboard .dash-grid,
+        .pcv-dashboard .dash-grid-3 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pcv-dashboard .dash-form-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .pcv-dashboard .dash-grid,
+        .pcv-dashboard .dash-grid-2,
+        .pcv-dashboard .dash-grid-3 {
+            grid-template-columns: 1fr;
+        }
+
+        .pcv-dashboard .dash-list-item,
+        .pcv-dashboard .dash-panel-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .pcv-dashboard .dash-btn {
+            width: 100%;
+        }
+    }
+</style>

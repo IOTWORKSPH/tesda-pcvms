@@ -1,178 +1,211 @@
 {% extends "base.html" %}
-{% load humanize %}
+{% load money %}
 
-{% block title %}New Refund Request{% endblock %}
+{% block title %}New Reimbursement | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+{% endblock %}
 
 {% block content %}
-
-<div class="card shadow-sm">
-
-    <div class="card-header bg-white fw-bold">
-        Refund / Reimbursement Request
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-undo-alt"></i>
+                Staff reimbursement
+            </div>
+            <h1 class="dash-title">Create reimbursement</h1>
+            <p class="dash-subtitle">
+                Record an already purchased item, attach supporting evidence, and prepare the request for approval and payment posting.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_staff' %}" class="dash-btn">
+                <i class="fas fa-arrow-left"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:my_vouchers' %}" class="dash-btn">
+                <i class="fas fa-clipboard-list"></i>
+                My vouchers
+            </a>
+        </div>
     </div>
 
-    <div class="card-body">
+    <form method="post" enctype="multipart/form-data" id="reimbursementForm">
+        {% csrf_token %}
+        <div class="dash-form-shell">
+            <div>
+                <div class="dash-panel">
+                    <div class="dash-panel-header">
+                        <h2 class="dash-panel-title">Purchase information</h2>
+                        <span class="badge badge-light border">Draft first</span>
+                    </div>
+                    <div class="dash-panel-body">
+                        <div class="form-row">
+                            <div class="form-group col-md-4">
+                                <label class="dash-field-label">Date of purchase</label>
+                                <input type="date" name="purchase_date" class="form-control" required>
+                            </div>
+                            <div class="form-group col-md-8">
+                                <label class="dash-field-label">Purpose</label>
+                                <textarea name="purpose" class="form-control" rows="2" required></textarea>
+                                <div class="dash-help">Use the same purpose you expect to appear in the PCV and reports.</div>
+                            </div>
+                        </div>
 
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Expense category</label>
+                                <select name="expense_category"
+                                        class="form-control expense-category-select"
+                                        title="Select a UACS expense category"
+                                        data-toggle="tooltip"
+                                        required>
+                                    <option value="">Select category</option>
+                                    {% for cat in categories %}
+                                        <option value="{{ cat.id }}"
+                                                title="{{ cat.description }}"
+                                                data-description="{{ cat.description }}"
+                                                data-uacs-code="{{ cat.code }}">
+                                            {{ cat.code }} - {{ cat.name }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Petty cash fund</label>
+                                <select name="fund" class="form-control" required>
+                                    <option value="">Select fund</option>
+                                    {% for fund in funds %}
+                                        <option value="{{ fund.id }}">{{ fund.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
 
-            <!-- HEADER FIELDS -->
-            <div class="row g-3">
-
-                <div class="col-md-4">
-                    <label>Date of Purchase</label>
-                    <input type="date"
-                           name="purchase_date"
-                           class="form-control"
-                           required>
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Supplier</label>
+                                <input type="text" name="supplier_name" id="supplierField" class="form-control" autocomplete="off" required>
+                                <input type="hidden" name="supplier_id" id="supplierId">
+                                <div class="dash-help">Start typing to reuse existing suppliers.</div>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Invoice / OR number</label>
+                                <input type="text" name="official_receipt_number" id="officialReceiptNumber" class="form-control">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="col-md-8">
-                    <label>Purpose</label>
-                    <textarea name="purpose"
-                              class="form-control"
-                              rows="2"
-                              required></textarea>
+                <div class="dash-panel">
+                    <div class="dash-panel-header">
+                        <h2 class="dash-panel-title">Itemized expenses</h2>
+                        <button type="button" class="dash-btn" id="addRowBtn">
+                            <i class="fas fa-plus"></i>
+                            Add item
+                        </button>
+                    </div>
+                    <div class="dash-panel-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover dash-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Description</th>
+                                        <th style="width: 110px;">Unit</th>
+                                        <th style="width: 110px;">Qty</th>
+                                        <th style="width: 140px;">Unit cost</th>
+                                        <th class="text-right" style="width: 140px;">Total</th>
+                                        <th style="width: 52px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="itemsBody"></tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mt-3">
+                            <div class="dash-help">Item totals update automatically while typing.</div>
+                            <h5 class="mb-0 font-weight-bold">Total: <span id="itemsTotal">0.00</span></h5>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="col-md-6">
-                    <label>Expense Category</label>
-                    <select name="expense_category"
-                            class="form-control expense-category-select"
-                            title="Select a UACS expense category"
-                            data-toggle="tooltip"
-                            required>
-                        <option value="">Select Category</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat.id }}"
-                                title="{{ cat.description }}"
-                                data-description="{{ cat.description }}"
-                                data-uacs-code="{{ cat.code }}">
-                            {{ cat.code }} - {{ cat.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
+                <div class="dash-panel">
+                    <div class="dash-panel-header">
+                        <h2 class="dash-panel-title">Evidence</h2>
+                    </div>
+                    <div class="dash-panel-body">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Upload receipt</label>
+                                <input type="file" name="receipt" class="form-control">
+                                <div class="dash-help">Attach the scanned OR or photo when available.</div>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">CNRR option</label>
+                                <div class="border rounded p-3 bg-light">
+                                    <div class="custom-control custom-checkbox">
+                                        <input class="custom-control-input" type="checkbox" name="has_cnrr" id="hasCNRR">
+                                        <label class="custom-control-label font-weight-bold" for="hasCNRR">Use CNRR when no official receipt is available</label>
+                                    </div>
+                                    <div class="dash-help">Allowed only for reimbursements not exceeding 300.00.</div>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="col-md-6">
-                    <label>Petty Cash Fund</label>
-                    <select name="fund"
-                            class="form-control"
-                            required>
-                        <option value="">Select Fund</option>
-                        {% for fund in funds %}
-                        <option value="{{ fund.id }}">
-                            {{ fund.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div class="col-md-6">
-                    <label>Supplier</label>
-                    <input type="text"
-                           name="supplier_name"
-                           id="supplierField"
-                           class="form-control"
-                           autocomplete="off"
-                           required>
-
-                    <input type="hidden"
-                           name="supplier_id"
-                           id="supplierId">
-                </div>
-
-                <div class="col-md-6">
-                    <label>Invoice / OR Number</label>
-                    <input type="text"
-                           name="official_receipt_number"
-                           class="form-control">
-                </div>
-
-            </div>
-
-            <hr>
-
-            <!-- ITEMS TABLE -->
-            <h6 class="fw-bold">Purchased Items</h6>
-
-            <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Description</th>
-                            <th width="80">Unit</th>
-                            <th width="90">Qty</th>
-                            <th width="120">Unit Cost</th>
-                            <th width="120" class="text-end">Total</th>
-                            <th width="40"></th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsBody"></tbody>
-                </table>
-            </div>
-
-            <div class="d-flex justify-content-between mt-3">
-                <button type="button"
-                        class="btn btn-outline-primary btn-sm"
-                        id="addRowBtn">
-                    <i class="fas fa-plus me-1"></i> Add Item
-                </button>
-
-                <h5 class="fw-bold">
-                    Total: ₱ <span id="itemsTotal">0.00</span>
-                </h5>
-            </div>
-
-            <hr>
-
-            <div class="col-md-6">
-                <label>Upload Receipt (Required)</label>
-                <input type="file"
-                       name="receipt"
-                       class="form-control">
-            </div>
-            
-            <div class="col-md-12">
-                <div class="alert alert-warning p-2">
-                    <strong>CNRR Option:</strong> Use only if NO Official Receipt is available
-                    and amount ≤ ₱300.
-                </div>
-
-                <div class="form-check">
-                    <input class="form-check-input"
-                        type="checkbox"
-                        name="has_cnrr"
-                        id="hasCNRR">
-
-                    <label class="form-check-label" for="hasCNRR">
-                        Attach CNRR (No Receipt)
-                    </label>
+                        <div class="d-flex justify-content-end flex-wrap">
+                            <a href="{% url 'users:dashboard_staff' %}" class="dash-btn mr-2">Cancel</a>
+                            <button type="submit" class="dash-btn dash-btn-primary">
+                                <i class="fas fa-save"></i>
+                                Save reimbursement draft
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <hr>
-
-            <div class="text-end">
-                <button type="submit"
-                        class="btn btn-primary">
-                    Save Refund Request
-                </button>
-            </div>
-
-        </form>
-
-    </div>
+            <aside class="dash-panel">
+                <div class="dash-panel-header">
+                    <h2 class="dash-panel-title">Staff checklist</h2>
+                </div>
+                <div class="dash-panel-body">
+                    <div class="dash-mini-step">
+                        <span class="dash-step-dot">1</span>
+                        <div>
+                            <strong>Capture the purchase</strong>
+                            <div class="dash-help">Date, supplier, category, purpose, and receipt reference should match the supporting document.</div>
+                        </div>
+                    </div>
+                    <div class="dash-mini-step">
+                        <span class="dash-step-dot">2</span>
+                        <div>
+                            <strong>Itemize clearly</strong>
+                            <div class="dash-help">Use separate lines for items that need inspection, IAR, or supply tracking.</div>
+                        </div>
+                    </div>
+                    <div class="dash-mini-step">
+                        <span class="dash-step-dot">3</span>
+                        <div>
+                            <strong>Submit the draft</strong>
+                            <div class="dash-help">After saving, open the voucher and submit it for approval.</div>
+                        </div>
+                    </div>
+                    <div class="dash-card bg-light mt-3 mb-0">
+                        <div class="dash-card-label">Live total</div>
+                        <div class="dash-card-value" id="sideTotal">0.00</div>
+                        <div class="dash-card-note">Matches the itemized expense total.</div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </form>
 </div>
-
-<!-- JAVASCRIPT -->
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
-
 <script>
 $(function() {
-
     $("#supplierField").autocomplete({
         source: "{% url 'pettycash:supplier_autocomplete' %}",
         minLength: 2,
@@ -182,66 +215,68 @@ $(function() {
             return false;
         }
     });
-
 });
 
 document.addEventListener("DOMContentLoaded", function () {
-
     const tableBody = document.getElementById("itemsBody");
+    const cnrrCheckbox = document.getElementById("hasCNRR");
+    const receiptNumber = document.getElementById("officialReceiptNumber");
 
     function createRow() {
         const row = document.createElement("tr");
-
         row.innerHTML = `
-            <td><input name="item_description[]" class="form-control" required></td>
-            <td><input name="item_unit[]" class="form-control" required></td>
-            <td><input name="item_qty[]" type="number" step="0.01" class="form-control qty" required></td>
-            <td><input name="item_unit_cost[]" type="number" step="0.01" class="form-control cost" required></td>
-            <td class="text-end fw-semibold item-total">0.00</td>
+            <td><input name="item_description[]" class="form-control" placeholder="Item description" required></td>
+            <td><input name="item_unit[]" class="form-control" placeholder="pcs" required></td>
+            <td><input name="item_qty[]" type="number" step="0.01" min="0.01" class="form-control qty" required></td>
+            <td><input name="item_unit_cost[]" type="number" step="0.01" min="0.01" class="form-control cost" required></td>
+            <td class="text-right font-weight-bold item-total">0.00</td>
             <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger remove-row">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove item">
                     <i class="fas fa-times"></i>
                 </button>
             </td>
         `;
-
         tableBody.appendChild(row);
     }
 
     function recalcTotals() {
         let total = 0;
-
         document.querySelectorAll("#itemsBody tr").forEach(row => {
             const qty = parseFloat(row.querySelector(".qty")?.value || 0);
             const cost = parseFloat(row.querySelector(".cost")?.value || 0);
             const lineTotal = qty * cost;
-
             row.querySelector(".item-total").innerText = lineTotal.toFixed(2);
             total += lineTotal;
         });
-
         document.getElementById("itemsTotal").innerText = total.toFixed(2);
+        document.getElementById("sideTotal").innerText = total.toFixed(2);
     }
 
-    document.addEventListener("input", function(e){
-        if (e.target.classList.contains("qty") ||
-            e.target.classList.contains("cost")) {
+    document.addEventListener("input", function(e) {
+        if (e.target.classList.contains("qty") || e.target.classList.contains("cost")) {
             recalcTotals();
         }
     });
 
-    document.addEventListener("click", function(e){
+    document.addEventListener("click", function(e) {
         if (e.target.closest(".remove-row")) {
-            e.target.closest("tr").remove();
-            recalcTotals();
+            const rows = document.querySelectorAll("#itemsBody tr");
+            if (rows.length > 1) {
+                e.target.closest("tr").remove();
+                recalcTotals();
+            }
+        }
+    });
+
+    cnrrCheckbox.addEventListener("change", function() {
+        receiptNumber.disabled = cnrrCheckbox.checked;
+        if (cnrrCheckbox.checked) {
+            receiptNumber.value = "";
         }
     });
 
     document.getElementById("addRowBtn").addEventListener("click", createRow);
-
     createRow();
-
 });
 </script>
-
 {% endblock %}

@@ -1,178 +1,130 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load money %}
+
+{% block title %}Replenishment {{ replenishment.report_number }} | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
 
 {% block content %}
-
-<div class="container mt-4">
-
-    <h3 class="mb-3">
-        Replenishment {{ replenishment.report_number }}
-    </h3>
-
-    <!-- STATUS -->
-    <div class="mb-3">
-        <span class="badge 
-            {% if replenishment.status == 'DRAFT' %}badge-secondary
-            {% elif replenishment.status == 'SUBMITTED' %}badge-warning
-            {% elif replenishment.status == 'APPROVED' %}badge-primary
-            {% elif replenishment.status == 'RELEASED' %}badge-success
-            {% endif %}">
-            {{ replenishment.get_status_display }}
-        </span>
-    </div>
-
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <strong>Total Expenses:</strong><br>
-            ₱{{ replenishment.total_expenses|floatformat:2|intcomma }}
-        </div>
-
-        <div class="col-md-4">
-            <strong>Created:</strong><br>
-            {{ replenishment.created_at|date:"M d, Y H:i" }}
-        </div>
-
-        <div class="col-md-4">
-            <strong>Opening Balance:</strong><br>
-            ₱{{ replenishment.opening_balance|floatformat:2|intcomma }}
-        </div>
-        
-    </div>
-
-    <hr>
-
-    <!-- INCLUDED VOUCHERS -->
-    <div class="d-flex justify-content-between align-items-center mb-2">
-
-        <h5 class="mb-0">
-            Included Transactions
-        </h5>
-
-        <a href="{% url 'pettycash:replenishment_list' %}"
-        class="btn btn-outline-secondary btn-sm">
-            <i class="fas fa-folder-open me-1"></i>
-            View Replenishment Records
-        </a>
-
-    </div>
-
-    <table class="table table-bordered table-sm">
-        <thead class="table-light">
-            <tr>
-                <th>PCV No</th>
-                <th>Date</th>
-                <th>Purpose</th>
-                <th class="text-end">Amount</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for v in vouchers %}
-            <tr>
-                <td>{{ v.pcv_no }}</td>
-                <td>{{ v.purchase_date }}</td>
-                <td>{{ v.purpose }}</td>
-                <td class="text-end">
-                    ₱{{ v.actual_amount|floatformat:2|intcomma }}
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="4" class="text-center text-muted">
-                    No transactions found.
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <hr>
-
-    <!-- ============================= -->
-    <!-- DRAFT ACTIONS (Custodian) -->
-    <!-- ============================= -->
-    {% if replenishment.status == "DRAFT" and is_custodian %}
-
-        <form method="post"
-              action="{% url 'pettycash:submit_replenishment' replenishment.pk %}"
-              class="d-inline">
-            {% csrf_token %}
-            <button class="btn btn-primary">
-                Submit to Accounting
-            </button>
-        </form>
-
-        <form method="post"
-              action="{% url 'pettycash:delete_replenishment' replenishment.pk %}"
-              class="d-inline"
-              onsubmit="return confirm('Delete this draft?');">
-            {% csrf_token %}
-            <button class="btn btn-danger">
-                Delete Draft
-            </button>
-        </form>
-
-    {% endif %}
-
-    <!-- ============================= -->
-    <!-- RELEASE (Custodian) -->
-    <!-- ============================= -->
-    {% if replenishment.status == "APPROVED" and is_custodian %}
-
-        <hr>
-        <h5>Release Replenishment</h5>
-
-        <form method="post"
-              action="{% url 'pettycash:release_replenishment' replenishment.pk %}">
-
-            {% csrf_token %}
-
-            <div class="row">
-                <div class="col-md-4">
-                    <label>Check Number</label>
-                    <input type="text" name="check_number"
-                           class="form-control" required>
-                </div>
-
-                <div class="col-md-4">
-                    <label>Check Date</label>
-                    <input type="date" name="check_date"
-                           class="form-control" required>
-                </div>
-
-                <div class="col-md-4">
-                    <label>Check Amount</label>
-                    <input type="number"
-                           step="0.01"
-                           name="check_amount"
-                           value="{{ replenishment.total_expenses }}"
-                           class="form-control"
-                           required>
-                </div>
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-file-invoice-dollar"></i>
+                Replenishment package
             </div>
-
-            <br>
-
-            <button class="btn btn-danger">
-                Confirm Release
-            </button>
-        </form>
-
-    {% endif %}
-
-    <!-- ============================= -->
-    <!-- RELEASED VIEW -->
-    <!-- ============================= -->
-    {% if replenishment.status == "RELEASED" %}
-
-        <div class="alert alert-success mt-3">
-            <strong>Released Successfully</strong><br>
-            Check No: {{ replenishment.check_number }}<br>
-            Check Date: {{ replenishment.check_date }}<br>
-            Amount: ₱{{ replenishment.check_amount|floatformat:2|intcomma }}
+            <h1 class="dash-title">{{ replenishment.report_number }}</h1>
+            <p class="dash-subtitle">
+                Period {{ replenishment.period_start|default:"-" }} to {{ replenishment.period_end|default:"-" }} | {{ voucher_count }} transaction{{ voucher_count|pluralize }}
+            </p>
         </div>
+        <div class="dash-actions">
+            <a href="{% url 'pettycash:replenishment_list' %}" class="dash-btn">
+                <i class="fas fa-folder-open"></i>
+                Records
+            </a>
+            <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" target="_blank" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="replenishment_id" value="{{ replenishment.pk }}">
+                <button type="submit" class="dash-btn dash-btn-primary">
+                    <i class="fas fa-file-pdf"></i>
+                    Package PDF
+                </button>
+            </form>
+        </div>
+    </div>
 
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Status <i class="fas fa-circle-info tone-blue"></i></div>
+            <div class="dash-card-value">{{ replenishment.get_status_display }}</div>
+            <div class="dash-card-note">Current package state</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Total expenses <i class="fas fa-receipt tone-amber"></i></div>
+            <div class="dash-card-value">{{ replenishment.total_expenses|money }}</div>
+            <div class="dash-card-note">Amount requested for replenishment</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Opening balance <i class="fas fa-wallet tone-green"></i></div>
+            <div class="dash-card-value">{{ replenishment.opening_balance|money }}</div>
+            <div class="dash-card-note">Balance at package creation</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Created <i class="fas fa-calendar tone-blue"></i></div>
+            <div class="dash-card-value">{{ replenishment.created_at|date:"M d" }}</div>
+            <div class="dash-card-note">{{ replenishment.created_at|date:"Y H:i" }}</div>
+        </div>
+    </div>
+
+    {% if replenishment.status == "DRAFT" and is_custodian %}
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Draft controls</h2>
+            </div>
+            <div class="dash-panel-body">
+                <form method="post" action="{% url 'pettycash:submit_replenishment' replenishment.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i>
+                        Submit to Accounting
+                    </button>
+                </form>
+                <form method="post" action="{% url 'pettycash:delete_replenishment' replenishment.pk %}" class="d-inline" onsubmit="return confirm('Delete this draft?');">
+                    {% csrf_token %}
+                    <button class="btn btn-outline-danger">
+                        <i class="fas fa-trash"></i>
+                        Delete Draft
+                    </button>
+                </form>
+            </div>
+        </div>
     {% endif %}
 
-</div>
+    {% if replenishment.status == "RELEASED" %}
+        <div class="alert alert-success shadow-sm">
+            <strong>Released.</strong>
+            Check No. {{ replenishment.check_number }} dated {{ replenishment.check_date }} for {{ replenishment.check_amount|money }}.
+        </div>
+    {% endif %}
 
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Included transactions</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>PCV</th>
+                        <th>Date</th>
+                        <th>Purpose</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">View</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for v in vouchers %}
+                    <tr>
+                        <td><strong>{{ v.pcv_no }}</strong></td>
+                        <td>{{ v.purchase_date }}</td>
+                        <td>{{ v.purpose|truncatechars:100 }}</td>
+                        <td class="text-right font-weight-bold">{{ v.actual_amount|money }}</td>
+                        <td class="text-right">
+                            <a href="{% url 'pettycash:pcv_detail' v.uuid %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5" class="dash-empty">No transactions found.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

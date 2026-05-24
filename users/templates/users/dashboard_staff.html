@@ -1,459 +1,231 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load money %}
 
 {% block title %}Staff Dashboard | TESDA PCVMS{% endblock %}
 
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-user"></i>
+                Staff workspace
+            </div>
+            <h1 class="dash-title">My petty cash requests</h1>
+            <p class="dash-subtitle">
+                Create requests, follow approval movement, liquidate released advances, and keep printable PCV documents in one focused workspace.
+            </p>
+        </div>
 
-<style>
-    .table-responsive {
-        overflow: visible !important;
-    }
-</style>
+        <div class="dash-actions">
+            <a href="{% url 'pettycash:create_cash_advance' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-money-bill-wave"></i>
+                Cash Advance
+            </a>
+            <a href="{% url 'pettycash:create_reimbursement' %}" class="dash-btn">
+                <i class="fas fa-undo-alt"></i>
+                Reimbursement
+            </a>
+        </div>
+    </div>
 
-<div class="content-header mb-3">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-        <h4 class="m-0 font-weight-bold text-primary">
-            Staff Dashboard
-        </h4>
+    <div class="dash-grid">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Active requests <i class="fas fa-layer-group tone-blue"></i></div>
+            <div class="dash-card-value">{{ active_count }}</div>
+            <div class="dash-card-note">{{ recent_request_count }} created in the last 7 days</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Total requested <i class="fas fa-receipt tone-blue"></i></div>
+            <div class="dash-card-value">{{ total_requested_amount|money }}</div>
+            <div class="dash-card-note">All open and completed PCV requests</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Unliquidated exposure <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-value">{{ unliquidated_amount|money }}</div>
+            <div class="dash-card-note">{{ settlement_count }} cash advance{{ settlement_count|pluralize }} awaiting liquidation</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Completion <i class="fas fa-circle-check tone-green"></i></div>
+            <div class="dash-card-value">{{ completion_percent }}%</div>
+            <div class="dash-card-note">{{ completed_count }} posted request{{ completed_count|pluralize }}</div>
+        </div>
+    </div>
 
-        <!-- CREATE NEW REQUEST BUTTON -->
-        <div class="btn-group">
-            <button type="button"
-                    class="btn btn-primary dropdown-toggle"
-                    data-toggle="dropdown">
-                <i class="fas fa-plus mr-1"></i>
-                New Request
-            </button>
-
-            <div class="dropdown-menu dropdown-menu-right shadow">
-                <a class="dropdown-item"
-                   href="{% url 'pettycash:create_cash_advance' %}">
-                    <i class="fas fa-money-bill-wave text-success mr-2"></i>
-                    Cash Advance
+    <div class="dash-grid dash-grid-2">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Next actions</h2>
+                <a href="{% url 'pettycash:my_vouchers' %}" class="dash-btn">
+                    <i class="fas fa-clipboard-list"></i>
+                    All vouchers
                 </a>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for pcv in next_action_pcvs %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ pcv.pcv_no|default:"Draft request" }}</strong>
+                                <div class="text-muted small text-truncate" style="max-width: 460px;">{{ pcv.purpose }}</div>
+                            </div>
+                            <div class="text-right">
+                                {% if pcv.status == "DRAFT" %}
+                                    <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="btn btn-sm btn-warning">Submit</a>
+                                {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
+                                    <a href="{% url 'pettycash:liquidate_cash_advance' pcv.uuid %}" class="btn btn-sm btn-success">Liquidate</a>
+                                {% elif pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "APPROVED" %}
+                                    <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="btn btn-sm btn-info">Track refund</a>
+                                {% else %}
+                                    <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="btn btn-sm btn-outline-primary">View</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No staff action is required right now.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
 
-                <a class="dropdown-item"
-                   href="{% url 'pettycash:create_reimbursement' %}">
-                    <i class="fas fa-undo-alt text-warning mr-2"></i>
-                    Refund / Reimbursement
-                </a>
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Being processed</h2>
+                <span class="badge badge-light border">Watchlist</span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Awaiting cash release</strong>
+                            <div class="text-muted small">{{ approved_count }} approved cash advance{{ approved_count|pluralize }}</div>
+                        </div>
+                        <strong>{{ awaiting_release_amount|money }}</strong>
+                    </div>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Ready for reimbursement</strong>
+                            <div class="text-muted small">{{ for_refund_count }} approved refund{{ for_refund_count|pluralize }}</div>
+                        </div>
+                        <strong>{{ for_refund_amount|money }}</strong>
+                    </div>
+                    {% for pcv in watched_pcvs %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ pcv.pcv_no|default:"Pending PCV" }}</strong>
+                                <div class="text-muted small">{{ pcv.get_status_display }}</div>
+                            </div>
+                            <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    {% empty %}
+                    {% endfor %}
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-
-<!-- ============================= -->
-<!-- KPI CARDS (Clickable + Active Highlight) -->
-<!-- ============================= -->
-<div class="row">
-
-    <!-- ================= DRAFT ================= -->
-    <div class="col-md-2 col-sm-6">
-        <a href="?status=DRAFT{% if search_query %}&q={{ search_query }}{% endif %}"
-           class="text-white text-decoration-none">
-            <div class="small-box bg-secondary
-                {% if active_status == 'DRAFT' %} border border-3 border-white shadow-lg {% endif %}">
-                <div class="inner">
-                    <h3>{{ draft_count }}</h3>
-                    <p>Draft</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-edit"></i>
-                </div>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Request pipeline</h2>
+            <a href="{% url 'users:dashboard_staff' %}" class="dash-btn">
+                <i class="fas fa-rotate-left"></i>
+                Reset
+            </a>
+        </div>
+        <div class="dash-panel-body">
+            <div class="dash-tabs">
+                <a class="dash-tab {% if not active_status %}active{% endif %}" href="{% url 'users:dashboard_staff' %}">All</a>
+                <a class="dash-tab {% if active_status == 'DRAFT' %}active{% endif %}" href="?status=DRAFT{% if search_query %}&q={{ search_query }}{% endif %}">Draft {{ draft_count }}</a>
+                <a class="dash-tab {% if active_status == 'FOR_APPROVAL' %}active{% endif %}" href="?status=FOR_APPROVAL{% if search_query %}&q={{ search_query }}{% endif %}">For Approval {{ for_approval_count }}</a>
+                <a class="dash-tab {% if active_status == 'APPROVED' %}active{% endif %}" href="?status=APPROVED{% if search_query %}&q={{ search_query }}{% endif %}">Approved {{ approved_count }}</a>
+                <a class="dash-tab {% if active_status == 'FOR_REFUND' %}active{% endif %}" href="?status=FOR_REFUND{% if search_query %}&q={{ search_query }}{% endif %}">For Refund {{ for_refund_count }}</a>
+                <a class="dash-tab {% if active_status == 'UNLIQUIDATED' %}active{% endif %}" href="?status=UNLIQUIDATED{% if search_query %}&q={{ search_query }}{% endif %}">Unliquidated {{ settlement_count }}</a>
             </div>
-        </a>
-    </div>
 
-    <!-- ================= FOR APPROVAL ================= -->
-    <div class="col-md-2 col-sm-6">
-        <a href="?status=FOR_APPROVAL{% if search_query %}&q={{ search_query }}{% endif %}"
-           class="text-dark text-decoration-none">
-            <div class="small-box bg-warning
-                {% if active_status == 'FOR_APPROVAL' %} border border-3 border-dark shadow-lg {% endif %}">
-                <div class="inner">
-                    <h3>{{ for_approval_count }}</h3>
-                    <p>For Approval</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-hourglass-half"></i>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <!-- ================= APPROVED (Cash Advance) ================= -->
-    <div class="col-md-2 col-sm-6">
-        <a href="?status=APPROVED{% if search_query %}&q={{ search_query }}{% endif %}"
-           class="text-white text-decoration-none">
-            <div class="small-box bg-info
-                {% if active_status == 'APPROVED' %} border border-3 border-white shadow-lg {% endif %}">
-                <div class="inner">
-                    <h3>{{ approved_count }}</h3>
-                    <p>Approved</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <!-- ================= FOR REFUND ================= -->
-    <div class="col-md-2 col-sm-6">
-        <a href="?status=FOR_REFUND{% if search_query %}&q={{ search_query }}{% endif %}"
-           class="text-white text-decoration-none">
-            <div class="small-box bg-orange
-                {% if active_status == 'FOR_REFUND' %} border border-3 border-white shadow-lg {% endif %}">
-                <div class="inner">
-                    <h3>{{ for_refund_count }}</h3>
-                    <p>For Refund</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-receipt"></i>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <!-- ================= REFUNDED ================= -->
-    <div class="col-md-2 col-sm-6">
-        <a href="?status=LIQUIDATED{% if search_query %}&q={{ search_query }}{% endif %}"
-           class="text-white text-decoration-none">
-            <div class="small-box bg-success
-                {% if active_status == 'LIQUIDATED' %} border border-3 border-white shadow-lg {% endif %}">
-                <div class="inner">
-                    <h3>{{ refunded_count }}</h3>
-                    <p>Refunded</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-coins"></i>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <!-- ================= UNLIQUIDATED ================= -->
-    <div class="col-md-2 col-sm-6">
-        <a href="?status=UNLIQUIDATED{% if search_query %}&q={{ search_query }}{% endif %}"
-           class="text-white text-decoration-none">
-            <div class="small-box bg-primary
-                {% if active_status == 'UNLIQUIDATED' %} border border-3 border-white shadow-lg {% endif %}">
-                <div class="inner">
-                    <h3>{{ settlement_count }}</h3>
-                    <p>Unliquidated</p>
-                </div>
-                <div class="icon">
-                    <i class="fas fa-clipboard-check"></i>
-                </div>
-            </div>
-        </a>
-    </div>
-
-</div>
-
-
-<!-- ============================= -->
-<!-- RECENT TRANSACTIONS -->
-<!-- ============================= -->
-<div class="card shadow-sm">
-
-    <div class="card-header bg-white font-weight-bold">
-        Recent Petty Cash Requests
-    </div>
-    <div class="card mb-3">
-        <div class="card-body">
-
-            <form method="get" class="form-inline">
-
+            <form method="get" class="mb-3">
                 {% if active_status %}
                     <input type="hidden" name="status" value="{{ active_status }}">
                 {% endif %}
-
-                <input type="text"
-                    name="q"
-                    value="{{ search_query }}"
-                    class="form-control mr-2"
-                    placeholder="Search PCV No, Purpose, Supplier...">
-
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search"></i> Search
-                </button>
-
-                <a href="{% url 'users:dashboard_staff' %}"
-                class="btn btn-secondary ml-2">
-                    Reset
-                </a>
-
+                <div class="input-group">
+                    <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search PCV no., purpose, or supplier">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
             </form>
 
+            <div class="table-responsive">
+                <table class="table table-hover dash-table">
+                    <thead>
+                        <tr>
+                            <th>PCV</th>
+                            <th>Purpose</th>
+                            <th>Type</th>
+                            <th class="text-right">Amount</th>
+                            <th>Status</th>
+                            <th class="text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for pcv in recent_pcvs %}
+                        <tr>
+                            <td>
+                                <strong>{{ pcv.pcv_no|default:"Draft" }}</strong>
+                                <div class="text-muted small">{{ pcv.created_at|date:"M d, Y" }}</div>
+                            </td>
+                            <td class="text-truncate" style="max-width: 320px;">{{ pcv.purpose }}</td>
+                            <td>
+                                {% if pcv.transaction_type == "CASH_ADVANCE" %}
+                                    <span class="badge badge-success">Cash Advance</span>
+                                {% else %}
+                                    <span class="badge badge-warning">Reimbursement</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-right font-weight-bold">{{ pcv.amount_requested|money }}</td>
+                            <td>
+                                <span class="badge badge-light border">{{ pcv.get_status_display }}</span>
+                            </td>
+                            <td class="text-right">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="btn btn-outline-primary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if pcv.status == "DRAFT" %}
+                                        <a href="{% url 'pettycash:edit_pcv' pcv.uuid %}" class="btn btn-outline-warning" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    {% endif %}
+                                    {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
+                                        <a href="{% url 'pettycash:liquidate_cash_advance' pcv.uuid %}" class="btn btn-outline-success" title="Liquidate">
+                                            <i class="fas fa-file-invoice-dollar"></i>
+                                        </a>
+                                    {% endif %}
+                                    {% if pcv.status != "DRAFT" %}
+                                        <a href="{% url 'pettycash:print_pcv' pcv.uuid %}" target="_blank" class="btn btn-outline-secondary" title="Print PCV">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="dash-empty">No requests match the current view.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-
-            <thead class="thead-light">
-                <tr>
-                    <th>PCV No.</th>
-                    <th>Enc</th>
-                    <th>Purch</th>
-                    <th>Purpose</th>
-                    <th class="text-right">Amount</th>
-                    <th class="text-center">Type</th>
-                    {# <th class="text-center">Receipt</th> #}
-                    <th class="text-center">Variance</th>
-                    <th class="text-center">Status</th>
-                    <th class="text-center">Actions</th>
-                </tr>
-            </thead>
-
-            <tbody>
-            {% if recent_pcvs %}
-                {% for pcv in recent_pcvs %}
-                <tr>
-
-                    <td class="font-weight-bold">
-                        {{ pcv.pcv_no|default:"-" }}
-                    </td>
-
-                    <td>
-                        {{ pcv.created_at|date:"m/d/y" }}
-                    </td>
-
-                    <td>
-                        {{ pcv.purchase_date|date:"m/d/y"|default:"-" }}
-                    </td>
-
-                    <td class="text-truncate" style="max-width: 200px;">
-                        {{ pcv.purpose }}
-                    </td>
-
-                    <td class="text-right font-weight-bold">
-                        ₱{{ pcv.amount_requested|floatformat:2|intcomma }}
-                    </td>
-
-                    <!-- TYPE -->
-                    <td class="text-center">
-                        {% if pcv.transaction_type == "CASH_ADVANCE" %}
-                            <i class="fas fa-money-bill-wave text-success"
-                               title="Cash Advance"></i>
-                        {% else %}
-                            <i class="fas fa-undo-alt text-warning"
-                               title="Refund / Reimbursement"></i>
-                        {% endif %}
-                    </td>
-
-                    <!-- RECEIPT -->
-                    <!--<td class="text-center">
-                        {% if pcv.has_receipt %}
-                            <i class="fas fa-check-circle text-success"
-                               title="Receipt Uploaded"></i>
-                        {% else %}
-                            <i class="fas fa-times-circle text-danger"
-                               title="No Receipt"></i>
-                        {% endif %}
-                    </td>-->
-
-                    <!-- VARIANCE -->
-                    <td class="text-center">
-                        {% if pcv.transaction_type == "REIMBURSEMENT" %}
-                        <span class="text-muted">—</span>
-
-                    {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "LIQUIDATED" %}
-
-                        {% if pcv.variance == 0 %}
-                            <span class="badge badge-success">Match</span>
-
-                        {% elif pcv.variance > 0 %}
-                            <span class="badge badge-warning">
-                                Excess ₱{{ pcv.variance|floatformat:2 }}
-                            </span>
-
-                        {% elif pcv.variance < 0 %}
-                            <span class="badge badge-danger">
-                                Short ₱{{ pcv.variance|floatformat:2 }}
-                            </span>
-
-                        {% endif %}
-
-                    {% else %}
-                        <span class="text-muted">—</span>
-                    {% endif %}
-                    </td>
-
-                    <!-- STATUS -->
-                    <td class="text-center">
-
-                        {% if pcv.status == "DRAFT" %}
-                            <span class="badge badge-secondary">Incomplete</span>
-
-                        {% elif pcv.status == "FOR_APPROVAL" %}
-                            <span class="badge badge-warning">For Approval</span>
-
-                        {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "APPROVED" %}
-                            <span class="badge badge-info">Approved</span>
-
-                        {% elif pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "APPROVED" %}
-                            <span class="badge badge-primary">For Refund</span>
-
-                        {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
-                            <span class="badge badge-primary">Unliquidated</span>
-
-                        {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "LIQUIDATED" %}
-                            <span class="badge badge-warning">Pending Review</span>
-
-                        {% elif pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "POSTED" %}
-                            <span class="badge badge-success">liquadated</span>
-
-                        {% elif pcv.transaction_type == "REIMBURSEMENT" and pcv.status == "POSTED" %}
-                            <span class="badge badge-success">Refunded</span>
-
-                        {% else %}
-                            <span class="badge badge-light">
-                                {{ pcv.get_status_display }}
-                            </span>
-                        {% endif %}
-
-                    </td>
-
-                    <!-- ACTIONS -->
-                    <td class="text-center">
-                        <div class="btn-group btn-group-sm">
-
-                            <!-- VIEW -->
-                            <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}"
-                            class="btn btn-outline-primary"
-                            title="View">
-                                <i class="fas fa-eye"></i>
-                            </a>
-
-                            <!-- EDIT -->
-                            {% if pcv.status == "DRAFT" %}
-                            <a href="{% url 'pettycash:edit_pcv' pcv.uuid %}"
-                            class="btn btn-outline-warning"
-                            title="Edit">
-                                <i class="fas fa-edit"></i>
-                            </a>
-
-                                <!-- DELETE -->
-                                <form method="post"
-                                    action="{% url 'pettycash:delete_pcv' pcv.uuid %}"
-                                    style="display:inline;"
-                                    onsubmit="return confirm('Are you sure you want to delete this draft? This cannot be undone.');">
-                                    {% csrf_token %}
-                                    <button type="submit"
-                                            class="btn btn-outline-danger"
-                                            title="Delete">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </form>
-                            {% endif %}
-
-
-                            {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
-                                <a href="{% url 'pettycash:liquidate_cash_advance' pcv.uuid %}"
-                                class="btn btn-outline-primary"
-                                title="Liquidate">
-                                    <i class="fas fa-file-invoice-dollar"></i>
-                                </a>
-                            {% endif %}
-
-                            <!-- ================= PRINT DROPDOWN ================= -->
-                            {% if pcv.status != "DRAFT" %}
-
-                            <div class="btn-group btn-group-sm position-static">
-
-                                <button type="button"
-                                        class="btn btn-outline-secondary dropdown-toggle"
-                                        data-toggle="dropdown"
-                                        title="Print Documents">
-                                    <i class="fas fa-print"></i>
-                                </button>
-
-                                <div class="dropdown-menu dropdown-menu-right shadow">
-
-                                    <!-- PCV -->
-                                    <a class="dropdown-item"
-                                    href="{% url 'pettycash:print_pcv' pcv.uuid %}"
-                                    target="_blank">
-                                        <i class="fas fa-file-invoice mr-2 text-primary"></i>
-                                        Print PCV
-                                    </a>
-
-                                    <!-- PR -->
-                                    {% if pcv.pr_no %}
-                                    <a class="dropdown-item"
-                                    href="{% url 'pettycash:print_pr' pcv.uuid %}"
-                                    target="_blank">
-                                        <i class="fas fa-file-alt mr-2 text-info"></i>
-                                        Print PR
-                                    </a>
-                                    {% endif %}
-
-                                    <!-- IAR -->
-                                    {% if pcv.iar_no %}
-                                    <a class="dropdown-item"
-                                    href="{% url 'pettycash:print_iar' pcv.uuid %}"
-                                    target="_blank">
-                                        <i class="fas fa-clipboard-check mr-2 text-success"></i>
-                                        Print IAR
-                                    </a>
-                                    {% endif %}
-
-                                    <!-- ✅ CNRR -->
-                                    {% if pcv.has_cnrr %}
-                                    <a class="dropdown-item"
-                                    href="{% url 'pettycash:print_cnrr' pcv.uuid %}"
-                                    target="_blank">
-                                        <i class="fas fa-file-medical mr-2 text-danger"></i>
-                                        Print CNRR
-                                    </a>
-                                    {% endif %}
-
-                                    <!-- PRINT ALL -->
-                                    {% if pcv.pr_no or pcv.iar_no or pcv.has_cnrr %}
-                                    <div class="dropdown-divider"></div>
-
-                                    <a class="dropdown-item font-weight-bold"
-                                    href="{% url 'pettycash:print_all' pcv.uuid %}"
-                                    target="_blank">
-                                        <i class="fas fa-print mr-2 text-dark"></i>
-                                        Print All Documents
-                                    </a>
-                                    {% endif %}
-
-                                </div>
-                            </div>
-
-                            <!-- EXPORT EXCEL -->
-                            <a href="{% url 'pettycash:export_voucher_excel' pcv.uuid %}"
-                            class="btn btn-sm btn-outline-success"
-                            title="Export Excel">
-                                <i class="fas fa-file-excel"></i>
-                            </a>
-
-                            {% endif %}
-                            <!-- ================= END PRINT ================= -->
-
-                        </div>
-                    </td>
-
-                </tr>
-                {% endfor %}
-            {% else %}
-                <tr>
-                    <td colspan="9"
-                        class="text-center text-muted py-4">
-                        No recent transactions found.
-                    </td>
-                </tr>
-            {% endif %}
-            </tbody>
-
-        </table>
-    </div>
 </div>
-
 {% endblock %}
