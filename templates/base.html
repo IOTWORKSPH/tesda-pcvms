@@ -696,6 +696,55 @@ document.addEventListener("DOMContentLoaded", function() {
             "data-display": "static"
         });
 
+        function restorePrintDropdownSpace(wrapper) {
+            if (!wrapper || wrapper.dataset.pcvPrintExpanded !== "true") {
+                return;
+            }
+
+            wrapper.style.paddingBottom = wrapper.dataset.pcvPrintBasePadding || "";
+            delete wrapper.dataset.pcvPrintBasePadding;
+            delete wrapper.dataset.pcvPrintExpanded;
+        }
+
+        function expandTableForPrintDropdown(dropdown) {
+            const wrapper = dropdown.closest(".table-responsive");
+            const menu = dropdown.querySelector(".pcv-print-menu.show");
+
+            if (!wrapper || !menu) {
+                return;
+            }
+
+            if (!wrapper.dataset.pcvPrintBasePadding) {
+                wrapper.dataset.pcvPrintBasePadding = wrapper.style.paddingBottom || "";
+            }
+
+            const computedPadding = parseFloat(window.getComputedStyle(wrapper).paddingBottom) || 0;
+            const basePadding = wrapper.dataset.pcvPrintBasePadding
+                ? parseFloat(wrapper.dataset.pcvPrintBasePadding) || computedPadding
+                : computedPadding;
+
+            wrapper.style.paddingBottom = `${basePadding}px`;
+
+            requestAnimationFrame(function() {
+                const wrapperRect = wrapper.getBoundingClientRect();
+                const menuRect = menu.getBoundingClientRect();
+                const overflow = menuRect.bottom - wrapperRect.bottom;
+
+                if (overflow > 0) {
+                    wrapper.style.paddingBottom = `${basePadding + overflow + 16}px`;
+                    wrapper.dataset.pcvPrintExpanded = "true";
+                }
+            });
+        }
+
+        jQuery(document).on("shown.bs.dropdown", ".table-responsive .pcv-action-group", function() {
+            expandTableForPrintDropdown(this);
+        });
+
+        jQuery(document).on("hidden.bs.dropdown", ".table-responsive .pcv-action-group", function() {
+            restorePrintDropdownSpace(this.closest(".table-responsive"));
+        });
+
         jQuery(document).on("show.bs.modal", ".modal", function() {
             const modal = this;
             document.body.appendChild(modal);
