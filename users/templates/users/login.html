@@ -2,64 +2,515 @@
 
 {% block title %}Login | TESDA PCVMS{% endblock %}
 
+{% block extra_css %}
+<style>
+    .pcvms-login {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 48px 24px;
+    }
+
+    .pcvms-login__grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.28fr) minmax(360px, 0.72fr);
+        align-items: center;
+        gap: clamp(32px, 5vw, 76px);
+        width: min(1180px, 100%);
+    }
+
+    .pcvms-brand {
+        color: #ffffff;
+    }
+
+    .pcvms-brand__mark {
+        display: inline-flex;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 28px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: 0;
+    }
+
+    .pcvms-brand__seal {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        color: var(--pcvms-navy);
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
+    }
+
+    .pcvms-brand__title {
+        display: block;
+        font-size: clamp(1.35rem, 2vw, 1.8rem);
+    }
+
+    .pcvms-brand__title span {
+        color: var(--pcvms-gold);
+    }
+
+    .pcvms-brand__eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        margin-bottom: 22px;
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 0.86rem;
+        font-weight: 700;
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .pcvms-brand h1 {
+        max-width: 720px;
+        margin: 0 0 20px;
+        color: #ffffff;
+        font-size: clamp(2.55rem, 6vw, 5.15rem);
+        font-weight: 800;
+        line-height: 0.98;
+        letter-spacing: 0;
+    }
+
+    .pcvms-brand__copy {
+        max-width: 680px;
+        margin: 0;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: clamp(1rem, 1.4vw, 1.17rem);
+        font-weight: 600;
+        line-height: 1.65;
+    }
+
+    .pcvms-feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        max-width: 690px;
+        margin-top: 34px;
+    }
+
+    .pcvms-feature {
+        min-height: 154px;
+        padding: 20px 18px;
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.12);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .pcvms-feature i {
+        margin-bottom: 18px;
+        color: var(--pcvms-gold);
+        font-size: 1.3rem;
+    }
+
+    .pcvms-feature strong {
+        display: block;
+        margin-bottom: 8px;
+        color: #ffffff;
+        font-size: 0.96rem;
+    }
+
+    .pcvms-feature span {
+        display: block;
+        color: rgba(255, 255, 255, 0.79);
+        font-size: 0.84rem;
+        font-weight: 600;
+        line-height: 1.45;
+    }
+
+    .pcvms-card {
+        overflow: hidden;
+        border: 0;
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 28px 80px rgba(2, 20, 42, 0.3);
+    }
+
+    .pcvms-card__header {
+        padding: 30px 32px 24px;
+        background: var(--pcvms-soft);
+        border-bottom: 1px solid var(--pcvms-line);
+    }
+
+    .pcvms-card__header h2 {
+        margin: 0 0 8px;
+        color: var(--pcvms-ink);
+        font-size: clamp(1.75rem, 3vw, 2.1rem);
+        font-weight: 800;
+        letter-spacing: 0;
+    }
+
+    .pcvms-card__header p {
+        margin: 0;
+        color: var(--pcvms-muted);
+        font-weight: 700;
+        line-height: 1.5;
+    }
+
+    .pcvms-card__body {
+        padding: 30px 32px 28px;
+    }
+
+    .pcvms-field {
+        margin-bottom: 22px;
+    }
+
+    .pcvms-field label {
+        margin-bottom: 8px;
+        color: var(--pcvms-ink);
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .pcvms-input.input-group {
+        border: 1px solid #cfdcec;
+        border-radius: 5px;
+        background: #eaf2fd;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .pcvms-input:focus-within {
+        border-color: var(--pcvms-blue);
+        background: #ffffff;
+        box-shadow: 0 0 0 4px rgba(8, 119, 217, 0.14);
+    }
+
+    .pcvms-input .form-control {
+        height: 48px;
+        color: var(--pcvms-ink);
+        font-weight: 600;
+        border: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .pcvms-input .form-control::placeholder {
+        color: #7a8ba2;
+    }
+
+    .pcvms-input .input-group-text {
+        width: 48px;
+        justify-content: center;
+        color: #597089;
+        border: 0;
+        border-left: 1px solid #cfdcec;
+        background: rgba(255, 255, 255, 0.42);
+    }
+
+    .pcvms-session {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin: -8px 0 22px;
+        color: var(--pcvms-muted);
+        font-size: 0.84rem;
+        font-weight: 800;
+        line-height: 1.35;
+    }
+
+    .pcvms-session__secure {
+        flex: 0 0 auto;
+        color: #07824d;
+    }
+
+    .pcvms-button {
+        min-height: 50px;
+        font-size: 1.05rem;
+        font-weight: 800;
+        border: 0;
+        border-radius: 5px;
+        background: linear-gradient(90deg, var(--pcvms-blue), var(--pcvms-cyan));
+        box-shadow: 0 16px 34px rgba(8, 119, 217, 0.25);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .pcvms-button:hover,
+    .pcvms-button:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 20px 42px rgba(8, 119, 217, 0.32);
+    }
+
+    .pcvms-roles {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border-top: 1px solid var(--pcvms-line);
+        background: #f8fbff;
+    }
+
+    .pcvms-role {
+        min-height: 82px;
+        padding: 14px 8px;
+        color: var(--pcvms-ink);
+        text-align: center;
+        font-size: 0.76rem;
+        font-weight: 800;
+        border-right: 1px solid var(--pcvms-line);
+    }
+
+    .pcvms-role:last-child {
+        border-right: 0;
+    }
+
+    .pcvms-role i {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--pcvms-blue);
+        font-size: 1.15rem;
+    }
+
+    .pcvms-alert {
+        border: 0;
+        border-left: 4px solid #dc3545;
+        border-radius: 6px;
+        font-weight: 700;
+    }
+
+    @media (max-width: 991.98px) {
+        .pcvms-login {
+            align-items: center;
+            padding: 18px 12px;
+        }
+
+        .pcvms-login__grid {
+            display: block;
+            max-width: 390px;
+        }
+
+        .pcvms-brand {
+            display: none;
+        }
+
+        .pcvms-card {
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.24);
+            box-shadow: 0 22px 58px rgba(2, 20, 42, 0.34);
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .pcvms-login {
+            min-height: 100dvh;
+            padding: 12px;
+        }
+
+        .pcvms-card__header,
+        .pcvms-card__body {
+            padding-left: 22px;
+            padding-right: 22px;
+        }
+
+        .pcvms-card__header {
+            padding-top: 28px;
+            padding-bottom: 24px;
+        }
+
+        .pcvms-card__header h2 {
+            font-size: 1.85rem;
+        }
+
+        .pcvms-card__header p {
+            font-size: 1rem;
+        }
+
+        .pcvms-card__body {
+            padding-top: 26px;
+            padding-bottom: 24px;
+        }
+
+        .pcvms-field {
+            margin-bottom: 20px;
+        }
+
+        .pcvms-field label {
+            font-size: 0.92rem;
+        }
+
+        .pcvms-input .form-control {
+            height: 48px;
+            font-size: 1rem;
+        }
+
+        .pcvms-session {
+            margin-top: -6px;
+            margin-bottom: 20px;
+            font-size: 0.88rem;
+        }
+
+        .pcvms-session {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .pcvms-button {
+            min-height: 50px;
+            font-size: 1.03rem;
+        }
+
+        .pcvms-roles {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pcvms-role {
+            min-height: 82px;
+            padding-top: 14px;
+            padding-bottom: 12px;
+        }
+
+        .pcvms-role:nth-child(2) {
+            border-right: 0;
+        }
+
+        .pcvms-role:nth-child(-n+2) {
+            border-bottom: 1px solid var(--pcvms-line);
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 
-<div class="login-box">
+<main class="auth-shell pcvms-login">
+    <div class="pcvms-login__grid">
+        <section class="pcvms-brand" aria-label="System overview">
+            <div class="pcvms-brand__mark">
+                <span class="pcvms-brand__seal">
+                    <i class="fas fa-receipt"></i>
+                </span>
+                <span class="pcvms-brand__title">
+                    <span>TESDA</span> PCVMS
+                </span>
+            </div>
 
-    <div class="card card-outline card-primary shadow-lg">
-        <div class="card-header text-center">
-            <h2 class="font-weight-bold text-primary">TESDA PCVMS</h2>
-            <p class="text-muted mb-1">
-                Petty Cash Voucher Management System
+            <div class="pcvms-brand__eyebrow">
+                <i class="fas fa-shield-halved"></i>
+                Secure petty cash operations
+            </div>
+
+            <h1>Petty cash vouchers in one workspace.</h1>
+            <p class="pcvms-brand__copy">
+                TESDA Petty Cash Voucher Management System centralizes cash advances,
+                reimbursements, liquidation monitoring, replenishment reports, and fund
+                accountability for faster, traceable office workflows.
             </p>
-        </div>
 
-        <div class="card-body">
-
-            {% if request.method == "POST" and not user.is_authenticated %}
-                <div class="alert alert-danger">
-                    Invalid username or password.
+            <div class="pcvms-feature-grid" aria-label="PCVMS capabilities">
+                <div class="pcvms-feature">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <strong>Voucher Processing</strong>
+                    <span>Create, review, approve, and monitor cash advance and reimbursement requests.</span>
                 </div>
-            {% endif %}
+                <div class="pcvms-feature">
+                    <i class="fas fa-vault"></i>
+                    <strong>Fund Control</strong>
+                    <span>Track releases, liquidations, cash on hand, and replenishment readiness.</span>
+                </div>
+                <div class="pcvms-feature">
+                    <i class="fas fa-chart-line"></i>
+                    <strong>Audit-Ready Reports</strong>
+                    <span>Generate organized petty cash documents and summaries for compliance.</span>
+                </div>
+            </div>
+        </section>
 
-            <form method="POST">
-                {% csrf_token %}
+        <section class="pcvms-card" aria-label="Login form">
+            <div class="pcvms-card__header">
+                <h2>Welcome back</h2>
+                <p>Sign in to continue to the Petty Cash Voucher Management System.</p>
+            </div>
 
-                <div class="input-group mb-3">
-                    <input type="text"
-                           name="username"
-                           class="form-control"
-                           placeholder="Username"
-                           required>
-                    <div class="input-group-append">
-                        <div class="input-group-text">
-                            <span class="fas fa-user"></span>
+            <div class="pcvms-card__body">
+                {% if request.method == "POST" and not user.is_authenticated %}
+                    <div class="alert alert-danger pcvms-alert">
+                        <i class="fas fa-circle-exclamation mr-2"></i>
+                        Invalid username or password.
+                    </div>
+                {% endif %}
+
+                <form method="POST">
+                    {% csrf_token %}
+
+                    <div class="pcvms-field">
+                        <label for="username">Username</label>
+                        <div class="input-group pcvms-input">
+                            <input type="text"
+                                   id="username"
+                                   name="username"
+                                   class="form-control"
+                                   placeholder="Enter your username"
+                                   autocomplete="username"
+                                   required>
+                            <div class="input-group-append">
+                                <div class="input-group-text">
+                                    <span class="fas fa-user"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="input-group mb-3">
-                    <input type="password"
-                           name="password"
-                           class="form-control"
-                           placeholder="Password"
-                           required>
-                    <div class="input-group-append">
-                        <div class="input-group-text">
-                            <span class="fas fa-lock"></span>
+                    <div class="pcvms-field">
+                        <label for="password">Password</label>
+                        <div class="input-group pcvms-input">
+                            <input type="password"
+                                   id="password"
+                                   name="password"
+                                   class="form-control"
+                                   placeholder="Enter your password"
+                                   autocomplete="current-password"
+                                   required>
+                            <div class="input-group-append">
+                                <div class="input-group-text">
+                                    <span class="fas fa-lock"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <div class="pcvms-session">
+                        <span class="pcvms-session__secure">
+                            <i class="fas fa-circle-check mr-1"></i>
+                            Secure session
+                        </span>
+                        <span>Petty cash vouchers and replenishment reports</span>
+                    </div>
+
+                    <button type="submit"
+                            class="btn btn-primary btn-block pcvms-button">
+                        <i class="fas fa-right-to-bracket mr-2"></i>
+                        Sign In
+                    </button>
+                </form>
+            </div>
+
+            <div class="pcvms-roles" aria-label="Supported users">
+                <div class="pcvms-role">
+                    <i class="fas fa-user-tie"></i>
+                    Staff
                 </div>
-
-                <button type="submit"
-                        class="btn btn-primary btn-block btn-lg">
-                    <i class="fas fa-sign-in-alt mr-2"></i>
-                    Login
-                </button>
-            </form>
-
-        </div>
+                <div class="pcvms-role">
+                    <i class="fas fa-cash-register"></i>
+                    Custodian
+                </div>
+                <div class="pcvms-role">
+                    <i class="fas fa-clipboard-check"></i>
+                    Inspection
+                </div>
+                <div class="pcvms-role">
+                    <i class="fas fa-boxes-stacked"></i>
+                    Supply
+                </div>
+            </div>
+        </section>
     </div>
-</div>
+</main>
 
 {% endblock %}

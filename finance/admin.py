@@ -1,4 +1,5 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin
 from .models import (
     FundCluster,
     ResponsibilityCenter,
@@ -12,7 +13,7 @@ from .models import (
 # ==========================================================
 
 @admin.register(FundCluster)
-class FundClusterAdmin(admin.ModelAdmin):
+class FundClusterAdmin(ModelAdmin):
 
     list_display = ("code", "description")
     search_fields = ("code", "description")
@@ -24,7 +25,7 @@ class FundClusterAdmin(admin.ModelAdmin):
 # ==========================================================
 
 @admin.register(ResponsibilityCenter)
-class ResponsibilityCenterAdmin(admin.ModelAdmin):
+class ResponsibilityCenterAdmin(ModelAdmin):
 
     list_display = (
         "code",
@@ -53,7 +54,7 @@ class ResponsibilityCenterAdmin(admin.ModelAdmin):
 # ==========================================================
 
 @admin.register(PettyCashFund)
-class PettyCashFundAdmin(admin.ModelAdmin):
+class PettyCashFundAdmin(ModelAdmin):
 
     list_display = (
         "name",
@@ -86,7 +87,7 @@ class PettyCashFundAdmin(admin.ModelAdmin):
 # ==========================================================
 
 @admin.register(LedgerEntry)
-class LedgerEntryAdmin(admin.ModelAdmin):
+class LedgerEntryAdmin(ModelAdmin):
 
     list_display = (
         "transaction_date",

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.db.models import Sum
+from unfold.admin import ModelAdmin, TabularInline
 from .models import (
     Supplier,
     ExpenseCategory,
@@ -15,7 +16,7 @@ from .models import (
 # ==========================================================
 
 @admin.register(Supplier)
-class SupplierAdmin(admin.ModelAdmin):
+class SupplierAdmin(ModelAdmin):
 
     list_display = ("name", "entity", "tin", "is_active")
     list_filter = ("entity", "is_active")
@@ -28,7 +29,7 @@ class SupplierAdmin(admin.ModelAdmin):
 # ==========================================================
 
 @admin.register(ExpenseCategory)
-class ExpenseCategoryAdmin(admin.ModelAdmin):
+class ExpenseCategoryAdmin(ModelAdmin):
 
     list_display = ("code", "name", "entity", "is_active")
     list_filter = ("entity", "is_active")
@@ -40,17 +41,17 @@ class ExpenseCategoryAdmin(admin.ModelAdmin):
 # INLINE MODELS
 # ==========================================================
 
-class PCVItemInline(admin.TabularInline):
+class PCVItemInline(TabularInline):
     model = PCVItem
     extra = 1
 
 
-class ReceiptAttachmentInline(admin.TabularInline):
+class ReceiptAttachmentInline(TabularInline):
     model = ReceiptAttachment
     extra = 0
 
 
-class PCVApprovalInline(admin.TabularInline):
+class PCVApprovalInline(TabularInline):
     model = PCVApproval
     extra = 0
     readonly_fields = ("approved_by", "role", "remarks", "created_at")
@@ -61,7 +62,7 @@ class PCVApprovalInline(admin.TabularInline):
 # ==========================================================
 
 @admin.register(PettyCashVoucher)
-class PettyCashVoucherAdmin(admin.ModelAdmin):
+class PettyCashVoucherAdmin(ModelAdmin):
 
     list_display = (
         "pcv_no",

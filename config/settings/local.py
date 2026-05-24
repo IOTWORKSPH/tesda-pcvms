@@ -21,6 +21,11 @@ SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 SECURE_SSL_REDIRECT = False
 
+# SQLite on Windows can intermittently fail while Django writes DB-backed
+# sessions during local login. Keep development sessions in signed cookies so
+# admin and app login do not depend on the sqlite session table.
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
+
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
     default="django.core.mail.backends.console.EmailBackend"

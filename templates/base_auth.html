@@ -7,7 +7,7 @@
 
     <!-- Font -->
     <link rel="stylesheet"
-          href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700">
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 
     <!-- Font Awesome -->
     <link rel="stylesheet"
@@ -22,15 +22,53 @@
           href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
 
     <style>
+        :root {
+            --pcvms-navy: #073763;
+            --pcvms-blue: #0877d9;
+            --pcvms-cyan: #19a7ce;
+            --pcvms-gold: #f8c21c;
+            --pcvms-ink: #07182f;
+            --pcvms-muted: #64748b;
+            --pcvms-line: #d9e4f2;
+            --pcvms-soft: #f3f7fc;
+        }
+
+        html,
         body {
-            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            min-height: 100%;
+        }
+
+        body.auth-page {
+            margin: 0;
+            font-family: "Inter", "Source Sans Pro", Arial, sans-serif;
+            color: var(--pcvms-ink);
+            background:
+                linear-gradient(120deg, rgba(7, 55, 99, 0.98) 0%, rgba(9, 93, 131, 0.96) 58%, rgba(25, 167, 206, 0.94) 100%),
+                #073763;
+        }
+
+        body.auth-page::before {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            content: "";
+            background:
+                linear-gradient(rgba(255, 255, 255, 0.055) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+            background-size: 36px 36px;
+            mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 68%);
+        }
+
+        .auth-shell {
+            width: 100%;
+            min-height: 100vh;
         }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="hold-transition login-page">
+<body class="hold-transition auth-page">
 
 {% block content %}
 {% endblock %}

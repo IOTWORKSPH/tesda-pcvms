@@ -2,6 +2,8 @@
 
 from pathlib import Path
 import environ
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
@@ -40,7 +42,9 @@ DJANGO_APPS = [
     "django.contrib.humanize",
 ]
 
-THIRD_PARTY_APPS = []
+THIRD_PARTY_APPS = [
+    "unfold",
+]
 
 LOCAL_APPS = [
     "audit",
@@ -51,7 +55,122 @@ LOCAL_APPS = [
     "users",
 ]
 
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = THIRD_PARTY_APPS + DJANGO_APPS + LOCAL_APPS
+
+
+# =========================================================
+# DJANGO UNFOLD ADMIN THEME
+# =========================================================
+UNFOLD = {
+    "SITE_TITLE": "TESDA PCVMS Admin",
+    "SITE_HEADER": "TESDA PCVMS",
+    "SITE_SUBHEADER": "Petty Cash Voucher Management System",
+    "SITE_URL": "/",
+    "SITE_SYMBOL": "account_balance_wallet",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "BORDER_RADIUS": "6px",
+    "COLORS": {
+        "primary": {
+            "50": "oklch(97.7% .018 232.2)",
+            "100": "oklch(94.8% .041 232.7)",
+            "200": "oklch(89.6% .078 230.1)",
+            "300": "oklch(81.7% .122 226.8)",
+            "400": "oklch(71.8% .156 224.2)",
+            "500": "oklch(62.8% .176 225.1)",
+            "600": "oklch(53.7% .173 230.5)",
+            "700": "oklch(45.9% .145 234.3)",
+            "800": "oklch(38.5% .113 237.8)",
+            "900": "oklch(32.9% .084 240.2)",
+            "950": "oklch(23.8% .062 244.4)",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "title": _("People"),
+                "separator": False,
+                "items": [
+                    {
+                        "title": _("Users"),
+                        "icon": "people",
+                        "link": reverse_lazy("admin:users_user_changelist"),
+                    },
+                    {
+                        "title": _("Groups & Roles"),
+                        "icon": "admin_panel_settings",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                    {
+                        "title": _("Entities"),
+                        "icon": "corporate_fare",
+                        "link": reverse_lazy("admin:users_entity_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Petty Cash Operations"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Petty Cash Vouchers"),
+                        "icon": "receipt_long",
+                        "link": reverse_lazy("admin:pettycash_pettycashvoucher_changelist"),
+                    },
+                    {
+                        "title": _("Expense Categories"),
+                        "icon": "category",
+                        "link": reverse_lazy("admin:pettycash_expensecategory_changelist"),
+                    },
+                    {
+                        "title": _("Suppliers"),
+                        "icon": "storefront",
+                        "link": reverse_lazy("admin:pettycash_supplier_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Finance Setup"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Petty Cash Funds"),
+                        "icon": "account_balance_wallet",
+                        "link": reverse_lazy("admin:finance_pettycashfund_changelist"),
+                    },
+                    {
+                        "title": _("Fund Clusters"),
+                        "icon": "account_tree",
+                        "link": reverse_lazy("admin:finance_fundcluster_changelist"),
+                    },
+                    {
+                        "title": _("Responsibility Centers"),
+                        "icon": "business",
+                        "link": reverse_lazy("admin:finance_responsibilitycenter_changelist"),
+                    },
+                    {
+                        "title": _("Ledger Entries"),
+                        "icon": "menu_book",
+                        "link": reverse_lazy("admin:finance_ledgerentry_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("Audit"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Audit Logs"),
+                        "icon": "history",
+                        "link": reverse_lazy("admin:audit_auditlog_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 
 # =========================================================
@@ -113,6 +232,11 @@ DATABASES = {
 }
 
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("DB_CONN_MAX_AGE", default=60)
+
+if DATABASES["default"]["ENGINE"] == "django.db.backends.sqlite3":
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"].setdefault("timeout", 20)
 
 if DATABASES["default"]["ENGINE"] == "django.db.backends.mysql":
     DATABASES["default"]["OPTIONS"] = {
