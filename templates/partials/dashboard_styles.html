@@ -94,6 +94,10 @@
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .pcv-dashboard .dash-grid-1 {
+        grid-template-columns: 1fr;
+    }
+
     .pcv-dashboard .dash-card {
         min-width: 0;
         padding: 18px;
@@ -345,6 +349,31 @@
         color: var(--dash-muted);
         font-size: 0.78rem;
         font-weight: 700;
+    }
+
+    .pcv-dashboard .pcv-action-group {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0;
+        white-space: nowrap;
+    }
+
+    .pcv-dashboard .pcv-action-group .dropdown-menu {
+        min-width: 220px;
+        padding: 8px;
+        border-radius: 8px;
+        box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18);
+    }
+
+    .pcv-dashboard .pcv-action-group .dropdown-item {
+        min-height: 38px;
+        border-radius: 6px;
+        font-weight: 700;
+    }
+
+    .pcv-dashboard .pcv-action-group .dropdown-item:active {
+        background: var(--dash-blue);
     }
 
     .pcv-dashboard .tone-green { color: var(--dash-green); }

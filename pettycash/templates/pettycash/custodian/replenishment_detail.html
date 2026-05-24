@@ -103,7 +103,7 @@
                         <th>Date</th>
                         <th>Purpose</th>
                         <th class="text-right">Amount</th>
-                        <th class="text-right">View</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -114,9 +114,14 @@
                         <td>{{ v.purpose|truncatechars:100 }}</td>
                         <td class="text-right font-weight-bold">{{ v.actual_amount|money }}</td>
                         <td class="text-right">
-                            <a href="{% url 'pettycash:pcv_detail' v.uuid %}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i>
-                            </a>
+                            <div class="btn-group btn-group-sm dropup pcv-action-group">
+                                <a href="{% url 'pettycash:pcv_detail' v.uuid %}" class="btn btn-outline-primary" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% with voucher=v %}
+                                    {% include "partials/voucher_print_dropdown.html" %}
+                                {% endwith %}
+                            </div>
                         </td>
                     </tr>
                 {% empty %}

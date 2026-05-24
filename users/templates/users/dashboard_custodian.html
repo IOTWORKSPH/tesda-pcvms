@@ -145,58 +145,6 @@
         </div>
     </div>
 
-    <div class="dash-grid dash-grid-2">
-        <div class="dash-panel">
-            <div class="dash-panel-header">
-                <h2 class="dash-panel-title">Expense categories</h2>
-                <span class="badge badge-light border">{{ total_fund_expense|money }} total</span>
-            </div>
-            <div class="dash-panel-body">
-                <div class="dash-chart-list">
-                    {% for row in category_expenses %}
-                        <div class="dash-chart-row">
-                            <div class="dash-chart-meta">
-                                <span class="dash-chart-label">{{ row.expense_category__name|default:"Uncategorized" }}</span>
-                                <span class="dash-chart-value">{{ row.total|money }}</span>
-                            </div>
-                            <div class="dash-chart-track" aria-hidden="true">
-                                <div class="dash-chart-fill" style="width: {{ row.percent }}%;"></div>
-                            </div>
-                            <div class="dash-chart-note">{{ row.count }} voucher{{ row.count|pluralize }}</div>
-                        </div>
-                    {% empty %}
-                        <div class="dash-empty">No category expenses yet.</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-
-        <div class="dash-panel">
-            <div class="dash-panel-header">
-                <h2 class="dash-panel-title">Staff expenses</h2>
-                <span class="badge badge-light border">Fund usage by requester</span>
-            </div>
-            <div class="dash-panel-body">
-                <div class="dash-chart-list">
-                    {% for row in staff_expenses %}
-                        <div class="dash-chart-row">
-                            <div class="dash-chart-meta">
-                                <span class="dash-chart-label">{{ row.requester__first_name }} {{ row.requester__last_name }}</span>
-                                <span class="dash-chart-value">{{ row.total|money }}</span>
-                            </div>
-                            <div class="dash-chart-track" aria-hidden="true">
-                                <div class="dash-chart-fill" style="width: {{ row.percent }}%;"></div>
-                            </div>
-                            <div class="dash-chart-note">{{ row.count }} voucher{{ row.count|pluralize }}</div>
-                        </div>
-                    {% empty %}
-                        <div class="dash-empty">No staff expenses yet.</div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="dash-panel">
         <div class="dash-panel-header">
             <h2 class="dash-panel-title">Approved for cash release</h2>
@@ -266,6 +214,10 @@
             </table>
         </div>
     </div>
+
+    {% with expense_category_rows=category_expenses expense_staff_rows=staff_expenses expense_total=total_fund_expense %}
+        {% include "partials/expense_monitoring.html" %}
+    {% endwith %}
 </div>
 
 {% for voucher in for_release %}

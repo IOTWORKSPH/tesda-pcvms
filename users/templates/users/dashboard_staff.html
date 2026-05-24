@@ -133,31 +133,6 @@
 
     <div class="dash-panel">
         <div class="dash-panel-header">
-            <h2 class="dash-panel-title">My expense categories</h2>
-            <span class="badge badge-light border">{{ total_expense_amount|money }} total expense</span>
-        </div>
-        <div class="dash-panel-body">
-            <div class="dash-chart-list">
-                {% for row in staff_category_expenses %}
-                    <div class="dash-chart-row">
-                        <div class="dash-chart-meta">
-                            <span class="dash-chart-label">{{ row.expense_category__name|default:"Uncategorized" }}</span>
-                            <span class="dash-chart-value">{{ row.total|money }}</span>
-                        </div>
-                        <div class="dash-chart-track" aria-hidden="true">
-                            <div class="dash-chart-fill" style="width: {{ row.percent }}%;"></div>
-                        </div>
-                        <div class="dash-chart-note">{{ row.count }} voucher{{ row.count|pluralize }}</div>
-                    </div>
-                {% empty %}
-                    <div class="dash-empty">No expense category data yet.</div>
-                {% endfor %}
-            </div>
-        </div>
-    </div>
-
-    <div class="dash-panel">
-        <div class="dash-panel-header">
             <h2 class="dash-panel-title">Request pipeline</h2>
             <a href="{% url 'users:dashboard_staff' %}" class="dash-btn">
                 <i class="fas fa-rotate-left"></i>
@@ -220,7 +195,7 @@
                                 <span class="badge badge-light border">{{ pcv.get_status_display }}</span>
                             </td>
                             <td class="text-right">
-                                <div class="btn-group btn-group-sm">
+                                <div class="btn-group btn-group-sm dropup pcv-action-group">
                                     <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="btn btn-outline-primary" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
@@ -235,9 +210,9 @@
                                         </a>
                                     {% endif %}
                                     {% if pcv.status != "DRAFT" %}
-                                        <a href="{% url 'pettycash:print_pcv' pcv.uuid %}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary" title="Print PCV">
-                                            <i class="fas fa-print"></i>
-                                        </a>
+                                        {% with voucher=pcv %}
+                                            {% include "partials/voucher_print_dropdown.html" %}
+                                        {% endwith %}
                                     {% endif %}
                                 </div>
                             </td>
@@ -252,5 +227,9 @@
             </div>
         </div>
     </div>
+
+    {% with expense_category_rows=staff_category_expenses expense_total=total_expense_amount %}
+        {% include "partials/expense_monitoring.html" %}
+    {% endwith %}
 </div>
 {% endblock %}

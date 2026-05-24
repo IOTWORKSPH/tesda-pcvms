@@ -1,0 +1,22 @@
+<button type="button"
+        class="btn btn-sm btn-outline-secondary dropdown-toggle"
+        data-toggle="dropdown"
+        data-boundary="viewport"
+        aria-haspopup="true"
+        aria-expanded="false"
+        title="Print package">
+    <i class="fas fa-print"></i>
+    Print
+</button>
+<div class="dropdown-menu dropdown-menu-right shadow pcv-print-menu">
+    <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" target="_blank" rel="noopener noreferrer" class="m-0">
+        {% csrf_token %}
+        <input type="hidden" name="replenishment_id" value="{{ replenishment.pk }}">
+        <button type="submit" class="dropdown-item">
+            <i class="fas fa-file-pdf mr-2 text-danger"></i>Package PDF
+        </button>
+    </form>
+    <a class="dropdown-item" href="{% url 'pettycash:replenishment_bundle_excel' replenishment.pk %}">
+        <i class="fas fa-file-excel mr-2 text-success"></i>Excel Bundle
+    </a>
+</div>

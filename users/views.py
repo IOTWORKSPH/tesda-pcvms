@@ -7,6 +7,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.db.models import Case, Count, DecimalField, Q, Sum, When
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from decimal import Decimal
 from datetime import timedelta
 
@@ -45,6 +46,53 @@ def add_chart_percentages(rows, total_key="total"):
         if max_value > 0:
             row["percent"] = int((value / max_value) * Decimal("100"))
     return rows
+
+
+def apply_expense_monitor_filter(request, queryset, replenishments):
+    mode = request.GET.get("expense_scope", "current")
+    replenishment_id = request.GET.get("replenishment") or ""
+    date_from_raw = request.GET.get("expense_start") or ""
+    date_to_raw = request.GET.get("expense_end") or ""
+    date_from = parse_date(date_from_raw) if date_from_raw else None
+    date_to = parse_date(date_to_raw) if date_to_raw else None
+
+    queryset = queryset.exclude(
+        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    )
+
+    selected_replenishment = None
+    if replenishment_id:
+        selected_replenishment = replenishments.filter(pk=replenishment_id).first()
+        if selected_replenishment:
+            queryset = queryset.filter(replenishment=selected_replenishment)
+            mode = "replenishment"
+    elif date_from or date_to:
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
+        mode = "date_range"
+    elif mode == "all":
+        pass
+    else:
+        mode = "current"
+        queryset = queryset.filter(is_replenished=False)
+
+    labels = {
+        "current": "Current unreplenished expenses",
+        "all": "All expenses",
+        "date_range": "Date range",
+        "replenishment": "Replenishment package",
+    }
+
+    return queryset, {
+        "expense_filter_mode": mode,
+        "expense_filter_label": labels.get(mode, labels["current"]),
+        "expense_filter_replenishments": replenishments,
+        "selected_replenishment_id": str(selected_replenishment.pk) if selected_replenishment else replenishment_id,
+        "expense_start": date_from_raw,
+        "expense_end": date_to_raw,
+    }
 
 
 def user_in_group(user, group_name):
@@ -239,8 +287,14 @@ def dashboard_staff(request):
         total=Sum("amount_requested")
     )["total"] or Decimal("0.00")
 
-    expense_scope = base_qs.exclude(
-        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    expense_replenishments = Replenishment.objects.filter(
+        vouchers__requester=user,
+    ).distinct().order_by("-created_at")
+
+    expense_scope, expense_filter_context = apply_expense_monitor_filter(
+        request,
+        PettyCashVoucher.objects.filter(requester=user),
+        expense_replenishments,
     )
 
     total_expense_amount = expense_scope.aggregate(
@@ -310,6 +364,7 @@ def dashboard_staff(request):
         "staff_category_expenses": staff_category_expenses,
         "active_status": status_filter,
         "search_query": search_query,
+        **expense_filter_context,
     }
 
     return render(
@@ -510,10 +565,14 @@ def dashboard_administrator(request):
         )
         fund_cards.append(fund)
 
-    expense_scope = PettyCashVoucher.objects.filter(
-        entity=entity,
-    ).exclude(
-        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    expense_replenishments = Replenishment.objects.filter(
+        fund__entity=entity,
+    ).select_related("fund").order_by("-created_at")
+
+    expense_scope, expense_filter_context = apply_expense_monitor_filter(
+        request,
+        PettyCashVoucher.objects.filter(entity=entity),
+        expense_replenishments,
     )
 
     total_entity_expense = expense_scope.aggregate(
@@ -584,6 +643,7 @@ def dashboard_administrator(request):
         "active_status": status_filter,
         "active_type": type_filter,
         "search_query": search_query,
+        **expense_filter_context,
     }
 
     return render(
@@ -724,10 +784,14 @@ def dashboard_custodian(request):
         fund=fund
     ).order_by("-transaction_date", "-id")[:10]
 
-    expense_scope = PettyCashVoucher.objects.filter(
+    expense_replenishments = Replenishment.objects.filter(
         fund=fund,
-    ).exclude(
-        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    ).order_by("-created_at")
+
+    expense_scope, expense_filter_context = apply_expense_monitor_filter(
+        request,
+        PettyCashVoucher.objects.filter(fund=fund),
+        expense_replenishments,
     )
 
     total_fund_expense = expense_scope.aggregate(
@@ -781,6 +845,7 @@ def dashboard_custodian(request):
         "total_fund_expense": total_fund_expense,
         "category_expenses": category_expenses,
         "staff_expenses": staff_expenses,
+        **expense_filter_context,
     }
 
     return render(
