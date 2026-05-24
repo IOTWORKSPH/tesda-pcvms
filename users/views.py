@@ -5,7 +5,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
-from django.db.models import Count, Q, Sum
+from django.db.models import Case, Count, DecimalField, Q, Sum, When
 from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
@@ -22,6 +22,29 @@ from pettycash.models import (
 from finance.models import PettyCashFund, LedgerEntry
 from audit.models import AuditLog
 from pettycash.services.dashboard_service import CustodianDashboardService
+
+
+def expense_amount_case():
+    return Case(
+        When(
+            transaction_type=TransactionType.CASH_ADVANCE,
+            status__in=[VoucherStatus.LIQUIDATED, VoucherStatus.POSTED],
+            then="amount_liquidated",
+        ),
+        default="amount_requested",
+        output_field=DecimalField(max_digits=14, decimal_places=2),
+    )
+
+
+def add_chart_percentages(rows, total_key="total"):
+    rows = list(rows)
+    max_value = max((row.get(total_key) or Decimal("0.00") for row in rows), default=Decimal("0.00"))
+    for row in rows:
+        value = row.get(total_key) or Decimal("0.00")
+        row["percent"] = 0
+        if max_value > 0:
+            row["percent"] = int((value / max_value) * Decimal("100"))
+    return rows
 
 
 def user_in_group(user, group_name):
@@ -216,6 +239,23 @@ def dashboard_staff(request):
         total=Sum("amount_requested")
     )["total"] or Decimal("0.00")
 
+    expense_scope = base_qs.exclude(
+        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    )
+
+    total_expense_amount = expense_scope.aggregate(
+        total=Sum(expense_amount_case())
+    )["total"] or Decimal("0.00")
+
+    staff_category_expenses = add_chart_percentages(
+        expense_scope.values(
+            "expense_category__name"
+        ).annotate(
+            total=Sum(expense_amount_case()),
+            count=Count("id"),
+        ).order_by("-total")[:8]
+    )
+
     unliquidated_amount = base_qs.filter(
         transaction_type=TransactionType.CASH_ADVANCE,
         status=VoucherStatus.RELEASED,
@@ -260,12 +300,14 @@ def dashboard_staff(request):
         "active_count": active_count,
         "completed_count": completed_count,
         "total_requested_amount": total_requested_amount,
+        "total_expense_amount": total_expense_amount,
         "unliquidated_amount": unliquidated_amount,
         "recent_request_count": recent_request_count,
         "completion_percent": completion_percent,
         "recent_pcvs": qs[:20],
         "next_action_pcvs": next_action_pcvs,
         "watched_pcvs": watched_pcvs,
+        "staff_category_expenses": staff_category_expenses,
         "active_status": status_filter,
         "search_query": search_query,
     }
@@ -468,20 +510,30 @@ def dashboard_administrator(request):
         )
         fund_cards.append(fund)
 
-    category_spend = voucher_scope.values(
+    expense_scope = PettyCashVoucher.objects.filter(
+        entity=entity,
+    ).exclude(
+        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    )
+
+    total_entity_expense = expense_scope.aggregate(
+        total=Sum(expense_amount_case())
+    )["total"] or Decimal("0.00")
+
+    category_spend = add_chart_percentages(expense_scope.values(
         "expense_category__name"
     ).annotate(
-        total=Sum("amount_requested"),
+        total=Sum(expense_amount_case()),
         count=Count("id"),
-    ).order_by("-total")[:5]
+    ).order_by("-total")[:8])
 
-    requester_activity = voucher_scope.values(
+    requester_activity = add_chart_percentages(expense_scope.values(
         "requester__first_name",
         "requester__last_name",
     ).annotate(
-        total=Sum("amount_requested"),
+        total=Sum(expense_amount_case()),
         count=Count("id"),
-    ).order_by("-count", "-total")[:5]
+    ).order_by("-total")[:8])
 
     # Approval Aging
     for voucher in vouchers:
@@ -527,6 +579,7 @@ def dashboard_administrator(request):
         "fund_cards": fund_cards,
         "category_spend": category_spend,
         "requester_activity": requester_activity,
+        "total_entity_expense": total_entity_expense,
         "recent_logs": recent_logs,
         "active_status": status_filter,
         "active_type": type_filter,
@@ -671,6 +724,35 @@ def dashboard_custodian(request):
         fund=fund
     ).order_by("-transaction_date", "-id")[:10]
 
+    expense_scope = PettyCashVoucher.objects.filter(
+        fund=fund,
+    ).exclude(
+        status__in=[VoucherStatus.DRAFT, VoucherStatus.CANCELLED]
+    )
+
+    total_fund_expense = expense_scope.aggregate(
+        total=Sum(expense_amount_case())
+    )["total"] or Decimal("0.00")
+
+    category_expenses = add_chart_percentages(
+        expense_scope.values(
+            "expense_category__name"
+        ).annotate(
+            total=Sum(expense_amount_case()),
+            count=Count("id"),
+        ).order_by("-total")[:8]
+    )
+
+    staff_expenses = add_chart_percentages(
+        expense_scope.values(
+            "requester__first_name",
+            "requester__last_name",
+        ).annotate(
+            total=Sum(expense_amount_case()),
+            count=Count("id"),
+        ).order_by("-total")[:8]
+    )
+
     context = {
         "fund": fund,
         "total_fund": total_fund,
@@ -696,6 +778,9 @@ def dashboard_custodian(request):
         "for_liquidation_count": for_liquidation.count(),
         "unliquidated_count": unliquidated_cash_advances.count(),
         "ledger_snapshot": ledger_snapshot,
+        "total_fund_expense": total_fund_expense,
+        "category_expenses": category_expenses,
+        "staff_expenses": staff_expenses,
     }
 
     return render(
@@ -711,43 +796,48 @@ def dashboard_inspection(request):
     if not request.user.has_role("Inspection"):
         return render(request, "403.html", status=403)
 
-    from pettycash.models import PettyCashVoucher, VoucherStatus
-    from django.utils import timezone
-    from datetime import timedelta
-
     entity = request.user.entity
+    today_date = timezone.now().date()
 
-    # ==========================================
-    # VOUCHERS PENDING INSPECTION
-    # ==========================================
     pending_inspection = PettyCashVoucher.objects.filter(
+        Q(status=VoucherStatus.LIQUIDATED, is_posted_to_ledger=False) |
+        Q(
+            transaction_type=TransactionType.REIMBURSEMENT,
+            status=VoucherStatus.APPROVED,
+            is_posted_to_ledger=False,
+        ),
         entity=entity,
-        status=VoucherStatus.LIQUIDATED
     ).select_related(
         "requester",
         "supplier",
-        "fund"
-    ).order_by("-purchase_date")
+        "expense_category",
+        "fund",
+    ).annotate(
+        item_count=Count("items", distinct=True),
+        receipt_count=Count("receipts", distinct=True),
+    ).order_by("purchase_date", "created_at")
 
-    # ==========================================
-    # KPI COUNTS
-    # ==========================================
     total_pending = pending_inspection.count()
-
-    overdue = pending_inspection.filter(
-        purchase_date__lt=timezone.now().date() - timedelta(days=7)
-    ).count()
-
-    # Recently liquidated
-    recent = pending_inspection[:5]
-
     total_pending_amount = pending_inspection.aggregate(
-        total=Sum("amount_liquidated")
+        total=Sum("amount_requested")
     )["total"] or Decimal("0.00")
 
     ready_today = pending_inspection.filter(
-        purchase_date=timezone.now().date()
+        purchase_date=today_date
     ).count()
+
+    overdue = 0
+    document_ready = 0
+    pending_aging_items = []
+    for voucher in pending_inspection:
+        reference_date = voucher.purchase_date or voucher.created_at.date()
+        voucher.days_waiting = (today_date - reference_date).days
+        if voucher.days_waiting >= 7:
+            overdue += 1
+        if voucher.item_count and voucher.receipt_count and voucher.supplier_id:
+            document_ready += 1
+        if len(pending_aging_items) < 8:
+            pending_aging_items.append(voucher)
 
     overdue_rate = Decimal("0.00")
     if total_pending > 0:
@@ -756,14 +846,55 @@ def dashboard_inspection(request):
             2,
         )
 
+    inspected_scope = PettyCashVoucher.objects.filter(
+        entity=entity,
+        iar_no__isnull=False,
+    )
+
+    inspected_amount = inspected_scope.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
+    item_total = PCVItem.objects.filter(
+        voucher__entity=entity,
+        voucher__status__in=[
+            VoucherStatus.APPROVED,
+            VoucherStatus.LIQUIDATED,
+            VoucherStatus.POSTED,
+        ],
+    ).count()
+
+    supplier_summary = inspected_scope.values(
+        "supplier__name",
+    ).annotate(
+        count=Count("id"),
+        total=Sum("amount_requested"),
+    ).order_by("-count", "-total")[:5]
+
+    category_mix = inspected_scope.values(
+        "expense_category__name",
+    ).annotate(
+        count=Count("id"),
+        total=Sum("amount_requested"),
+    ).order_by("-total")[:5]
+
     context = {
         "total_pending": total_pending,
         "overdue": overdue,
         "ready_today": ready_today,
         "total_pending_amount": total_pending_amount,
         "overdue_rate": overdue_rate,
-        "pending_inspection": pending_inspection,
-        "recent": recent,
+        "pending_inspection": pending_inspection[:10],
+        "pending_aging_items": pending_aging_items,
+        "document_ready": document_ready,
+        "inspected_count": inspected_scope.count(),
+        "inspected_amount": inspected_amount,
+        "item_total": item_total,
+        "supplier_summary": supplier_summary,
+        "category_mix": category_mix,
+        "is_staff": request.user.has_role("Staff"),
+        "is_custodian": request.user.has_role("Custodian"),
+        "is_supply": request.user.has_role("Supply"),
     }
 
     return render(request, "users/dashboard_inspection.html", context)
@@ -785,6 +916,8 @@ def dashboard_supply(request):
         entity=entity,
         status=VoucherStatus.APPROVED,
         iar_no__isnull=True
+    ).select_related("requester", "supplier", "expense_category", "fund").annotate(
+        item_count=Count("items")
     )
 
     pending_count = pending_iar.count()
@@ -795,6 +928,8 @@ def dashboard_supply(request):
         iar_no__isnull=False,
         created_at__year=current_year,
         created_at__month=current_month
+    ).select_related("requester", "supplier", "expense_category", "fund").annotate(
+        item_count=Count("items")
     )
 
     issued_count = issued_this_month.count()
@@ -809,6 +944,13 @@ def dashboard_supply(request):
     recent_iars = PettyCashVoucher.objects.filter(
         entity=entity,
         iar_no__isnull=False
+    ).select_related(
+        "requester",
+        "supplier",
+        "expense_category",
+        "fund",
+    ).annotate(
+        item_count=Count("items")
     ).order_by("-created_at")[:10]
 
     pending_amount = pending_iar.aggregate(
@@ -832,6 +974,47 @@ def dashboard_supply(request):
             2,
         )
 
+    today_date = today.date()
+    pending_overdue_count = 0
+    pending_aging_items = []
+    for voucher in pending_iar.order_by("created_at")[:8]:
+        voucher.days_waiting = (today_date - voucher.created_at.date()).days
+        if voucher.days_waiting >= 3:
+            pending_overdue_count += 1
+        pending_aging_items.append(voucher)
+
+    issued_today = PettyCashVoucher.objects.filter(
+        entity=entity,
+        iar_no__isnull=False,
+        created_at__date=today_date,
+    ).count()
+
+    registry_amount = PettyCashVoucher.objects.filter(
+        entity=entity,
+        iar_no__isnull=False
+    ).aggregate(total=Sum("amount_requested"))["total"] or Decimal("0.00")
+
+    top_requesters = PettyCashVoucher.objects.filter(
+        entity=entity,
+        iar_no__isnull=False
+    ).values(
+        "requester__first_name",
+        "requester__last_name",
+    ).annotate(
+        count=Count("id"),
+        total=Sum("amount_requested"),
+    ).order_by("-count", "-total")[:5]
+
+    category_mix = PettyCashVoucher.objects.filter(
+        entity=entity,
+        iar_no__isnull=False
+    ).values(
+        "expense_category__name",
+    ).annotate(
+        count=Count("id"),
+        total=Sum("amount_requested"),
+    ).order_by("-total")[:5]
+
     context = {
         "pending_count": pending_count,
         "issued_count": issued_count,
@@ -841,6 +1024,15 @@ def dashboard_supply(request):
         "processed_vouchers": processed_vouchers,
         "iar_completion_rate": iar_completion_rate,
         "recent_iars": recent_iars,
+        "pending_overdue_count": pending_overdue_count,
+        "pending_aging_items": pending_aging_items,
+        "issued_today": issued_today,
+        "registry_amount": registry_amount,
+        "top_requesters": top_requesters,
+        "category_mix": category_mix,
+        "is_custodian": request.user.has_role("Custodian"),
+        "is_staff": request.user.has_role("Staff"),
+        "is_inspection": request.user.has_role("Inspection"),
     }
 
     return render(request, "users/dashboard_supply.html", context)

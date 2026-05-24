@@ -41,9 +41,9 @@
             <div class="dash-card-note">{{ recent_request_count }} created in the last 7 days</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Total requested <i class="fas fa-receipt tone-blue"></i></div>
-            <div class="dash-card-value">{{ total_requested_amount|money }}</div>
-            <div class="dash-card-note">All open and completed PCV requests</div>
+            <div class="dash-card-label">Total expenses <i class="fas fa-receipt tone-blue"></i></div>
+            <div class="dash-card-value">{{ total_expense_amount|money }}</div>
+            <div class="dash-card-note">{{ total_requested_amount|money }} total requested across all PCVs</div>
         </div>
         <div class="dash-card dash-card-accent">
             <div class="dash-card-label">Unliquidated exposure <i class="fas fa-triangle-exclamation tone-red"></i></div>
@@ -127,6 +127,31 @@
                     {% empty %}
                     {% endfor %}
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">My expense categories</h2>
+            <span class="badge badge-light border">{{ total_expense_amount|money }} total expense</span>
+        </div>
+        <div class="dash-panel-body">
+            <div class="dash-chart-list">
+                {% for row in staff_category_expenses %}
+                    <div class="dash-chart-row">
+                        <div class="dash-chart-meta">
+                            <span class="dash-chart-label">{{ row.expense_category__name|default:"Uncategorized" }}</span>
+                            <span class="dash-chart-value">{{ row.total|money }}</span>
+                        </div>
+                        <div class="dash-chart-track" aria-hidden="true">
+                            <div class="dash-chart-fill" style="width: {{ row.percent }}%;"></div>
+                        </div>
+                        <div class="dash-chart-note">{{ row.count }} voucher{{ row.count|pluralize }}</div>
+                    </div>
+                {% empty %}
+                    <div class="dash-empty">No expense category data yet.</div>
+                {% endfor %}
             </div>
         </div>
     </div>

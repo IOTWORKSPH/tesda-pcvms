@@ -1,63 +1,154 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Pending IAR Issuance | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-file-signature"></i>
+                Supply receiving queue
+            </div>
+            <h1 class="dash-title">Pending IAR issuance</h1>
+            <p class="dash-subtitle">
+                Convert approved petty cash purchases into accountable IAR records, prioritize older transactions, and keep the receiving trail audit-ready.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_supply' %}" class="dash-btn">
+                <i class="fas fa-table-columns"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:supply_items' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-warehouse"></i>
+                Registry
+            </a>
+        </div>
+    </div>
 
-<div class="container-fluid">
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Waiting for IAR <i class="fas fa-hourglass-half tone-amber"></i></div>
+            <div class="dash-card-value">{{ pending_count }}</div>
+            <div class="dash-card-note">{{ pending_amount|money }} approved for receiving</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Needs attention <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-value">{{ overdue_count }}</div>
+            <div class="dash-card-note">Approved purchases waiting 3+ days</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Ready today <i class="fas fa-circle-check tone-green"></i></div>
+            <div class="dash-card-value">{{ ready_count }}</div>
+            <div class="dash-card-note">Can be issued after document check</div>
+        </div>
+    </div>
 
-<h3>Pending IAR Issuance</h3>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Issuance workbench</h2>
+            <span class="badge {% if overdue_count %}badge-warning{% else %}badge-success{% endif %}">
+                {% if overdue_count %}Prioritize aging records{% else %}Queue healthy{% endif %}
+            </span>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="dash-toolbar">
+                <div class="input-group" style="max-width: 680px;">
+                    <input type="search"
+                           name="q"
+                           value="{{ search }}"
+                           placeholder="Search PCV, requester, category, or supplier"
+                           class="form-control">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit" aria-label="Search pending IAR">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <a href="{% url 'pettycash:supply_iar_pending' %}" class="dash-btn">
+                    <i class="fas fa-rotate-left"></i>
+                    Reset
+                </a>
+            </form>
 
-<form method="get" class="mb-3">
-    <input type="text"
-           name="q"
-           value="{{ search }}"
-           placeholder="Search PCV or Requester..."
-           class="form-control"
-           onkeyup="this.form.submit()">
-</form>
+            <div class="dash-list">
+                <div class="dash-list-item">
+                    <div>
+                        <strong>Issuance standard</strong>
+                        <div class="text-muted small">Verify requester, supplier, category, item lines, and amount before generating the IAR number.</div>
+                    </div>
+                    <span class="badge badge-light border">POST protected</span>
+                </div>
+            </div>
+        </div>
 
-<div class="card">
-<div class="card-body table-responsive">
-
-<table class="table table-bordered table-striped">
-<thead>
-<tr>
-    <th>Date</th>
-    <th>PCV No</th>
-    <th>Requester</th>
-    <th>Amount</th>
-    <th>Generate IAR</th>
-</tr>
-</thead>
-
-<tbody>
-{% for voucher in vouchers %}
-<tr>
-    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
-    <td>{{ voucher.pcv_no }}</td>
-    <td>{{ voucher.requester.get_full_name }}</td>
-    <td>{{ voucher.amount_requested|money }}</td>
-    <td>
-        <a href="{% url 'pettycash:generate_iar' voucher.uuid %}"
-           class="btn btn-sm btn-success">
-            Generate IAR
-        </a>
-    </td>
-</tr>
-{% empty %}
-<tr>
-    <td colspan="5" class="text-center">
-        No vouchers pending IAR issuance.
-    </td>
-</tr>
-{% endfor %}
-</tbody>
-
-</table>
-
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>PCV</th>
+                        <th>Requester</th>
+                        <th>Category / Supplier</th>
+                        <th>Items</th>
+                        <th>Age</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in vouchers %}
+                    <tr>
+                        <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <strong>{{ voucher.pcv_no|default:"Pending PCV" }}</strong>
+                            <div class="text-muted small">{{ voucher.get_transaction_type_display }}</div>
+                        </td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td class="text-truncate" style="max-width: 280px;">
+                            <strong>{{ voucher.expense_category.name }}</strong>
+                            <div class="text-muted small">{{ voucher.supplier.name|default:"No supplier encoded" }}</div>
+                        </td>
+                        <td>{{ voucher.item_count }}</td>
+                        <td>
+                            <span class="badge {% if voucher.days_waiting >= 3 %}badge-warning{% else %}badge-light border{% endif %}">
+                                {{ voucher.days_waiting }}d
+                            </span>
+                        </td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td class="text-right">
+                            <div class="btn-group" role="group" aria-label="IAR actions for {{ voucher.pcv_no }}">
+                                <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="Review voucher">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <form method="post"
+                                      action="{% url 'pettycash:generate_iar' voucher.uuid %}"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Generate IAR for this voucher?');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success" title="Generate IAR">
+                                        <i class="fas fa-file-circle-check"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="dash-empty">No approved purchases are waiting for IAR issuance.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
-</div>
-
-</div>
-
 {% endblock %}

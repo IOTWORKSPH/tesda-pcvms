@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load money %}
 
-{% block title %}Supply Dashboard | TESDA PCVMS{% endblock %}
+{% block title %}Supply Officer Dashboard | TESDA PCVMS{% endblock %}
 
 {% block extra_css %}
     {% include "partials/dashboard_styles.html" %}
@@ -12,12 +12,12 @@
     <div class="dash-hero">
         <div>
             <div class="dash-eyebrow">
-                <i class="fas fa-boxes-stacked"></i>
-                Supply officer workspace
+                <i class="fas fa-warehouse"></i>
+                Supply officer command center
             </div>
-            <h1 class="dash-title">IAR issuance and purchased item registry</h1>
+            <h1 class="dash-title">Receiving, IAR, and item accountability</h1>
             <p class="dash-subtitle">
-                Keep inspection and acceptance reports moving, monitor monthly issuance, and open the registry without hunting through menus.
+                Prioritize IAR issuance, keep accepted items traceable, and maintain a registry that supports audit, inspection, and multi-role work.
             </p>
         </div>
         <div class="dash-actions">
@@ -29,6 +29,12 @@
                 <i class="fas fa-warehouse"></i>
                 Registry
             </a>
+            {% if is_custodian %}
+                <a href="{% url 'users:dashboard_custodian' %}" class="dash-btn">
+                    <i class="fas fa-cash-register"></i>
+                    Custodian
+                </a>
+            {% endif %}
         </div>
     </div>
 
@@ -44,43 +50,112 @@
             <div class="dash-card-note">{{ issued_amount|money }} documented this month</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Items processed <i class="fas fa-box-open tone-blue"></i></div>
-            <div class="dash-card-value">{{ total_items }}</div>
-            <div class="dash-card-note">{{ processed_vouchers }} voucher{{ processed_vouchers|pluralize }} with IAR</div>
+            <div class="dash-card-label">Registry value <i class="fas fa-boxes-stacked tone-blue"></i></div>
+            <div class="dash-card-value">{{ registry_amount|money }}</div>
+            <div class="dash-card-note">{{ total_items }} purchased item{{ total_items|pluralize }} recorded</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">IAR completion <i class="fas fa-chart-simple tone-blue"></i></div>
+            <div class="dash-card-label">Completion <i class="fas fa-chart-simple tone-blue"></i></div>
             <div class="dash-card-value">{{ iar_completion_rate }}%</div>
-            <div class="dash-card-note">Processed vs. pending workload</div>
+            <div class="dash-card-note">{{ issued_today }} IAR issued today</div>
         </div>
     </div>
 
-    <div class="dash-panel">
-        <div class="dash-panel-header">
-            <h2 class="dash-panel-title">IAR workflow health</h2>
-            <a href="{% url 'pettycash:supply_iar_pending' %}" class="dash-btn">
-                <i class="fas fa-arrow-right"></i>
-                Process Queue
-            </a>
-        </div>
-        <div class="dash-panel-body">
-            <div class="dash-progress mb-3">
-                <div class="dash-progress-bar" style="width: {{ iar_completion_rate }}%"></div>
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Action queue</h2>
+                <span class="badge {% if pending_overdue_count %}badge-warning{% else %}badge-success{% endif %}">
+                    {{ pending_overdue_count }} aging
+                </span>
             </div>
-            <div class="dash-list">
-                <div class="dash-list-item">
-                    <div>
-                        <strong>Pending documents</strong>
-                        <div class="text-muted small">Approved vouchers without IAR number</div>
-                    </div>
-                    <span class="badge badge-warning">{{ pending_count }}</span>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for voucher in pending_aging_items %}
+                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">{{ voucher.pcv_no|default:"Pending PCV" }}</strong>
+                                <div class="text-muted small">{{ voucher.requester.get_full_name }} | {{ voucher.amount_requested|money }}</div>
+                            </div>
+                            <span class="badge {% if voucher.days_waiting >= 3 %}badge-warning{% else %}badge-light border{% endif %}">
+                                {{ voucher.days_waiting }}d
+                            </span>
+                        </a>
+                    {% empty %}
+                        <div class="dash-empty">No IAR documents waiting.</div>
+                    {% endfor %}
                 </div>
-                <div class="dash-list-item">
-                    <div>
-                        <strong>Registry depth</strong>
-                        <div class="text-muted small">Total purchased items recorded from issued IARs</div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Workflow health</h2>
+                <a href="{% url 'pettycash:supply_iar_pending' %}" class="dash-btn">
+                    <i class="fas fa-arrow-right"></i>
+                    Process queue
+                </a>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-progress mb-3">
+                    <div class="dash-progress-bar" style="width: {{ iar_completion_rate }}%"></div>
+                </div>
+                <div class="dash-list">
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Approved vouchers without IAR</strong>
+                            <div class="text-muted small">Needs Supply Officer issuance</div>
+                        </div>
+                        <span class="badge badge-warning">{{ pending_count }}</span>
                     </div>
-                    <span class="badge badge-primary">{{ total_items }}</span>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Vouchers with IAR</strong>
+                            <div class="text-muted small">Accepted into registry</div>
+                        </div>
+                        <span class="badge badge-primary">{{ processed_vouchers }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Multi-role workspace</h2>
+                <span class="badge badge-light border">Same account</span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% if is_custodian %}
+                        <a href="{% url 'users:dashboard_custodian' %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">Custodian dashboard</strong>
+                                <div class="text-muted small">Release cash, monitor ledger, and replenish funds.</div>
+                            </div>
+                            <i class="fas fa-arrow-right tone-blue"></i>
+                        </a>
+                    {% endif %}
+                    {% if is_staff %}
+                        <a href="{% url 'users:dashboard_staff' %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">Staff requests</strong>
+                                <div class="text-muted small">Create and track personal PCV requests.</div>
+                            </div>
+                            <i class="fas fa-arrow-right tone-blue"></i>
+                        </a>
+                    {% endif %}
+                    {% if is_inspection %}
+                        <a href="{% url 'users:dashboard_inspection' %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">Inspection workspace</strong>
+                                <div class="text-muted small">Review pending inspection and purchased items.</div>
+                            </div>
+                            <i class="fas fa-arrow-right tone-blue"></i>
+                        </a>
+                    {% endif %}
+                    {% if not is_custodian and not is_staff and not is_inspection %}
+                        <div class="dash-empty">No additional role workspace assigned.</div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -91,7 +166,7 @@
             <h2 class="dash-panel-title">Recent IAR records</h2>
             <a href="{% url 'pettycash:supply_items' %}" class="dash-btn">
                 <i class="fas fa-warehouse"></i>
-                Open Registry
+                Open registry
             </a>
         </div>
         <div class="table-responsive">
@@ -102,6 +177,7 @@
                         <th>PCV</th>
                         <th>IAR</th>
                         <th>Requester</th>
+                        <th>Items</th>
                         <th class="text-right">Amount</th>
                         <th class="text-right">View</th>
                     </tr>
@@ -113,18 +189,63 @@
                         <td><strong>{{ voucher.pcv_no }}</strong></td>
                         <td><span class="badge badge-success">{{ voucher.iar_no }}</span></td>
                         <td>{{ voucher.requester.get_full_name }}</td>
+                        <td>{{ voucher.item_count }}</td>
                         <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
                         <td class="text-right">
-                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary">
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary" title="View voucher">
                                 <i class="fas fa-eye"></i>
                             </a>
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="dash-empty">No IAR records found.</td></tr>
+                    <tr><td colspan="7" class="dash-empty">No IAR records found.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="dash-grid dash-grid-2">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Top requesters</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for row in top_requesters %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ row.requester__first_name }} {{ row.requester__last_name }}</strong>
+                                <div class="text-muted small">{{ row.count }} IAR record{{ row.count|pluralize }}</div>
+                            </div>
+                            <strong>{{ row.total|money }}</strong>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No requester data yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Category mix</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for row in category_mix %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ row.expense_category__name|default:"Uncategorized" }}</strong>
+                                <div class="text-muted small">{{ row.count }} record{{ row.count|pluralize }}</div>
+                            </div>
+                            <strong>{{ row.total|money }}</strong>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No category data yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 </div>

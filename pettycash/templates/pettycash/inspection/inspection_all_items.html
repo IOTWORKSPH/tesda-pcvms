@@ -1,55 +1,150 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Purchased Item Registry | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-boxes-stacked"></i>
+                Inspection item registry
+            </div>
+            <h1 class="dash-title">Purchased item verification</h1>
+            <p class="dash-subtitle">
+                Scan item lines across vouchers, compare quantities and costs, and trace every item back to PCV, requester, supplier, and category.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_inspection' %}" class="dash-btn">
+                <i class="fas fa-table-columns"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:inspection_pending' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-list-check"></i>
+                Pending inspection
+            </a>
+        </div>
+    </div>
 
-<div class="container-fluid">
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Item lines <i class="fas fa-box-open tone-blue"></i></div>
+            <div class="dash-card-value">{{ item_count }}</div>
+            <div class="dash-card-note">Purchased items in inspection scope</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Item value <i class="fas fa-receipt tone-green"></i></div>
+            <div class="dash-card-value">{{ item_value|money }}</div>
+            <div class="dash-card-note">Quantity multiplied by unit cost</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Traceability <i class="fas fa-link tone-amber"></i></div>
+            <div class="dash-card-value">PCV</div>
+            <div class="dash-card-note">Every row links back to its voucher</div>
+        </div>
+    </div>
 
-<h3>All Purchased Items</h3>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Item registry</h2>
+            <span class="badge badge-light border">Swipe table on mobile</span>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="dash-toolbar">
+                <div class="input-group" style="max-width: 720px;">
+                    <input type="search"
+                           name="q"
+                           value="{{ search }}"
+                           placeholder="Search item, PCV, IAR, requester, supplier, or category"
+                           class="form-control">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit" aria-label="Search purchased items">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <a href="{% url 'pettycash:inspection_all_items' %}" class="dash-btn">
+                    <i class="fas fa-rotate-left"></i>
+                    Reset
+                </a>
+            </form>
+        </div>
 
-<form method="get" class="mb-3">
-    <input type="text"
-           name="q"
-           value="{{ search }}"
-           placeholder="Search item description or PCV No..."
-           class="form-control"
-           onkeyup="this.form.submit()">
-</form>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>PCV</th>
+                        <th>Item</th>
+                        <th>Requester</th>
+                        <th>Supplier / Category</th>
+                        <th class="text-right">Qty</th>
+                        <th>Unit</th>
+                        <th class="text-right">Unit Cost</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.voucher.pcv_no|default:"Pending PCV" }}</strong>
+                            <div class="text-muted small">{{ item.voucher.iar_no|default:"No IAR" }}</div>
+                        </td>
+                        <td class="text-truncate" style="max-width: 320px;">{{ item.description }}</td>
+                        <td>{{ item.voucher.requester.get_full_name }}</td>
+                        <td class="text-truncate" style="max-width: 280px;">
+                            <strong>{{ item.voucher.supplier.name|default:"No supplier" }}</strong>
+                            <div class="text-muted small">{{ item.voucher.expense_category.name }}</div>
+                        </td>
+                        <td class="text-right">{{ item.quantity }}</td>
+                        <td>{{ item.unit }}</td>
+                        <td class="text-right">{{ item.unit_cost|money }}</td>
+                        <td class="text-right font-weight-bold">{{ item.total_cost|money }}</td>
+                        <td class="text-right">
+                            <a href="{% url 'pettycash:pcv_detail' item.voucher.uuid %}"
+                               class="btn btn-sm btn-outline-primary"
+                               title="Review voucher">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" class="dash-empty">No purchased items found.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-<div class="card">
-<div class="card-body table-responsive">
-<table class="table table-bordered table-striped">
-
-<thead>
-<tr>
-    <th>PCV No</th>
-    <th>Description</th>
-    <th>Qty</th>
-    <th>Unit Cost</th>
-    <th>Total</th>
-</tr>
-</thead>
-
-<tbody>
-{% for item in items %}
-<tr>
-    <td>{{ item.voucher.pcv_no }}</td>
-    <td>{{ item.description }}</td>
-    <td>{{ item.quantity }}</td>
-    <td>{{ item.unit_cost|money }}</td>
-    <td>{{ item.total_amount|money }}</td>
-</tr>
-{% empty %}
-<tr>
-    <td colspan="5" class="text-center">No items found.</td>
-</tr>
-{% endfor %}
-</tbody>
-
-</table>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Category summary</h2>
+        </div>
+        <div class="dash-panel-body">
+            <div class="dash-list">
+                {% for row in category_summary %}
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>{{ row.voucher__expense_category__name|default:"Uncategorized" }}</strong>
+                            <div class="text-muted small">{{ row.count }} item line{{ row.count|pluralize }}</div>
+                        </div>
+                        <strong>{{ row.total|money }}</strong>
+                    </div>
+                {% empty %}
+                    <div class="dash-empty">No category summary yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
 </div>
-</div>
-
-</div>
-
 {% endblock %}

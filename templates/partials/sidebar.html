@@ -29,14 +29,24 @@
 
                 <li class="nav-item">
                     <a href="{% url 'users:role_redirect' %}"
-                       class="nav-link {% if request.resolver_match.url_name|slice:':10' == 'dashboard_' %}active{% endif %}"
-                       title="Dashboard">
+                       class="nav-link"
+                       title="Default Dashboard">
                         <i class="nav-icon fas fa-gauge-high"></i>
-                        <p>Dashboard</p>
+                        <p>Default Dashboard</p>
                     </a>
                 </li>
 
                 <li class="nav-header">Petty Cash</li>
+                {% if request.user|has_group:"Staff" %}
+                    <li class="nav-item">
+                        <a href="{% url 'users:dashboard_staff' %}"
+                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_staff' %}active{% endif %}"
+                           title="Staff Dashboard">
+                            <i class="nav-icon fas fa-table-columns"></i>
+                            <p>Dashboard</p>
+                        </a>
+                    </li>
+                {% endif %}
                 <li class="nav-item has-treeview {% if request.resolver_match.app_name == 'pettycash' and request.resolver_match.url_name in 'create_cash_advance create_reimbursement my_vouchers archived_vouchers' %}menu-open{% endif %}">
                     <a href="#"
                        class="nav-link {% if request.resolver_match.app_name == 'pettycash' and request.resolver_match.url_name in 'create_cash_advance create_reimbursement my_vouchers archived_vouchers' %}active{% endif %}"
@@ -85,6 +95,14 @@
 
                 {% if request.user|has_group:"Custodian" %}
                     <li class="nav-header">Custodian</li>
+                    <li class="nav-item">
+                        <a href="{% url 'users:dashboard_custodian' %}"
+                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_custodian' %}active{% endif %}"
+                           title="Custodian Dashboard">
+                            <i class="nav-icon fas fa-table-columns"></i>
+                            <p>Dashboard</p>
+                        </a>
+                    </li>
                     {% if has_active_fund %}
                         <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'custodian_release_list custodian_unliquidated custodian_fund_ledger replenishment_report replenishment_list create_replenishment replenishment_detail' %}menu-open{% endif %}">
                             <a href="#"
@@ -146,6 +164,14 @@
                 {% if request.user|has_group:"Inspection" %}
                     <li class="nav-header">Inspection Team</li>
                     <li class="nav-item">
+                        <a href="{% url 'users:dashboard_inspection' %}"
+                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_inspection' %}active{% endif %}"
+                           title="Inspection Dashboard">
+                            <i class="nav-icon fas fa-table-columns"></i>
+                            <p>Dashboard</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a href="{% url 'pettycash:inspection_pending' %}"
                            class="nav-link {% if request.resolver_match.url_name == 'inspection_pending' %}active{% endif %}"
                            title="Pending Inspection">
@@ -165,6 +191,14 @@
 
                 {% if request.user|has_group:"Supply" %}
                     <li class="nav-header">Supply Officer</li>
+                    <li class="nav-item">
+                        <a href="{% url 'users:dashboard_supply' %}"
+                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_supply' %}active{% endif %}"
+                           title="Supply Officer Dashboard">
+                            <i class="nav-icon fas fa-table-columns"></i>
+                            <p>Dashboard</p>
+                        </a>
+                    </li>
                     <li class="nav-item">
                         <a href="{% url 'pettycash:supply_items' %}"
                            class="nav-link {% if request.resolver_match.url_name == 'supply_items' %}active{% endif %}"
@@ -188,9 +222,9 @@
                     <li class="nav-item">
                         <a href="{% url 'users:dashboard_administrator' %}"
                            class="nav-link {% if request.resolver_match.url_name == 'dashboard_administrator' %}active{% endif %}"
-                           title="Administrator Panel">
+                           title="Administrator Dashboard">
                             <i class="nav-icon fas fa-user-tie"></i>
-                            <p>Administrator Panel</p>
+                            <p>Dashboard</p>
                         </a>
                     </li>
                     <li class="nav-item">

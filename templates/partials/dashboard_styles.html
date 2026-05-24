@@ -295,6 +295,58 @@
         margin-bottom: 14px;
     }
 
+    .pcv-dashboard .dash-chart-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .pcv-dashboard .dash-chart-row {
+        display: grid;
+        gap: 7px;
+    }
+
+    .pcv-dashboard .dash-chart-meta {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--dash-ink);
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+
+    .pcv-dashboard .dash-chart-label {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .pcv-dashboard .dash-chart-value {
+        flex: 0 0 auto;
+        text-align: right;
+    }
+
+    .pcv-dashboard .dash-chart-track {
+        height: 12px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e5edf6;
+    }
+
+    .pcv-dashboard .dash-chart-fill {
+        min-width: 8px;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--dash-blue), var(--dash-cyan));
+    }
+
+    .pcv-dashboard .dash-chart-note {
+        color: var(--dash-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
     .pcv-dashboard .tone-green { color: var(--dash-green); }
     .pcv-dashboard .tone-amber { color: var(--dash-amber); }
     .pcv-dashboard .tone-red { color: var(--dash-red); }
@@ -360,6 +412,10 @@
         .pcv-dashboard .dash-tab {
             flex: 0 0 auto;
             white-space: nowrap;
+        }
+
+        .pcv-dashboard .dash-chart-meta {
+            font-size: 0.84rem;
         }
     }
 </style>

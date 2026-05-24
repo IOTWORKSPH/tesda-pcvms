@@ -1,60 +1,164 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Pending Inspection | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-list-check"></i>
+                Inspection review queue
+            </div>
+            <h1 class="dash-title">Pending inspection and acceptance</h1>
+            <p class="dash-subtitle">
+                Review vouchers with purchased items, verify receipts and supplier details, and open IAR support documents from one workbench.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_inspection' %}" class="dash-btn">
+                <i class="fas fa-table-columns"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:inspection_all_items' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-boxes-stacked"></i>
+                Item registry
+            </a>
+        </div>
+    </div>
 
-<div class="container-fluid">
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Queue total <i class="fas fa-clipboard-list tone-blue"></i></div>
+            <div class="dash-card-value">{{ pending_count }}</div>
+            <div class="dash-card-note">{{ pending_amount|money }} awaiting acceptance</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Document ready <i class="fas fa-circle-check tone-green"></i></div>
+            <div class="dash-card-value">{{ document_ready }}</div>
+            <div class="dash-card-note">Have supplier, receipts, and items</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Aging records <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-value">{{ overdue_count }}</div>
+            <div class="dash-card-note">Waiting 7+ days</div>
+        </div>
+    </div>
 
-<h3>Pending Inspection</h3>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Inspection workbench</h2>
+            <span class="badge {% if overdue_count %}badge-warning{% else %}badge-success{% endif %}">
+                {% if overdue_count %}Prioritize aging{% else %}Queue healthy{% endif %}
+            </span>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="dash-toolbar">
+                <div class="input-group" style="max-width: 720px;">
+                    <input type="search"
+                           name="q"
+                           value="{{ search }}"
+                           placeholder="Search PCV, IAR, requester, supplier, or category"
+                           class="form-control">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit" aria-label="Search pending inspection">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <a href="{% url 'pettycash:inspection_pending' %}" class="dash-btn">
+                    <i class="fas fa-rotate-left"></i>
+                    Reset
+                </a>
+            </form>
 
-<form method="get" class="mb-3">
-    <input type="text"
-           name="q"
-           value="{{ search }}"
-           placeholder="Search PCV No or Requester..."
-           class="form-control"
-           onkeyup="this.form.submit()">
-</form>
+            <div class="dash-list">
+                <div class="dash-list-item">
+                    <div>
+                        <strong>Inspection checklist</strong>
+                        <div class="text-muted small">Confirm item description, quantity, receipt, supplier, category, and amount before endorsing acceptance.</div>
+                    </div>
+                    <span class="badge badge-light border">Audit trail ready</span>
+                </div>
+            </div>
+        </div>
 
-<div class="card">
-<div class="card-body table-responsive">
-<table class="table table-bordered table-hover">
-
-<thead>
-<tr>
-    <th>Date</th>
-    <th>PCV No</th>
-    <th>Requester</th>
-    <th>Amount</th>
-    <th>Action</th>
-</tr>
-</thead>
-
-<tbody>
-{% for voucher in vouchers %}
-<tr>
-    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
-    <td>{{ voucher.pcv_no }}</td>
-    <td>{{ voucher.requester.get_full_name }}</td>
-    <td>{{ voucher.amount_requested|money }}</td>
-    <td>
-        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-           class="btn btn-sm btn-info">
-            Inspect
-        </a>
-    </td>
-</tr>
-{% empty %}
-<tr>
-    <td colspan="5" class="text-center">No pending inspections.</td>
-</tr>
-{% endfor %}
-</tbody>
-
-</table>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>PCV</th>
+                        <th>Requester</th>
+                        <th>Supplier / Category</th>
+                        <th>Items</th>
+                        <th>Docs</th>
+                        <th>Age</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for voucher in vouchers %}
+                    <tr>
+                        <td>
+                            {% if voucher.purchase_date %}
+                                {{ voucher.purchase_date|date:"M d, Y" }}
+                            {% else %}
+                                {{ voucher.created_at|date:"M d, Y" }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ voucher.pcv_no|default:"Pending PCV" }}</strong>
+                            <div class="text-muted small">{{ voucher.get_transaction_type_display }}</div>
+                        </td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td class="text-truncate" style="max-width: 280px;">
+                            <strong>{{ voucher.supplier.name|default:"No supplier" }}</strong>
+                            <div class="text-muted small">{{ voucher.expense_category.name }}</div>
+                        </td>
+                        <td>{{ voucher.item_count }}</td>
+                        <td>
+                            <span class="badge {% if voucher.receipt_count %}badge-success{% else %}badge-light border{% endif %}">
+                                {{ voucher.receipt_count }} receipt{{ voucher.receipt_count|pluralize }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if voucher.days_waiting >= 7 %}badge-warning{% else %}badge-light border{% endif %}">
+                                {{ voucher.days_waiting }}d
+                            </span>
+                        </td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td class="text-right">
+                            <div class="btn-group" role="group" aria-label="Inspection actions for {{ voucher.pcv_no }}">
+                                <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                                   class="btn btn-sm btn-outline-primary"
+                                   title="Review voucher">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'pettycash:print_iar' voucher.uuid %}"
+                                   target="_blank"
+                                   rel="noopener noreferrer"
+                                   class="btn btn-sm btn-success"
+                                   title="Open IAR">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="9" class="dash-empty">No pending inspections.</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
-</div>
-
-</div>
-
 {% endblock %}

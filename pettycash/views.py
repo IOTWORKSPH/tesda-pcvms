@@ -15,7 +15,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 
 from django.db import transaction
-from django.db.models import Q, Sum, F, Min, Max
+from django.db.models import Q, Sum, F, Min, Max, Count
 
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -2457,24 +2457,58 @@ def inspection_pending(request):
     search = request.GET.get("q", "")
 
     vouchers = PettyCashVoucher.objects.filter(
+        Q(status=VoucherStatus.LIQUIDATED, is_posted_to_ledger=False) |
+        Q(
+            status=VoucherStatus.APPROVED,
+            transaction_type=TransactionType.REIMBURSEMENT,
+            is_posted_to_ledger=False,
+        ),
         entity=entity,
-        status=VoucherStatus.APPROVED,
-        transaction_type=TransactionType.REIMBURSEMENT,
-        is_posted_to_ledger=False
-    ).select_related("requester")
+    ).select_related(
+        "requester",
+        "supplier",
+        "expense_category",
+        "fund",
+    ).annotate(
+        item_count=Count("items", distinct=True),
+        receipt_count=Count("receipts", distinct=True),
+    )
 
     if search:
         vouchers = vouchers.filter(
             Q(pcv_no__icontains=search) |
+            Q(iar_no__icontains=search) |
             Q(requester__first_name__icontains=search) |
-            Q(requester__last_name__icontains=search)
+            Q(requester__last_name__icontains=search) |
+            Q(supplier__name__icontains=search) |
+            Q(expense_category__name__icontains=search) |
+            Q(expense_category__code__icontains=search)
         )
 
-    vouchers = vouchers.order_by("-created_at")
+    vouchers = vouchers.order_by("purchase_date", "created_at")
+
+    today = timezone.now().date()
+    overdue_count = 0
+    document_ready = 0
+    for voucher in vouchers:
+        reference_date = voucher.purchase_date or voucher.created_at.date()
+        voucher.days_waiting = (today - reference_date).days
+        if voucher.days_waiting >= 7:
+            overdue_count += 1
+        if voucher.item_count and voucher.receipt_count and voucher.supplier_id:
+            document_ready += 1
+
+    pending_amount = vouchers.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
 
     context = {
         "vouchers": vouchers,
         "search": search,
+        "pending_count": vouchers.count(),
+        "pending_amount": pending_amount,
+        "overdue_count": overdue_count,
+        "document_ready": document_ready,
     }
 
     return render(request, "pettycash/inspection/inspection_pending.html", context)
@@ -2497,19 +2531,42 @@ def inspection_all_items(request):
             VoucherStatus.POSTED,
             VoucherStatus.LIQUIDATED
         ]
-    ).select_related("voucher")
+    ).select_related(
+        "voucher",
+        "voucher__requester",
+        "voucher__supplier",
+        "voucher__expense_category",
+    )
 
     if search:
         items = items.filter(
             Q(description__icontains=search) |
-            Q(voucher__pcv_no__icontains=search)
+            Q(voucher__pcv_no__icontains=search) |
+            Q(voucher__iar_no__icontains=search) |
+            Q(voucher__requester__first_name__icontains=search) |
+            Q(voucher__requester__last_name__icontains=search) |
+            Q(voucher__supplier__name__icontains=search) |
+            Q(voucher__expense_category__name__icontains=search)
         )
 
     items = items.order_by("-voucher__created_at")
 
+    item_count = items.count()
+    item_value = sum((item.total_cost for item in items), Decimal("0.00"))
+
+    category_summary = items.values(
+        "voucher__expense_category__name"
+    ).annotate(
+        count=Count("id"),
+        total=Sum(F("quantity") * F("unit_cost")),
+    ).order_by("-count")[:5]
+
     context = {
         "items": items,
         "search": search,
+        "item_count": item_count,
+        "item_value": item_value,
+        "category_summary": category_summary,
     }
 
     return render(request, "pettycash/inspection/inspection_all_items.html", context)
@@ -2527,21 +2584,55 @@ def supply_items(request):
     vouchers = PettyCashVoucher.objects.filter(
         entity=entity,
         iar_no__isnull=False
-    ).select_related("requester")
+    ).select_related(
+        "requester",
+        "supplier",
+        "expense_category",
+        "fund",
+    ).annotate(
+        item_count=Count("items")
+    )
 
     if search:
         vouchers = vouchers.filter(
             Q(pcv_no__icontains=search) |
             Q(iar_no__icontains=search) |
             Q(requester__first_name__icontains=search) |
-            Q(requester__last_name__icontains=search)
+            Q(requester__last_name__icontains=search) |
+            Q(expense_category__name__icontains=search) |
+            Q(expense_category__code__icontains=search) |
+            Q(supplier__name__icontains=search)
         )
 
     vouchers = vouchers.order_by("-created_at")
 
+    registry_total = vouchers.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
+    total_items = PCVItem.objects.filter(
+        voucher__entity=entity,
+        voucher__iar_no__isnull=False
+    ).count()
+
+    latest_iar = vouchers.first()
+
+    requester_summary = vouchers.values(
+        "requester__first_name",
+        "requester__last_name",
+    ).annotate(
+        count=Count("id"),
+        total=Sum("amount_requested"),
+    ).order_by("-count", "-total")[:5]
+
     context = {
         "vouchers": vouchers,
         "search": search,
+        "registry_total": registry_total,
+        "total_items": total_items,
+        "latest_iar": latest_iar,
+        "requester_summary": requester_summary,
+        "record_count": vouchers.count(),
     }
 
     return render(request, "pettycash/supply/supply_items.html", context)
@@ -2560,20 +2651,45 @@ def supply_iar_pending(request):
         entity=entity,
         status=VoucherStatus.APPROVED,
         iar_no__isnull=True
-    ).select_related("requester")
+    ).select_related(
+        "requester",
+        "supplier",
+        "expense_category",
+        "fund",
+    ).annotate(
+        item_count=Count("items")
+    )
 
     if search:
         vouchers = vouchers.filter(
             Q(pcv_no__icontains=search) |
             Q(requester__first_name__icontains=search) |
-            Q(requester__last_name__icontains=search)
+            Q(requester__last_name__icontains=search) |
+            Q(expense_category__name__icontains=search) |
+            Q(expense_category__code__icontains=search) |
+            Q(supplier__name__icontains=search)
         )
 
-    vouchers = vouchers.order_by("-created_at")
+    vouchers = vouchers.order_by("created_at")
+
+    today = timezone.now().date()
+    pending_amount = vouchers.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
+
+    overdue_count = 0
+    for voucher in vouchers:
+        voucher.days_waiting = (today - voucher.created_at.date()).days
+        if voucher.days_waiting >= 3:
+            overdue_count += 1
 
     context = {
         "vouchers": vouchers,
         "search": search,
+        "pending_count": vouchers.count(),
+        "pending_amount": pending_amount,
+        "overdue_count": overdue_count,
+        "ready_count": max(vouchers.count() - overdue_count, 0),
     }
 
     return render(request, "pettycash/supply/supply_iar_pending.html", context)
@@ -2583,6 +2699,10 @@ def generate_iar(request, uuid):
 
     if not request.user.has_role("Supply"):
         return render(request, "403.html", status=403)
+
+    if request.method != "POST":
+        messages.error(request, "Use the issuance action button to generate an IAR.")
+        return redirect("pettycash:supply_iar_pending")
 
     voucher = get_object_or_404(
         PettyCashVoucher,

@@ -1,66 +1,144 @@
 {% extends "base.html" %}
 {% load money %}
 
+{% block title %}Purchased Items Registry | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+{% endblock %}
+
 {% block content %}
+<div class="pcv-dashboard">
+    <div class="dash-hero">
+        <div>
+            <div class="dash-eyebrow">
+                <i class="fas fa-warehouse"></i>
+                Supply registry
+            </div>
+            <h1 class="dash-title">Purchased items registry</h1>
+            <p class="dash-subtitle">
+                Trace accepted items by PCV, IAR number, requester, category, and supplier for audit-ready receiving records.
+            </p>
+        </div>
+        <div class="dash-actions">
+            <a href="{% url 'users:dashboard_supply' %}" class="dash-btn">
+                <i class="fas fa-table-columns"></i>
+                Dashboard
+            </a>
+            <a href="{% url 'pettycash:supply_iar_pending' %}" class="dash-btn dash-btn-primary">
+                <i class="fas fa-file-signature"></i>
+                Pending IAR
+            </a>
+        </div>
+    </div>
 
-<div class="container-fluid">
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Registry records <i class="fas fa-inbox tone-blue"></i></div>
+            <div class="dash-card-value">{{ record_count }}</div>
+            <div class="dash-card-note">Vouchers with issued IAR</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Registered value <i class="fas fa-receipt tone-green"></i></div>
+            <div class="dash-card-value">{{ registry_total|money }}</div>
+            <div class="dash-card-note">Total accepted document value</div>
+        </div>
+        <div class="dash-card dash-card-accent">
+            <div class="dash-card-label">Item lines <i class="fas fa-boxes-stacked tone-amber"></i></div>
+            <div class="dash-card-value">{{ total_items }}</div>
+            <div class="dash-card-note">
+                {% if latest_iar %}Latest {{ latest_iar.iar_no }}{% else %}No IAR yet{% endif %}
+            </div>
+        </div>
+    </div>
 
-<h3>Purchased Items Registry</h3>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Registry records</h2>
+            <span class="badge badge-light border">Swipe table on mobile</span>
+        </div>
+        <div class="dash-panel-body">
+            <form method="get" class="dash-toolbar">
+                <div class="input-group" style="max-width: 640px;">
+                    <input type="search"
+                           name="q"
+                           value="{{ search }}"
+                           placeholder="Search PCV, IAR, requester, category, or supplier"
+                           class="form-control">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <a href="{% url 'pettycash:supply_items' %}" class="dash-btn">
+                    <i class="fas fa-rotate-left"></i>
+                    Reset
+                </a>
+            </form>
+        </div>
 
-<form method="get" class="mb-3">
-    <input type="text"
-           name="q"
-           value="{{ search }}"
-           placeholder="Search PCV, IAR or Requester..."
-           class="form-control"
-           onkeyup="this.form.submit()">
-</form>
+        <div class="table-responsive">
+            <table class="table table-hover dash-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>PCV</th>
+                        <th>IAR</th>
+                        <th>Requester</th>
+                        <th>Category</th>
+                        <th>Items</th>
+                        <th class="text-right">Amount</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in vouchers %}
+                    <tr>
+                        <td>{{ voucher.created_at|date:"M d, Y" }}</td>
+                        <td><strong>{{ voucher.pcv_no }}</strong></td>
+                        <td><span class="badge badge-success">{{ voucher.iar_no }}</span></td>
+                        <td>{{ voucher.requester.get_full_name }}</td>
+                        <td class="text-truncate" style="max-width: 240px;">{{ voucher.expense_category.name }}</td>
+                        <td>{{ voucher.item_count }}</td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
+                        <td class="text-right">
+                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
+                               class="btn btn-sm btn-outline-primary"
+                               title="View voucher">
+                               <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="dash-empty">No registered items found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-<div class="card">
-<div class="card-body table-responsive">
-
-<table class="table table-bordered table-hover">
-<thead>
-<tr>
-    <th>Date</th>
-    <th>PCV No</th>
-    <th>IAR No</th>
-    <th>Requester</th>
-    <th>Amount</th>
-    <th>View</th>
-</tr>
-</thead>
-
-<tbody>
-{% for voucher in vouchers %}
-<tr>
-    <td>{{ voucher.created_at|date:"M d, Y" }}</td>
-    <td>{{ voucher.pcv_no }}</td>
-    <td>
-        <span class="badge badge-success">
-            {{ voucher.iar_no }}
-        </span>
-    </td>
-    <td>{{ voucher.requester.get_full_name }}</td>
-    <td>{{ voucher.amount_requested|money }}</td>
-    <td>
-        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}"
-           class="btn btn-sm btn-info">
-           View
-        </a>
-    </td>
-</tr>
-{% empty %}
-<tr>
-    <td colspan="6" class="text-center">No registered items.</td>
-</tr>
-{% endfor %}
-</tbody>
-
-</table>
+    <div class="dash-panel">
+        <div class="dash-panel-header">
+            <h2 class="dash-panel-title">Requester summary</h2>
+        </div>
+        <div class="dash-panel-body">
+            <div class="dash-list">
+                {% for row in requester_summary %}
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>{{ row.requester__first_name }} {{ row.requester__last_name }}</strong>
+                            <div class="text-muted small">{{ row.count }} registry record{{ row.count|pluralize }}</div>
+                        </div>
+                        <strong>{{ row.total|money }}</strong>
+                    </div>
+                {% empty %}
+                    <div class="dash-empty">No requester summary yet.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
 </div>
-</div>
-
-</div>
-
 {% endblock %}

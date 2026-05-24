@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load money %}
 
-{% block title %}Inspection Dashboard | TESDA PCVMS{% endblock %}
+{% block title %}Inspection & Acceptance Dashboard | TESDA PCVMS{% endblock %}
 
 {% block extra_css %}
     {% include "partials/dashboard_styles.html" %}
@@ -13,54 +13,158 @@
         <div>
             <div class="dash-eyebrow">
                 <i class="fas fa-clipboard-check"></i>
-                Inspection and acceptance
+                Inspection and acceptance command center
             </div>
-            <h1 class="dash-title">Inspection queue and document readiness</h1>
+            <h1 class="dash-title">Acceptance queue and item verification</h1>
             <p class="dash-subtitle">
-                Monitor liquidated purchases awaiting inspection, identify overdue items, and open supporting documents quickly.
+                Prioritize vouchers ready for inspection, confirm item and receipt completeness, and keep IAR support documents easy to open.
             </p>
         </div>
         <div class="dash-actions">
             <a href="{% url 'pettycash:inspection_pending' %}" class="dash-btn dash-btn-primary">
                 <i class="fas fa-list-check"></i>
-                Pending Inspection
+                Review queue
             </a>
             <a href="{% url 'pettycash:inspection_all_items' %}" class="dash-btn">
                 <i class="fas fa-boxes-stacked"></i>
-                All Items
+                Item registry
             </a>
+            {% if is_supply %}
+                <a href="{% url 'users:dashboard_supply' %}" class="dash-btn">
+                    <i class="fas fa-warehouse"></i>
+                    Supply
+                </a>
+            {% endif %}
         </div>
     </div>
 
     <div class="dash-grid">
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Pending inspection <i class="fas fa-search tone-blue"></i></div>
+            <div class="dash-card-label">Pending acceptance <i class="fas fa-magnifying-glass tone-blue"></i></div>
             <div class="dash-card-value">{{ total_pending }}</div>
-            <div class="dash-card-note">Liquidated vouchers waiting for inspection</div>
+            <div class="dash-card-note">{{ total_pending_amount|money }} awaiting inspection action</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Overdue <i class="fas fa-triangle-exclamation tone-red"></i></div>
+            <div class="dash-card-label">Aging queue <i class="fas fa-triangle-exclamation tone-red"></i></div>
             <div class="dash-card-value">{{ overdue }}</div>
-            <div class="dash-card-note">{{ overdue_rate }}% of pending queue</div>
+            <div class="dash-card-note">{{ overdue_rate }}% waiting 7+ days</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Ready today <i class="fas fa-calendar-day tone-green"></i></div>
-            <div class="dash-card-value">{{ ready_today }}</div>
-            <div class="dash-card-note">Purchases dated today</div>
+            <div class="dash-card-label">Document ready <i class="fas fa-circle-check tone-green"></i></div>
+            <div class="dash-card-value">{{ document_ready }}</div>
+            <div class="dash-card-note">Have supplier, receipts, and item lines</div>
         </div>
         <div class="dash-card dash-card-accent">
-            <div class="dash-card-label">Pending amount <i class="fas fa-receipt tone-amber"></i></div>
-            <div class="dash-card-value">{{ total_pending_amount|money }}</div>
-            <div class="dash-card-note">Liquidated value awaiting inspection</div>
+            <div class="dash-card-label">Item coverage <i class="fas fa-box-open tone-amber"></i></div>
+            <div class="dash-card-value">{{ item_total }}</div>
+            <div class="dash-card-note">{{ inspected_count }} vouchers already carrying IAR records</div>
+        </div>
+    </div>
+
+    <div class="dash-grid dash-grid-3">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Priority queue</h2>
+                <span class="badge {% if overdue %}badge-danger{% else %}badge-success{% endif %}">
+                    {% if overdue %}Action needed{% else %}On track{% endif %}
+                </span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for voucher in pending_aging_items %}
+                        <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">{{ voucher.pcv_no|default:"Pending PCV" }}</strong>
+                                <div class="text-muted small">{{ voucher.requester.get_full_name }} | {{ voucher.amount_requested|money }}</div>
+                            </div>
+                            <span class="badge {% if voucher.days_waiting >= 7 %}badge-warning{% else %}badge-light border{% endif %}">
+                                {{ voucher.days_waiting }}d
+                            </span>
+                        </a>
+                    {% empty %}
+                        <div class="dash-empty">No vouchers waiting for acceptance.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Acceptance health</h2>
+                <a href="{% url 'pettycash:inspection_pending' %}" class="dash-btn">
+                    <i class="fas fa-arrow-right"></i>
+                    Process
+                </a>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-progress mb-3">
+                    <div class="dash-progress-bar" style="width: {{ overdue_rate }}%"></div>
+                </div>
+                <div class="dash-list">
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Ready for inspection</strong>
+                            <div class="text-muted small">Supplier, receipts, and item lines encoded</div>
+                        </div>
+                        <span class="badge badge-success">{{ document_ready }}</span>
+                    </div>
+                    <div class="dash-list-item">
+                        <div>
+                            <strong>Ready today</strong>
+                            <div class="text-muted small">Purchases dated today</div>
+                        </div>
+                        <span class="badge badge-primary">{{ ready_today }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Multi-role workspace</h2>
+                <span class="badge badge-light border">Same account</span>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% if is_staff %}
+                        <a href="{% url 'users:dashboard_staff' %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">Staff requests</strong>
+                                <div class="text-muted small">Create and track personal petty cash vouchers.</div>
+                            </div>
+                            <i class="fas fa-arrow-right tone-blue"></i>
+                        </a>
+                    {% endif %}
+                    {% if is_supply %}
+                        <a href="{% url 'users:dashboard_supply' %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">Supply workspace</strong>
+                                <div class="text-muted small">Issue IAR and manage accepted item registry.</div>
+                            </div>
+                            <i class="fas fa-arrow-right tone-blue"></i>
+                        </a>
+                    {% endif %}
+                    {% if is_custodian %}
+                        <a href="{% url 'users:dashboard_custodian' %}" class="dash-list-item text-decoration-none">
+                            <div>
+                                <strong class="text-dark">Custodian control</strong>
+                                <div class="text-muted small">Release cash, monitor ledger, and replenish funds.</div>
+                            </div>
+                            <i class="fas fa-arrow-right tone-blue"></i>
+                        </a>
+                    {% endif %}
+                    {% if not is_staff and not is_supply and not is_custodian %}
+                        <div class="dash-empty">No additional role workspace assigned.</div>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="dash-panel">
         <div class="dash-panel-header">
-            <h2 class="dash-panel-title">Priority queue</h2>
-            <span class="badge {% if overdue %}badge-danger{% else %}badge-success{% endif %}">
-                {% if overdue %}Action needed{% else %}On track{% endif %}
-            </span>
+            <h2 class="dash-panel-title">Inspection workbench</h2>
+            <span class="badge badge-light border">Swipe table on mobile</span>
         </div>
         <div class="table-responsive">
             <table class="table table-hover dash-table">
@@ -68,8 +172,9 @@
                     <tr>
                         <th>PCV</th>
                         <th>Requester</th>
-                        <th>Supplier</th>
-                        <th>Purchase Date</th>
+                        <th>Supplier / Category</th>
+                        <th>Items</th>
+                        <th>Age</th>
                         <th class="text-right">Amount</th>
                         <th class="text-right">Actions</th>
                     </tr>
@@ -77,26 +182,82 @@
                 <tbody>
                 {% for voucher in pending_inspection %}
                     <tr>
-                        <td><strong>{{ voucher.pcv_no }}</strong></td>
+                        <td>
+                            <strong>{{ voucher.pcv_no|default:"Pending PCV" }}</strong>
+                            <div class="text-muted small">{{ voucher.get_transaction_type_display }}</div>
+                        </td>
                         <td>{{ voucher.requester.get_full_name }}</td>
-                        <td>{{ voucher.supplier.name|default:"-" }}</td>
-                        <td>{{ voucher.purchase_date|default:"-" }}</td>
-                        <td class="text-right font-weight-bold">{{ voucher.amount_liquidated|money }}</td>
+                        <td class="text-truncate" style="max-width: 280px;">
+                            <strong>{{ voucher.supplier.name|default:"No supplier" }}</strong>
+                            <div class="text-muted small">{{ voucher.expense_category.name }}</div>
+                        </td>
+                        <td>{{ voucher.item_count }}</td>
+                        <td>
+                            <span class="badge {% if voucher.days_waiting >= 7 %}badge-warning{% else %}badge-light border{% endif %}">
+                                {{ voucher.days_waiting }}d
+                            </span>
+                        </td>
+                        <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
                         <td class="text-right">
-                            <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-eye"></i>
-                            </a>
-                            <a href="{% url 'pettycash:print_iar' voucher.uuid %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success">
-                                <i class="fas fa-print"></i>
-                                IAR
-                            </a>
+                            <div class="btn-group" role="group" aria-label="Inspection actions for {{ voucher.pcv_no }}">
+                                <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary" title="Review voucher">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'pettycash:print_iar' voucher.uuid %}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success" title="Open IAR">
+                                    <i class="fas fa-print"></i>
+                                </a>
+                            </div>
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="6" class="dash-empty">No vouchers pending inspection.</td></tr>
+                    <tr><td colspan="7" class="dash-empty">No vouchers pending inspection.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="dash-grid dash-grid-2">
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Supplier activity</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for row in supplier_summary %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ row.supplier__name|default:"No supplier" }}</strong>
+                                <div class="text-muted small">{{ row.count }} accepted voucher{{ row.count|pluralize }}</div>
+                            </div>
+                            <strong>{{ row.total|money }}</strong>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No supplier data yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <h2 class="dash-panel-title">Category mix</h2>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-list">
+                    {% for row in category_mix %}
+                        <div class="dash-list-item">
+                            <div>
+                                <strong>{{ row.expense_category__name|default:"Uncategorized" }}</strong>
+                                <div class="text-muted small">{{ row.count }} accepted voucher{{ row.count|pluralize }}</div>
+                            </div>
+                            <strong>{{ row.total|money }}</strong>
+                        </div>
+                    {% empty %}
+                        <div class="dash-empty">No category data yet.</div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
     </div>
 </div>
