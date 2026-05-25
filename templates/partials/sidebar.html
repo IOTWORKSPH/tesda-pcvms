@@ -38,18 +38,9 @@
 
                 <li class="nav-header">Petty Cash</li>
                 {% if request.user|has_group:"Staff" %}
-                    <li class="nav-item">
-                        <a href="{% url 'users:dashboard_staff' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_staff' %}active{% endif %}"
-                           title="Staff Dashboard">
-                            <i class="nav-icon fas fa-table-columns"></i>
-                            <p>Dashboard</p>
-                        </a>
-                    </li>
-                {% endif %}
-                <li class="nav-item has-treeview {% if request.resolver_match.app_name == 'pettycash' and request.resolver_match.url_name in 'create_cash_advance create_reimbursement my_vouchers archived_vouchers' %}menu-open{% endif %}">
+                <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'dashboard_staff create_cash_advance create_reimbursement my_vouchers archived_vouchers' %}menu-open{% endif %}">
                     <a href="#"
-                       class="nav-link {% if request.resolver_match.app_name == 'pettycash' and request.resolver_match.url_name in 'create_cash_advance create_reimbursement my_vouchers archived_vouchers' %}active{% endif %}"
+                       class="nav-link {% if request.resolver_match.url_name in 'dashboard_staff create_cash_advance create_reimbursement my_vouchers archived_vouchers' %}active{% endif %}"
                        title="Petty Cash Requests">
                         <i class="nav-icon fas fa-file-invoice"></i>
                         <p>
@@ -58,6 +49,14 @@
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'users:dashboard_staff' %}"
+                               class="nav-link {% if request.resolver_match.url_name == 'dashboard_staff' %}active{% endif %}"
+                               title="Staff Dashboard">
+                                <i class="nav-icon fas fa-table-columns"></i>
+                                <p>Dashboard</p>
+                            </a>
+                        </li>
                         <li class="nav-item">
                             <a href="{% url 'pettycash:create_cash_advance' %}"
                                class="nav-link {% if request.resolver_match.url_name == 'create_cash_advance' %}active{% endif %}"
@@ -92,21 +91,14 @@
                         </li>
                     </ul>
                 </li>
+                {% endif %}
 
                 {% if request.user|has_group:"Custodian" %}
                     <li class="nav-header">Custodian</li>
-                    <li class="nav-item">
-                        <a href="{% url 'users:dashboard_custodian' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_custodian' %}active{% endif %}"
-                           title="Custodian Dashboard">
-                            <i class="nav-icon fas fa-table-columns"></i>
-                            <p>Dashboard</p>
-                        </a>
-                    </li>
                     {% if has_active_fund %}
-                        <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'custodian_release_list custodian_unliquidated custodian_fund_ledger replenishment_report replenishment_list create_replenishment replenishment_detail' %}menu-open{% endif %}">
+                        <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'dashboard_custodian custodian_release_list custodian_unliquidated custodian_fund_ledger replenishment_report replenishment_list create_replenishment replenishment_detail' %}menu-open{% endif %}">
                             <a href="#"
-                               class="nav-link {% if request.resolver_match.url_name in 'custodian_release_list custodian_unliquidated custodian_fund_ledger replenishment_report replenishment_list create_replenishment replenishment_detail' %}active{% endif %}"
+                               class="nav-link {% if request.resolver_match.url_name in 'dashboard_custodian custodian_release_list custodian_unliquidated custodian_fund_ledger replenishment_report replenishment_list create_replenishment replenishment_detail' %}active{% endif %}"
                                title="Fund Management">
                                 <i class="nav-icon fas fa-cash-register"></i>
                                 <p>
@@ -115,6 +107,14 @@
                                 </p>
                             </a>
                             <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="{% url 'users:dashboard_custodian' %}"
+                                       class="nav-link {% if request.resolver_match.url_name == 'dashboard_custodian' %}active{% endif %}"
+                                       title="Custodian Dashboard">
+                                        <i class="nav-icon fas fa-table-columns"></i>
+                                        <p>Dashboard</p>
+                                    </a>
+                                </li>
                                 <li class="nav-item">
                                     <a href="{% url 'pettycash:custodian_release_list' %}"
                                        class="nav-link {% if request.resolver_match.url_name == 'custodian_release_list' %}active{% endif %}"
@@ -151,6 +151,14 @@
                         </li>
                     {% else %}
                         <li class="nav-item">
+                            <a href="{% url 'users:dashboard_custodian' %}"
+                               class="nav-link {% if request.resolver_match.url_name == 'dashboard_custodian' %}active{% endif %}"
+                               title="Custodian Dashboard">
+                                <i class="nav-icon fas fa-table-columns"></i>
+                                <p>Dashboard</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a href="{% url 'pettycash:create_initial_fund' %}"
                                class="nav-link text-warning {% if request.resolver_match.url_name == 'create_initial_fund' %}active{% endif %}"
                                title="Initialize Fund">
@@ -163,77 +171,116 @@
 
                 {% if request.user|has_group:"Inspection" %}
                     <li class="nav-header">Inspection Team</li>
-                    <li class="nav-item">
-                        <a href="{% url 'users:dashboard_inspection' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_inspection' %}active{% endif %}"
-                           title="Inspection Dashboard">
-                            <i class="nav-icon fas fa-table-columns"></i>
-                            <p>Dashboard</p>
+                    <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'dashboard_inspection inspection_pending inspection_all_items' %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if request.resolver_match.url_name in 'dashboard_inspection inspection_pending inspection_all_items' %}active{% endif %}"
+                           title="Inspection Team">
+                            <i class="nav-icon fas fa-clipboard-check"></i>
+                            <p>
+                                Inspection Team
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'pettycash:inspection_pending' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'inspection_pending' %}active{% endif %}"
-                           title="Pending Inspection">
-                            <i class="nav-icon fas fa-clipboard-check text-warning"></i>
-                            <p>Pending Inspection</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'pettycash:inspection_all_items' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'inspection_all_items' %}active{% endif %}"
-                           title="All Purchased Items">
-                            <i class="nav-icon fas fa-box-open text-info"></i>
-                            <p>All Purchased Items</p>
-                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{% url 'users:dashboard_inspection' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'dashboard_inspection' %}active{% endif %}"
+                                   title="Inspection Dashboard">
+                                    <i class="nav-icon fas fa-table-columns"></i>
+                                    <p>Dashboard</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'pettycash:inspection_pending' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'inspection_pending' %}active{% endif %}"
+                                   title="Pending Inspection">
+                                    <i class="nav-icon fas fa-clipboard-check text-warning"></i>
+                                    <p>Pending Inspection</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'pettycash:inspection_all_items' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'inspection_all_items' %}active{% endif %}"
+                                   title="All Purchased Items">
+                                    <i class="nav-icon fas fa-box-open text-info"></i>
+                                    <p>All Purchased Items</p>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 {% endif %}
 
                 {% if request.user|has_group:"Supply" %}
                     <li class="nav-header">Supply Officer</li>
-                    <li class="nav-item">
-                        <a href="{% url 'users:dashboard_supply' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_supply' %}active{% endif %}"
-                           title="Supply Officer Dashboard">
-                            <i class="nav-icon fas fa-table-columns"></i>
-                            <p>Dashboard</p>
+                    <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'dashboard_supply supply_items supply_iar_pending' %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if request.resolver_match.url_name in 'dashboard_supply supply_items supply_iar_pending' %}active{% endif %}"
+                           title="Supply Officer">
+                            <i class="nav-icon fas fa-warehouse"></i>
+                            <p>
+                                Supply Officer
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'pettycash:supply_items' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'supply_items' %}active{% endif %}"
-                           title="Purchased Items Registry">
-                            <i class="nav-icon fas fa-warehouse text-success"></i>
-                            <p>Purchased Items Registry</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'pettycash:supply_iar_pending' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'supply_iar_pending' %}active{% endif %}"
-                           title="Pending IAR Issuance">
-                            <i class="nav-icon fas fa-file-signature text-danger"></i>
-                            <p>Pending IAR Issuance</p>
-                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{% url 'users:dashboard_supply' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'dashboard_supply' %}active{% endif %}"
+                                   title="Supply Officer Dashboard">
+                                    <i class="nav-icon fas fa-table-columns"></i>
+                                    <p>Dashboard</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'pettycash:supply_items' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'supply_items' %}active{% endif %}"
+                                   title="Purchased Items Registry">
+                                    <i class="nav-icon fas fa-warehouse text-success"></i>
+                                    <p>Purchased Items Registry</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'pettycash:supply_iar_pending' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'supply_iar_pending' %}active{% endif %}"
+                                   title="Pending IAR Issuance">
+                                    <i class="nav-icon fas fa-file-signature text-danger"></i>
+                                    <p>Pending IAR Issuance</p>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 {% endif %}
 
                 {% if request.user|has_group:"Administrator" %}
                     <li class="nav-header">Administrator</li>
-                    <li class="nav-item">
-                        <a href="{% url 'users:dashboard_administrator' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'dashboard_administrator' %}active{% endif %}"
-                           title="Administrator Dashboard">
+                    <li class="nav-item has-treeview {% if request.resolver_match.url_name in 'dashboard_administrator user_list create_user create_entity_admin' %}menu-open{% endif %}">
+                        <a href="#"
+                           class="nav-link {% if request.resolver_match.url_name in 'dashboard_administrator user_list create_user create_entity_admin' %}active{% endif %}"
+                           title="Administrator">
                             <i class="nav-icon fas fa-user-tie"></i>
-                            <p>Dashboard</p>
+                            <p>
+                                Administrator
+                                <i class="right fas fa-angle-left"></i>
+                            </p>
                         </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{% url 'users:user_list' %}"
-                           class="nav-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}"
-                           title="User Management">
-                            <i class="nav-icon fas fa-users-cog"></i>
-                            <p>User Management</p>
-                        </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{% url 'users:dashboard_administrator' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'dashboard_administrator' %}active{% endif %}"
+                                   title="Administrator Dashboard">
+                                    <i class="nav-icon fas fa-table-columns"></i>
+                                    <p>Dashboard</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{% url 'users:user_list' %}"
+                                   class="nav-link {% if request.resolver_match.url_name == 'user_list' %}active{% endif %}"
+                                   title="User Management">
+                                    <i class="nav-icon fas fa-users-cog"></i>
+                                    <p>User Management</p>
+                                </a>
+                            </li>
+                        </ul>
                     </li>
                 {% endif %}
             </ul>
