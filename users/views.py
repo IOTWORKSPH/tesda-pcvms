@@ -632,6 +632,10 @@ def dashboard_administrator(request):
     active_replenishments = active_replenishment_queryset(
         Q(fund__entity=entity)
     )
+    active_replenishment_amount = active_replenishments.aggregate(
+        total=Sum("total_expenses")
+    )["total"] or Decimal("0.00")
+    latest_active_replenishment = active_replenishments.first()
 
     context = {
         "vouchers": vouchers,
@@ -662,7 +666,8 @@ def dashboard_administrator(request):
         "recent_logs": recent_logs,
         "active_replenishments": active_replenishments[:6],
         "active_replenishment_count": active_replenishments.count(),
-        "active_replenishment_records_enabled": False,
+        "active_replenishment_amount": active_replenishment_amount,
+        "latest_active_replenishment": latest_active_replenishment,
         "active_status": status_filter,
         "active_type": type_filter,
         "search_query": search_query,
@@ -723,6 +728,10 @@ def dashboard_custodian(request):
     active_replenishments = active_replenishment_queryset(Q(fund=fund))
     active_replenishment_count = active_replenishments.count()
     active_replenishment_exists = active_replenishment_count > 0
+    active_replenishment_amount = active_replenishments.aggregate(
+        total=Sum("total_expenses")
+    )["total"] or Decimal("0.00")
+    latest_active_replenishment = active_replenishments.first()
 
     show_replenishment_alert = (
         utilization_percent >= 75
@@ -910,7 +919,8 @@ def dashboard_custodian(request):
         "active_replenishment_exists": active_replenishment_exists,
         "active_replenishments": active_replenishments[:4],
         "active_replenishment_count": active_replenishment_count,
-        "active_replenishment_records_enabled": True,
+        "active_replenishment_amount": active_replenishment_amount,
+        "latest_active_replenishment": latest_active_replenishment,
 
         "unliquidated_amount": unliquidated_amount,
         "pending_finalization_amount": pending_finalization_amount,

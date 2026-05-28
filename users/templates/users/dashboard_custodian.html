@@ -45,8 +45,6 @@
         </div>
     {% endif %}
 
-    {% include "partials/active_replenishments.html" %}
-
     <div class="dash-grid">
         <div class="dash-card dash-card-accent">
             <div class="dash-card-label">Authorized fund <i class="fas fa-vault tone-blue"></i></div>
@@ -122,6 +120,22 @@
                        href="?queue=liquidation{% if search_query %}&q={{ search_query }}{% endif %}">
                         <div><strong>Liquidation review</strong><div class="text-muted small">Liquidated advances pending final check</div></div>
                         <span class="badge badge-warning">{{ for_liquidation_count }}</span>
+                    </a>
+                    <a class="dash-list-item text-decoration-none"
+                       href="{% if latest_active_replenishment %}{% url 'pettycash:replenishment_detail' latest_active_replenishment.pk %}{% else %}#{% endif %}">
+                        <div>
+                            <strong>On process for replenishment</strong>
+                            <div class="text-muted small">
+                                {% if latest_active_replenishment %}
+                                    {{ active_replenishment_amount|money }} | Created {{ latest_active_replenishment.created_at|date:"M d, Y" }}
+                                {% else %}
+                                    No draft or accounting-submitted package
+                                {% endif %}
+                            </div>
+                        </div>
+                        <span class="badge {% if latest_active_replenishment %}badge-warning{% else %}badge-light border{% endif %}">
+                            {{ active_replenishment_count }}
+                        </span>
                     </a>
                 </div>
             </div>

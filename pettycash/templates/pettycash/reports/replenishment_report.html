@@ -24,20 +24,14 @@
         <div class="dash-actions">
             <a href="{% url 'pettycash:replenishment_list' %}" class="dash-btn">
                 <i class="fas fa-folder-open"></i>
-                Records
+                View Replenishment Records
             </a>
-            <button type="submit" form="reportForm" formaction="{% url 'pettycash:replenishment_package_pdf' %}" class="dash-btn">
-                <i class="fas fa-file-pdf"></i>
-                PDF Package
-            </button>
-            <button type="submit" form="reportForm" formaction="{% url 'pettycash:replenishment_export_excel' %}" class="dash-btn">
-                <i class="fas fa-file-excel"></i>
-                Excel Reports
-            </button>
-            <button type="submit" form="reportForm" formaction="{% url 'pettycash:create_replenishment' %}" class="dash-btn dash-btn-primary">
-                <i class="fas fa-plus-circle"></i>
-                Create Draft
-            </button>
+            {% if eligible_count > 0 %}
+                <button type="submit" form="reportForm" formaction="{% url 'pettycash:create_replenishment' %}" class="dash-btn dash-btn-primary">
+                    <i class="fas fa-plus-circle"></i>
+                    Create Replenishment
+                </button>
+            {% endif %}
         </div>
     </div>
 
@@ -106,7 +100,7 @@
             <div class="dash-panel-header">
                 <div>
                     <h2 class="dash-panel-title">Eligible transactions</h2>
-                    <div class="text-muted small">Select rows for a custom package, or leave blank to include every filtered transaction in the PDF, Excel report, or draft.</div>
+                    <div class="text-muted small">Select rows for a custom package, or leave blank to include every filtered transaction in the replenishment draft.</div>
                 </div>
                 <div class="dash-actions">
                     <button type="button" id="select-visible" class="dash-btn">
