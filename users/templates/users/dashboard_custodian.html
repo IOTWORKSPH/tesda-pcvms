@@ -40,9 +40,12 @@
         </div>
     {% elif active_replenishment_exists %}
         <div class="alert alert-info shadow-sm">
-            A replenishment request is already being processed.
+            <strong>Replenishment in process.</strong>
+            A draft or accounting-submitted package is active for this fund.
         </div>
     {% endif %}
+
+    {% include "partials/active_replenishments.html" %}
 
     <div class="dash-grid">
         <div class="dash-card dash-card-accent">

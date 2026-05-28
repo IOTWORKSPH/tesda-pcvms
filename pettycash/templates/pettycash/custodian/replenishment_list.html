@@ -29,6 +29,46 @@
         </div>
     </div>
 
+    {% if active_replenishments %}
+        <div class="dash-panel">
+            <div class="dash-panel-header">
+                <div>
+                    <h2 class="dash-panel-title">Current Replenishment Process</h2>
+                    <div class="text-muted small">Draft and accounting-submitted packages stay visible here until release.</div>
+                </div>
+                <a href="{% url 'pettycash:replenishment_report' %}" class="dash-btn">
+                    <i class="fas fa-file-circle-plus"></i>
+                    Prepare Another
+                </a>
+            </div>
+            <div class="dash-panel-body">
+                <div class="dash-grid dash-grid-2 mb-0">
+                    {% for r in active_replenishments %}
+                        <a href="{% url 'pettycash:replenishment_detail' r.pk %}" class="dash-card text-decoration-none">
+                            <div class="dash-card-label">
+                                {{ r.report_number }}
+                                <span class="badge {% if r.status == 'DRAFT' %}badge-secondary{% else %}badge-warning{% endif %}">
+                                    {{ r.get_status_display }}
+                                </span>
+                            </div>
+                            <div class="dash-card-value">{{ r.total_expenses|money }}</div>
+                            <div class="dash-card-note">
+                                {{ r.voucher_count }} transaction{{ r.voucher_count|pluralize }} | Created {{ r.created_at|date:"M d, Y" }}
+                            </div>
+                            <div class="dash-card-note">
+                                {% if r.status == "DRAFT" %}
+                                    Review package documents, then submit to accounting.
+                                {% else %}
+                                    Submitted to accounting and waiting for release check details.
+                                {% endif %}
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     <div class="dash-grid">
         <div class="dash-card dash-card-accent">
             <div class="dash-card-label">Drafts <i class="fas fa-pen-to-square tone-blue"></i></div>
@@ -65,6 +105,7 @@
                         <th class="text-right">Expenses</th>
                         <th>Check</th>
                         <th>Status</th>
+                        <th>Next Step</th>
                         <th class="text-right">Actions</th>
                     </tr>
                 </thead>
@@ -87,21 +128,33 @@
                                 {{ r.get_status_display }}
                             </span>
                         </td>
+                        <td>
+                            {% if r.status == "DRAFT" %}
+                                <strong>Submit to Accounting</strong>
+                                <div class="text-muted small">Review and send the package for release processing.</div>
+                            {% elif r.status == "SUBMITTED_TO_ACCOUNTING" %}
+                                <strong>Record Release</strong>
+                                <div class="text-muted small">Enter check number, date, and amount once received.</div>
+                            {% else %}
+                                <strong>Completed</strong>
+                                <div class="text-muted small">Reports and supporting files are available.</div>
+                            {% endif %}
+                        </td>
                         <td class="text-right">
-                            <div class="btn-group btn-group-sm pcv-action-group">
-                                <a href="{% url 'pettycash:replenishment_detail' r.pk %}" class="btn btn-outline-primary" title="View">
+                            <div class="pcv-action-group pcv-premium-actions">
+                                <a href="{% url 'pettycash:replenishment_detail' r.pk %}" class="btn pcv-action-btn pcv-action-view" title="View package">
                                     <i class="fas fa-eye"></i>
                                 </a>
                                 {% if r.status == "DRAFT" %}
                                     <form method="post" action="{% url 'pettycash:delete_replenishment' r.pk %}" class="d-inline" onsubmit="return confirm('Delete this draft replenishment?');">
                                         {% csrf_token %}
-                                        <button class="btn btn-outline-danger" title="Delete draft">
+                                        <button class="btn pcv-action-btn pcv-action-danger" title="Delete draft">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 {% endif %}
                                 {% if r.status == "SUBMITTED_TO_ACCOUNTING" %}
-                                    <button class="btn btn-success" data-toggle="modal" data-target="#releaseModal{{ r.pk }}" title="Release replenishment">
+                                    <button class="btn pcv-action-btn pcv-action-success" data-toggle="modal" data-target="#releaseModal{{ r.pk }}" title="Record release">
                                         <i class="fas fa-wallet"></i>
                                     </button>
                                 {% endif %}
@@ -112,7 +165,7 @@
                         </td>
                     </tr>
                 {% empty %}
-                    <tr><td colspan="6" class="dash-empty">No replenishments yet.</td></tr>
+                    <tr><td colspan="7" class="dash-empty">No replenishments yet.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>

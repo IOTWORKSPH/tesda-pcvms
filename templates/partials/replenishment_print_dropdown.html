@@ -1,5 +1,5 @@
 <button type="button"
-        class="btn btn-sm btn-outline-secondary dropdown-toggle"
+        class="btn pcv-action-btn pcv-action-reports dropdown-toggle"
         data-toggle="dropdown"
         data-boundary="viewport"
         data-flip="false"
@@ -7,26 +7,36 @@
         aria-expanded="false"
         title="Replenishment reports">
     <i class="fas fa-print"></i>
-    Reports
+    <span>Reports</span>
 </button>
 <div class="dropdown-menu dropdown-menu-right shadow pcv-print-menu">
     <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" class="m-0">
         {% csrf_token %}
         <input type="hidden" name="replenishment_id" value="{{ replenishment.pk }}">
         <button type="submit" class="dropdown-item">
-            <i class="fas fa-file-pdf mr-2 text-danger"></i>Print PDF Package
+            <span class="pcv-menu-icon pcv-menu-icon-red"><i class="fas fa-file-pdf"></i></span>
+            <span>
+                <strong>Print PDF Package</strong>
+                <small>Complete audit-ready report</small>
+            </span>
         </button>
     </form>
     <form method="post" action="{% url 'pettycash:replenishment_export_excel' %}" class="m-0">
         {% csrf_token %}
         <input type="hidden" name="replenishment_id" value="{{ replenishment.pk }}">
         <button type="submit" class="dropdown-item">
-            <i class="fas fa-file-excel mr-2 text-success"></i>Report Workbook
-            <small class="d-block text-muted font-weight-normal">Appendix 49, 50, 51, summary, categories</small>
+            <span class="pcv-menu-icon pcv-menu-icon-green"><i class="fas fa-file-excel"></i></span>
+            <span>
+                <strong>Report Workbook</strong>
+                <small>Appendix 49, 50, 51, summary, categories</small>
+            </span>
         </button>
     </form>
     <a class="dropdown-item" href="{% url 'pettycash:replenishment_bundle_excel' replenishment.pk %}">
-        <i class="fas fa-file-archive mr-2 text-primary"></i>Supporting Excel ZIP
-        <small class="d-block text-muted font-weight-normal">PCV, PR, IAR, and CNRR files</small>
+        <span class="pcv-menu-icon pcv-menu-icon-blue"><i class="fas fa-file-archive"></i></span>
+        <span>
+            <strong>Supporting Excel ZIP</strong>
+            <small>PCV, PR, IAR, and CNRR files</small>
+        </span>
     </a>
 </div>

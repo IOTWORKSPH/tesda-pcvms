@@ -95,6 +95,22 @@ def apply_expense_monitor_filter(request, queryset, replenishments):
     }
 
 
+def active_replenishment_queryset(scope):
+    return (
+        Replenishment.objects
+        .filter(
+            scope,
+            status__in=[
+                ReplenishmentStatus.DRAFT,
+                ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING,
+            ],
+        )
+        .select_related("fund", "fund__custodian")
+        .annotate(voucher_count=Count("vouchers"))
+        .order_by("-created_at")
+    )
+
+
 def user_in_group(user, group_name):
     return user.groups.filter(name=group_name).exists()
 
@@ -613,6 +629,10 @@ def dashboard_administrator(request):
         entity=entity
     ).select_related("user")[:10]
 
+    active_replenishments = active_replenishment_queryset(
+        Q(fund__entity=entity)
+    )
+
     context = {
         "vouchers": vouchers,
         "for_approval": for_approval,
@@ -640,6 +660,9 @@ def dashboard_administrator(request):
         "requester_activity": requester_activity,
         "total_entity_expense": total_entity_expense,
         "recent_logs": recent_logs,
+        "active_replenishments": active_replenishments[:6],
+        "active_replenishment_count": active_replenishments.count(),
+        "active_replenishment_records_enabled": False,
         "active_status": status_filter,
         "active_type": type_filter,
         "search_query": search_query,
@@ -697,13 +720,9 @@ def dashboard_custodian(request):
     # CHECK IF REPLENISHMENT IS ALREADY IN PROCESS
     # =====================================================
 
-    active_replenishment_exists = Replenishment.objects.filter(
-        fund=fund,
-        status__in=[
-            ReplenishmentStatus.DRAFT,
-            ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING,
-        ]
-    ).exists()
+    active_replenishments = active_replenishment_queryset(Q(fund=fund))
+    active_replenishment_count = active_replenishments.count()
+    active_replenishment_exists = active_replenishment_count > 0
 
     show_replenishment_alert = (
         utilization_percent >= 75
@@ -889,6 +908,9 @@ def dashboard_custodian(request):
         "available_percent": available_percent,
         "show_replenishment_alert": show_replenishment_alert,
         "active_replenishment_exists": active_replenishment_exists,
+        "active_replenishments": active_replenishments[:4],
+        "active_replenishment_count": active_replenishment_count,
+        "active_replenishment_records_enabled": True,
 
         "unliquidated_amount": unliquidated_amount,
         "pending_finalization_amount": pending_finalization_amount,

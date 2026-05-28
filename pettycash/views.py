@@ -2139,7 +2139,16 @@ def replenishment_list(request):
 
     replenishments = Replenishment.objects.filter(
         fund=fund
+    ).annotate(
+        voucher_count=Count("vouchers")
     ).order_by("-created_at")
+
+    active_replenishments = replenishments.filter(
+        status__in=[
+            ReplenishmentStatus.DRAFT,
+            ReplenishmentStatus.SUBMITTED_TO_ACCOUNTING,
+        ]
+    )
 
     draft_count = replenishments.filter(status=ReplenishmentStatus.DRAFT).count()
     submitted_count = replenishments.filter(
@@ -2160,6 +2169,8 @@ def replenishment_list(request):
             "submitted_count": submitted_count,
             "released_count": released_count,
             "total_replenished": total_replenished,
+            "active_replenishments": active_replenishments,
+            "active_replenishment_count": active_replenishments.count(),
         }
     )
 
