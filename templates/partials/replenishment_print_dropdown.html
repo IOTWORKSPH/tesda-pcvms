@@ -5,19 +5,28 @@
         data-flip="false"
         aria-haspopup="true"
         aria-expanded="false"
-        title="Print package">
+        title="Replenishment reports">
     <i class="fas fa-print"></i>
-    Print
+    Reports
 </button>
 <div class="dropdown-menu dropdown-menu-right shadow pcv-print-menu">
-    <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" target="_blank" rel="noopener noreferrer" class="m-0">
+    <form method="post" action="{% url 'pettycash:replenishment_package_pdf' %}" class="m-0">
         {% csrf_token %}
         <input type="hidden" name="replenishment_id" value="{{ replenishment.pk }}">
         <button type="submit" class="dropdown-item">
-            <i class="fas fa-file-pdf mr-2 text-danger"></i>Package PDF
+            <i class="fas fa-file-pdf mr-2 text-danger"></i>Print PDF Package
+        </button>
+    </form>
+    <form method="post" action="{% url 'pettycash:replenishment_export_excel' %}" class="m-0">
+        {% csrf_token %}
+        <input type="hidden" name="replenishment_id" value="{{ replenishment.pk }}">
+        <button type="submit" class="dropdown-item">
+            <i class="fas fa-file-excel mr-2 text-success"></i>Report Workbook
+            <small class="d-block text-muted font-weight-normal">Appendix 49, 50, 51, summary, categories</small>
         </button>
     </form>
     <a class="dropdown-item" href="{% url 'pettycash:replenishment_bundle_excel' replenishment.pk %}">
-        <i class="fas fa-file-excel mr-2 text-success"></i>Excel Bundle
+        <i class="fas fa-file-archive mr-2 text-primary"></i>Supporting Excel ZIP
+        <small class="d-block text-muted font-weight-normal">PCV, PR, IAR, and CNRR files</small>
     </a>
 </div>

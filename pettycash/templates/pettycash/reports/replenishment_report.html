@@ -26,6 +26,14 @@
                 <i class="fas fa-folder-open"></i>
                 Records
             </a>
+            <button type="submit" form="reportForm" formaction="{% url 'pettycash:replenishment_package_pdf' %}" class="dash-btn">
+                <i class="fas fa-file-pdf"></i>
+                PDF Package
+            </button>
+            <button type="submit" form="reportForm" formaction="{% url 'pettycash:replenishment_export_excel' %}" class="dash-btn">
+                <i class="fas fa-file-excel"></i>
+                Excel Reports
+            </button>
             <button type="submit" form="reportForm" formaction="{% url 'pettycash:create_replenishment' %}" class="dash-btn dash-btn-primary">
                 <i class="fas fa-plus-circle"></i>
                 Create Draft
@@ -92,12 +100,13 @@
         {% csrf_token %}
         <input type="hidden" name="date_from" value="{{ date_from }}">
         <input type="hidden" name="date_to" value="{{ date_to }}">
+        <input type="hidden" name="q" value="{{ search_query }}">
 
         <div class="dash-panel">
             <div class="dash-panel-header">
                 <div>
                     <h2 class="dash-panel-title">Eligible transactions</h2>
-                    <div class="text-muted small">If nothing is selected, all filtered records will be included.</div>
+                    <div class="text-muted small">Select rows for a custom package, or leave blank to include every filtered transaction in the PDF, Excel report, or draft.</div>
                 </div>
                 <div class="dash-actions">
                     <button type="button" id="select-visible" class="dash-btn">

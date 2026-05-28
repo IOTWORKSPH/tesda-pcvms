@@ -192,6 +192,7 @@ def build_replenishment_context(request):
     else:
         raw_date_from = request.POST.get("date_from", "").strip()
         raw_date_to = request.POST.get("date_to", "").strip()
+        search_query = request.POST.get("q", "").strip()
         selected_ids = request.POST.getlist("selected_vouchers")
 
         date_from = parse_date(raw_date_from) if raw_date_from else None
@@ -208,6 +209,12 @@ def build_replenishment_context(request):
 
         if date_to:
             vouchers_qs = vouchers_qs.filter(purchase_date__lte=date_to)
+
+        if search_query:
+            vouchers_qs = vouchers_qs.filter(
+                Q(pcv_no__icontains=search_query)
+                | Q(purpose__icontains=search_query)
+            )
 
         if selected_ids:
             vouchers_qs = vouchers_qs.filter(id__in=selected_ids)
