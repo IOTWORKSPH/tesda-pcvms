@@ -181,6 +181,14 @@
             background: #f8fbff;
         }
 
+        .pcv-reimbursement .refund-evidence-actions {
+            clear: both;
+            gap: 10px;
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid #e5edf6;
+        }
+
         @media (max-width: 991.98px) {
             .pcv-reimbursement .refund-summary-grid {
                 grid-template-columns: 1fr;
@@ -323,8 +331,8 @@
                                 <thead>
                                     <tr>
                                         <th>Description</th>
-                                        <th style="width: 110px;">Unit</th>
                                         <th style="width: 110px;">Qty</th>
+                                        <th style="width: 110px;">Unit</th>
                                         <th style="width: 140px;">Unit cost</th>
                                         <th class="text-right" style="width: 140px;">Total</th>
                                         <th style="width: 52px;"></th>
@@ -363,8 +371,8 @@
                             </div>
                         </div>
 
-                        <div class="d-flex justify-content-end flex-wrap">
-                            <a href="{% url 'users:dashboard_staff' %}" class="dash-btn mr-2">Cancel</a>
+                        <div class="refund-evidence-actions d-flex justify-content-end flex-wrap">
+                            <a href="{% url 'users:dashboard_staff' %}" class="dash-btn">Cancel</a>
                             <button type="submit" class="dash-btn dash-btn-primary">
                                 <i class="fas fa-save"></i>
                                 Save reimbursement draft
@@ -455,8 +463,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const row = document.createElement("tr");
         row.innerHTML = `
             <td><input name="item_description[]" class="form-control" placeholder="Item description" required></td>
-            <td><input name="item_unit[]" class="form-control" placeholder="pcs" required></td>
             <td><input name="item_qty[]" type="number" step="0.01" min="0.01" class="form-control qty" placeholder="1" required></td>
+            <td><input name="item_unit[]" class="form-control" placeholder="pcs" required></td>
             <td><input name="item_unit_cost[]" type="number" step="0.01" min="0.01" class="form-control cost" placeholder="0.00" required></td>
             <td class="text-right font-weight-bold item-total refund-line-total">0.00</td>
             <td class="text-center">
