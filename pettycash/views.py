@@ -940,7 +940,8 @@ def edit_pcv(request, uuid):
 
                 pcv.supplier = supplier
 
-            pcv.save()
+            if pcv.transaction_type == "CASH_ADVANCE":
+                pcv.save()
 
             # =========================================
             # PROCESS ITEMS (REFUND ONLY)
@@ -951,11 +952,10 @@ def edit_pcv(request, uuid):
                 quantities = request.POST.getlist("item_qty[]")
                 units = request.POST.getlist("item_unit[]")
                 costs = request.POST.getlist("item_unit_cost[]")
-
-                # Delete all old items
-                pcv.items.all().delete()
+                has_cnrr = request.POST.get("has_cnrr") == "on"
 
                 total_amount = Decimal("0.00")
+                pending_items = []
 
                 for desc, qty, unit, cost in zip(descriptions, quantities, units, costs):
 
@@ -970,38 +970,54 @@ def edit_pcv(request, uuid):
                         line_total = qty * cost
                         total_amount += line_total
 
-                        PCVItem.objects.create(
-                            voucher=pcv,
-                            description=desc.strip(),
-                            quantity=qty,
-                            unit=unit.strip(),
-                            unit_cost=cost
+                        pending_items.append(
+                            {
+                                "description": desc.strip(),
+                                "quantity": qty,
+                                "unit": unit.strip(),
+                                "unit_cost": cost,
+                            }
                         )
 
-                # Update requested amount automatically for refund
-                pcv.amount_requested = total_amount
-                pcv.save()
+                if has_cnrr and total_amount > Decimal("300.00"):
+                    form.add_error("has_cnrr", "CNRR is only allowed for reimbursements not exceeding 300.00.")
+                    messages.error(request, "CNRR is only allowed for reimbursements not exceeding 300.00.")
+                else:
+                    # Update requested amount automatically for refund
+                    pcv.amount_requested = total_amount
+                    pcv.has_cnrr = has_cnrr
+                    pcv.save()
+
+                    # Delete all old items after validation succeeds.
+                    pcv.items.all().delete()
+
+                    for item in pending_items:
+                        PCVItem.objects.create(
+                            voucher=pcv,
+                            **item
+                        )
 
             # =========================================
             # HANDLE RECEIPT REPLACEMENT
             # =========================================
-            new_receipt = request.FILES.get("receipt")
+            if not form.errors:
+                new_receipt = request.FILES.get("receipt")
 
-            if new_receipt:
+                if new_receipt:
 
-                for old in pcv.receipts.all():
-                    if old.file:
-                        old.file.delete(save=False)
-                    old.delete()
+                    for old in pcv.receipts.all():
+                        if old.file:
+                            old.file.delete(save=False)
+                        old.delete()
 
-                ReceiptAttachment.objects.create(
-                    voucher=pcv,
-                    file=new_receipt,
-                    uploaded_by=request.user
-                )
+                    ReceiptAttachment.objects.create(
+                        voucher=pcv,
+                        file=new_receipt,
+                        uploaded_by=request.user
+                    )
 
-            messages.success(request, "Draft updated successfully.")
-            return redirect("pettycash:pcv_detail", uuid=pcv.uuid)
+                messages.success(request, "Draft updated successfully.")
+                return redirect("pettycash:pcv_detail", uuid=pcv.uuid)
 
         else:
             messages.error(request, "Please fix the errors below.")

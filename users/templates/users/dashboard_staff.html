@@ -203,6 +203,14 @@
                                         <a href="{% url 'pettycash:edit_pcv' pcv.uuid %}" class="btn btn-outline-warning" title="Edit">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        <form method="post"
+                                              action="{% url 'pettycash:delete_pcv' pcv.uuid %}"
+                                              class="d-inline js-draft-delete-form">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
                                     {% endif %}
                                     {% if pcv.transaction_type == "CASH_ADVANCE" and pcv.status == "RELEASED" %}
                                         <a href="{% url 'pettycash:liquidate_cash_advance' pcv.uuid %}" class="btn btn-outline-success" title="Liquidate">
@@ -232,4 +240,5 @@
         {% include "partials/expense_monitoring.html" %}
     {% endwith %}
 </div>
+{% include "partials/draft_delete_modal.html" %}
 {% endblock %}

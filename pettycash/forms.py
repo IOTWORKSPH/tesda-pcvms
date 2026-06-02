@@ -152,6 +152,14 @@ class RefundForm(forms.ModelForm):
         })
     )
 
+    has_cnrr = forms.BooleanField(
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            "class": "custom-control-input",
+            "id": "hasCNRR",
+        })
+    )
+
     class Meta:
         model = PettyCashVoucher
         fields = [
@@ -160,6 +168,7 @@ class RefundForm(forms.ModelForm):
             "expense_category",
             "fund",
             "official_receipt_number",
+            "has_cnrr",
         ]
 
         widgets = {
@@ -228,6 +237,7 @@ class RefundForm(forms.ModelForm):
         purchase_date = cleaned_data.get("purchase_date")
         supplier_name = cleaned_data.get("supplier_name")
         receipt_no = cleaned_data.get("official_receipt_number")
+        has_cnrr = cleaned_data.get("has_cnrr")
 
         if not purchase_date:
             raise forms.ValidationError("Purchase date is required.")
@@ -235,7 +245,7 @@ class RefundForm(forms.ModelForm):
         if not supplier_name:
             raise forms.ValidationError("Supplier name is required.")
 
-        if not receipt_no:
+        if not has_cnrr and not receipt_no:
             raise forms.ValidationError("Official receipt number is required.")
 
         return cleaned_data

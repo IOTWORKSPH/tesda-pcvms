@@ -1,344 +1,510 @@
 {% extends "base.html" %}
 {% load humanize %}
+{% load money %}
 
-{% block title %}Edit Draft | PCV{% endblock %}
+{% block title %}Edit Draft | TESDA PCVMS{% endblock %}
+
+{% block extra_css %}
+    {% include "partials/dashboard_styles.html" %}
+    <style>
+        .pcv-edit {
+            --edit-navy: #102a43;
+            --edit-blue: #0877d9;
+            --edit-cyan: #18a7c9;
+            --edit-mint: #14b8a6;
+            --edit-red: #dc2626;
+        }
+
+        .pcv-edit .dash-hero {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
+            background: linear-gradient(135deg, rgba(16, 42, 67, 0.97), rgba(8, 119, 217, 0.92) 62%, rgba(20, 184, 166, 0.9));
+            box-shadow: 0 24px 60px rgba(16, 42, 67, 0.22);
+        }
+
+        .pcv-edit .dash-hero .dash-eyebrow,
+        .pcv-edit .dash-hero .dash-subtitle {
+            color: rgba(255, 255, 255, 0.84);
+        }
+
+        .pcv-edit .dash-hero .dash-btn {
+            color: #fff;
+            border-color: rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+        }
+
+        .pcv-edit .edit-shell {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 330px;
+            gap: 16px;
+        }
+
+        .pcv-edit .dash-panel {
+            border-color: #d8e5f3;
+            box-shadow: 0 18px 44px rgba(15, 23, 42, 0.07);
+        }
+
+        .pcv-edit .dash-panel-header {
+            background: linear-gradient(180deg, #fbfdff 0%, #f1f7ff 100%);
+        }
+
+        .pcv-edit .form-control {
+            min-height: 42px;
+            border-color: #cbdff5;
+            border-radius: 7px;
+            font-weight: 650;
+        }
+
+        .pcv-edit textarea.form-control {
+            min-height: 84px;
+        }
+
+        .pcv-edit .form-control:focus {
+            border-color: var(--edit-blue);
+            box-shadow: 0 0 0 0.18rem rgba(8, 119, 217, 0.14);
+        }
+
+        .pcv-edit .edit-lines-panel .dash-panel-body {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .pcv-edit .edit-lines-panel .table-responsive {
+            padding-bottom: 0;
+        }
+
+        .pcv-edit .edit-lines-actions,
+        .pcv-edit .edit-lines-footer {
+            padding: 14px 18px;
+            border-top: 1px solid #e5edf6;
+        }
+
+        .pcv-edit .edit-line-total {
+            color: var(--edit-navy);
+            font-weight: 900;
+        }
+
+        .pcv-edit .edit-evidence-box {
+            height: 100%;
+            border: 1px solid #d8e5f3;
+            border-radius: 8px;
+            background: #f8fbff;
+        }
+
+        .pcv-edit .edit-cnrr-box {
+            border-color: #bfdbfe;
+            background: linear-gradient(180deg, #f8fbff, #eff6ff);
+        }
+
+        .pcv-edit .edit-cnrr-state {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+            padding: 7px 10px;
+            border-radius: 6px;
+            background: #e0f2fe;
+            color: #075985;
+            font-size: 0.78rem;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .pcv-edit .edit-summary-panel {
+            position: sticky;
+            top: 78px;
+        }
+
+        .pcv-edit .edit-summary-total {
+            color: #fff;
+            border: 0;
+            background: linear-gradient(135deg, var(--edit-navy), var(--edit-blue));
+            box-shadow: 0 20px 44px rgba(8, 119, 217, 0.22);
+        }
+
+        .pcv-edit .edit-summary-total .dash-card-label,
+        .pcv-edit .edit-summary-total .dash-card-note {
+            color: rgba(255, 255, 255, 0.76);
+        }
+
+        .pcv-edit .edit-action-bar {
+            position: sticky;
+            bottom: 0;
+            z-index: 5;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 16px;
+            padding: 14px 18px;
+            border: 1px solid #d8e5f3;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 -12px 34px rgba(15, 23, 42, 0.08);
+            backdrop-filter: blur(10px);
+        }
+
+        @media (max-width: 991.98px) {
+            .pcv-edit .edit-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .pcv-edit .edit-summary-panel {
+                position: static;
+            }
+        }
+
+        @media (max-width: 575.98px) {
+            .pcv-edit .edit-action-bar {
+                flex-direction: column-reverse;
+            }
+        }
+    </style>
+{% endblock %}
 
 {% block content %}
-
-<div class="container-fluid">
-
-    <!-- ================= HEADER ================= -->
-    <div class="d-flex justify-content-between align-items-center mb-3">
+<div class="pcv-dashboard pcv-edit">
+    <div class="dash-hero">
         <div>
-            <h4 class="font-weight-bold text-primary mb-0">
-                Edit Draft Request
-            </h4>
-            <small class="text-muted">
-                Update before submission.
-            </small>
+            <div class="dash-eyebrow">
+                <i class="fas fa-edit"></i>
+                Draft transaction
+            </div>
+            <h1 class="dash-title">Edit draft request</h1>
+            <p class="dash-subtitle">Refine the voucher details, evidence mode, and itemized amount before submission.</p>
         </div>
-
-        <span class="badge badge-secondary px-3 py-2">
-            Draft
-        </span>
+        <div class="dash-actions">
+            <span class="badge badge-light px-3 py-2">Draft</span>
+            <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="dash-btn">
+                <i class="fas fa-arrow-left"></i>
+                Voucher
+            </a>
+        </div>
     </div>
 
-
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="editPcvForm">
         {% csrf_token %}
 
-        <div class="row">
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
 
-            <!-- ================= LEFT COLUMN ================= -->
-            <div class="col-md-8">
-
-                <!-- ================= BASIC INFO ================= -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white font-weight-bold">
-                        Basic Information
+        <div class="edit-shell">
+            <div>
+                <div class="dash-panel">
+                    <div class="dash-panel-header">
+                        <h2 class="dash-panel-title">Basic information</h2>
                     </div>
-
-                    <div class="card-body">
-
-                        <div class="form-group">
-                            <label>Petty Cash Fund</label>
-                            {{ form.fund }}
+                    <div class="dash-panel-body">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Petty cash fund</label>
+                                {{ form.fund }}
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label class="dash-field-label">Expense category</label>
+                                {{ form.expense_category }}
+                                {% if pcv.expense_category.description %}
+                                    <div class="dash-help">{{ pcv.expense_category.description }}</div>
+                                {% endif %}
+                            </div>
                         </div>
 
                         <div class="form-group">
-                            <label>Expense Category</label>
-                            {{ form.expense_category }}
-                        </div>
-
-                        <div class="form-group">
-                            <label>Purpose</label>
+                            <label class="dash-field-label">Purpose</label>
                             {{ form.purpose }}
                         </div>
 
                         {% if pcv.transaction_type == "CASH_ADVANCE" %}
                             <div class="form-group">
-                                <label>Amount Requested</label>
+                                <label class="dash-field-label">Amount requested</label>
                                 {{ form.amount_requested }}
                             </div>
                         {% endif %}
 
                         {% if pcv.transaction_type == "REIMBURSEMENT" %}
-                        <div class="row">
-
-                            <div class="col-md-6 form-group">
-                                <label>Purchase Date</label>
-                                {{ form.purchase_date }}
+                            <div class="form-row">
+                                <div class="form-group col-md-4">
+                                    <label class="dash-field-label">Purchase date</label>
+                                    {{ form.purchase_date }}
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label class="dash-field-label">Official receipt no.</label>
+                                    {{ form.official_receipt_number }}
+                                    <div class="dash-help">Required when CNRR is excluded.</div>
+                                </div>
+                                <div class="form-group col-md-4">
+                                    <label class="dash-field-label">Supplier</label>
+                                    {{ form.supplier_name }}
+                                    <div class="dash-help">New suppliers are created automatically.</div>
+                                </div>
                             </div>
-
-                            <div class="col-md-6 form-group">
-                                <label>Official Receipt No.</label>
-                                {{ form.official_receipt_number }}
-                            </div>
-
-                            <div class="col-md-12 form-group">
-                                <label>Supplier</label>
-                                {{ form.supplier_name }}
-                                <small class="text-muted">
-                                    If not existing, supplier will be created automatically.
-                                </small>
-                            </div>
-
-                        </div>
                         {% endif %}
-
                     </div>
                 </div>
 
-
                 {% if pcv.transaction_type == "REIMBURSEMENT" %}
-                <!-- ================= ITEMS ================= -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center">
-                        Purchased Items
-                    </div>
-
-                    <div class="card-body p-0">
-
-                        {{ formset.management_form }}
-
-                        <div class="table-responsive">
-                            <table class="table table-bordered mb-0" id="itemsTable">
-                                <thead class="thead-light">
-                                    <tr>
-                                        <th>Description</th>
-                                        <th width="100">Qty</th>
-                                        <th width="100">Unit</th>
-                                        <th width="120">Unit Cost</th>
-                                        <th width="140" class="text-right">Total</th>
-                                        <th width="60"></th>
-                                    </tr>
-                                </thead>
-
-                                <tbody>
-                                    {% for item in pcv.items.all %}
-                                    <tr>
-                                        <td>
-                                            <input name="item_description[]"
-                                                value="{{ item.description }}"
-                                                class="form-control">
-                                        </td>
-                                        <td>
-                                            <input name="item_qty[]"
-                                                value="{{ item.quantity }}"
-                                                class="form-control qty">
-                                        </td>
-                                        <td>
-                                            <input name="item_unit[]"
-                                                value="{{ item.unit }}"
-                                                class="form-control">
-                                        </td>
-                                        <td>
-                                            <input name="item_unit_cost[]"
-                                                value="{{ item.unit_cost }}"
-                                                class="form-control unit-cost">
-                                        </td>
-                                        <td class="item-total text-right">
-                                            {{ item.total_cost }}
-                                        </td>
-                                        <td class="text-center">
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-danger remove-row">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {% empty %}
-                                    <tr>
-                                        <td><input name="item_description[]" class="form-control"></td>
-                                        <td><input name="item_qty[]" class="form-control qty"></td>
-                                        <td><input name="item_unit[]" class="form-control"></td>
-                                        <td><input name="item_unit_cost[]" class="form-control unit-cost"></td>
-                                        <td class="item-total text-right">0.00</td>
-                                        <td class="text-center">
-                                            <button type="button"
-                                                    class="btn btn-sm btn-outline-danger remove-row">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
+                    <div class="dash-panel edit-lines-panel">
+                        <div class="dash-panel-header">
+                            <h2 class="dash-panel-title">Purchased items</h2>
+                        </div>
+                        <div class="dash-panel-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover dash-table mb-0" id="itemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Description</th>
+                                            <th style="width: 110px;">Qty</th>
+                                            <th style="width: 110px;">Unit</th>
+                                            <th style="width: 140px;">Unit cost</th>
+                                            <th class="text-right" style="width: 140px;">Total</th>
+                                            <th style="width: 52px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in pcv.items.all %}
+                                            <tr>
+                                                <td><input name="item_description[]" value="{{ item.description }}" class="form-control" placeholder="Item description" required></td>
+                                                <td><input name="item_qty[]" value="{{ item.quantity }}" type="number" step="0.01" min="0.01" class="form-control qty" placeholder="1" required></td>
+                                                <td><input name="item_unit[]" value="{{ item.unit }}" class="form-control" placeholder="pcs" required></td>
+                                                <td><input name="item_unit_cost[]" value="{{ item.unit_cost }}" type="number" step="0.01" min="0.01" class="form-control unit-cost" placeholder="0.00" required></td>
+                                                <td class="item-total edit-line-total text-right">0.00</td>
+                                                <td class="text-center">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove item">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% empty %}
+                                            <tr>
+                                                <td><input name="item_description[]" class="form-control" placeholder="Item description" required></td>
+                                                <td><input name="item_qty[]" type="number" step="0.01" min="0.01" class="form-control qty" placeholder="1" required></td>
+                                                <td><input name="item_unit[]" class="form-control" placeholder="pcs" required></td>
+                                                <td><input name="item_unit_cost[]" type="number" step="0.01" min="0.01" class="form-control unit-cost" placeholder="0.00" required></td>
+                                                <td class="item-total edit-line-total text-right">0.00</td>
+                                                <td class="text-center">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove item">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
                                     </tbody>
-
-                            </table>
-                            <div class="card-header bg-white font-weight-bold d-flex justify-content-between align-items-center">
-                                <button type="button"
-                                    class="btn btn-sm btn-outline-primary"
-                                    id="addRowBtn">
-                                    <i class="fas fa-plus mr-1"></i> Add Item
+                                </table>
+                            </div>
+                            <div class="edit-lines-actions">
+                                <button type="button" class="dash-btn" id="addRowBtn">
+                                    <i class="fas fa-plus"></i>
+                                    Add item
                                 </button>
                             </div>
-                            
-                        </div>
-
-                        <div class="p-3 text-right">
-                            <strong>
-                                Total Items:
-                                ₱ <span id="grandTotal">0.00</span>
-                            </strong>
-                        </div>
-
-                    </div>
-                </div>
-                {% endif %}
-
-
-                {% if pcv.transaction_type == "REIMBURSEMENT" %}
-                <!-- ================= RECEIPT ================= -->
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white font-weight-bold">
-                        Receipt Attachment
-                    </div>
-
-                    <div class="card-body">
-
-                        {% if pcv.receipts.exists %}
-                            <div class="alert alert-info">
-                                Uploading a new receipt will permanently replace the old one.
+                            <div class="edit-lines-footer d-flex justify-content-between align-items-center flex-wrap">
+                                <div class="dash-help">Line totals update automatically as you type.</div>
+                                <h5 class="mb-0 font-weight-bold">Total items: <span id="grandTotal">0.00</span></h5>
                             </div>
-
-                            <ul class="list-group mb-3">
-                                {% for receipt in pcv.receipts.all %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ receipt.file.name|cut:"receipts/" }}
-                                    <a href="{{ receipt.file.url }}"
-                                       target="_blank" rel="noopener noreferrer"
-                                       class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye mr-1"></i> View
-                                    </a>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-
-                        <div class="form-group">
-                            <label>Upload New Receipt</label>
-                            <input type="file"
-                                   name="receipt"
-                                   class="form-control"
-                                   accept="image/*,.pdf">
                         </div>
-
                     </div>
-                </div>
+
+                    <div class="dash-panel">
+                        <div class="dash-panel-header">
+                            <h2 class="dash-panel-title">Evidence</h2>
+                        </div>
+                        <div class="dash-panel-body">
+                            {% if form.has_cnrr.errors %}
+                                <div class="alert alert-danger">{{ form.has_cnrr.errors }}</div>
+                            {% endif %}
+                            <div class="form-row">
+                                <div class="form-group col-md-6">
+                                    <label class="dash-field-label">Receipt attachment</label>
+                                    <div class="edit-evidence-box p-3">
+                                        {% if pcv.receipts.exists %}
+                                            <div class="dash-help mb-2">Uploading a new receipt will replace the current file.</div>
+                                            {% for receipt in pcv.receipts.all %}
+                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                    <strong class="text-truncate mr-2">{{ receipt.file.name|cut:"receipts/" }}</strong>
+                                                    <a href="{{ receipt.file.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary" title="View receipt">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            {% endfor %}
+                                        {% endif %}
+                                        <input type="file" name="receipt" class="form-control" accept="image/*,.pdf">
+                                    </div>
+                                </div>
+                                <div class="form-group col-md-6">
+                                    <label class="dash-field-label">CNRR option</label>
+                                    <div class="edit-evidence-box edit-cnrr-box p-3">
+                                        <div class="custom-control custom-checkbox">
+                                            <input class="custom-control-input" type="checkbox" name="has_cnrr" id="hasCNRR" {% if form.is_bound %}{% if form.has_cnrr.value %}checked{% endif %}{% elif pcv.has_cnrr %}checked{% endif %}>
+                                            <label class="custom-control-label font-weight-bold" for="hasCNRR">Include CNRR for this reimbursement</label>
+                                        </div>
+                                        <div class="dash-help mt-2">Unchecked means CNRR is excluded and the request follows the official receipt path.</div>
+                                        <div class="edit-cnrr-state" id="cnrrState">
+                                            <i class="fas fa-file-alt"></i>
+                                            <span>CNRR included</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 {% endif %}
-
             </div>
 
-
-            <!-- ================= RIGHT SUMMARY ================= -->
-            <div class="col-md-4">
-
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white font-weight-bold">
-                        Summary
+            <aside class="dash-panel edit-summary-panel">
+                <div class="dash-panel-header">
+                    <h2 class="dash-panel-title">Summary</h2>
+                </div>
+                <div class="dash-panel-body">
+                    <div class="dash-card edit-summary-total mb-3">
+                        <div class="dash-card-label">Live total</div>
+                        <div class="dash-card-value" id="sideTotal">
+                            {% if pcv.transaction_type == "REIMBURSEMENT" %}
+                                {{ pcv.total_items_amount|money }}
+                            {% else %}
+                                {{ pcv.amount_requested|money }}
+                            {% endif %}
+                        </div>
+                        <div class="dash-card-note">Draft value before submission.</div>
                     </div>
-
-                    <div class="card-body">
-
-                        <p>
-                            <strong>Transaction Type:</strong><br>
-                            {{ pcv.get_transaction_type_display }}
-                        </p>
-
-                        <p>
-                            <strong>Created:</strong><br>
-                            {{ pcv.created_at|date:"m/d/y h:i A" }}
-                        </p>
-
-                        {% if pcv.transaction_type == "CASH_ADVANCE" %}
-                            <p>
-                                <strong>Requested Amount:</strong><br>
-                                ₱{{ pcv.amount_requested|floatformat:2|intcomma }}
-                            </p>
-                        {% endif %}
-
-                        {% if pcv.transaction_type == "REIMBURSEMENT" %}
-                            <p>
-                                <strong>Current Total:</strong><br>
-                                ₱{{ pcv.total_items_amount|floatformat:2|intcomma }}
-                            </p>
-                        {% endif %}
-
+                    <div class="dash-list">
+                        <div class="dash-list-item">
+                            <span class="text-muted">Type</span>
+                            <strong>{{ pcv.get_transaction_type_display }}</strong>
+                        </div>
+                        <div class="dash-list-item">
+                            <span class="text-muted">Created</span>
+                            <strong>{{ pcv.created_at|date:"M d, Y h:i A" }}</strong>
+                        </div>
+                        <div class="dash-list-item">
+                            <span class="text-muted">Status</span>
+                            <span class="badge badge-secondary">Draft</span>
+                        </div>
                     </div>
                 </div>
-
-            </div>
-
+            </aside>
         </div>
 
-
-        <!-- ================= ACTION BAR ================= -->
-        <div class="d-flex justify-content-end mt-3">
-            <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}"
-               class="btn btn-secondary mr-2">
-                Cancel
-            </a>
-
-            <button type="submit"
-                    class="btn btn-primary">
-                <i class="fas fa-save mr-1"></i>
-                Save Changes
+        <div class="edit-action-bar">
+            <a href="{% url 'pettycash:pcv_detail' pcv.uuid %}" class="dash-btn">Cancel</a>
+            <button type="submit" class="dash-btn dash-btn-primary">
+                <i class="fas fa-save"></i>
+                Save changes
             </button>
         </div>
-
     </form>
-
 </div>
+{% endblock %}
 
-
-<!-- ================= JAVASCRIPT ================= -->
+{% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    const table = document.getElementById("itemsTable");
+    const addRowBtn = document.getElementById("addRowBtn");
+    const grandTotal = document.getElementById("grandTotal");
+    const sideTotal = document.getElementById("sideTotal");
+    const cnrrCheckbox = document.getElementById("hasCNRR");
+    const cnrrState = document.getElementById("cnrrState");
+
+    function money(value) {
+        return Number(value || 0).toLocaleString("en-PH", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
 
     function recalcTotals() {
+        if (!table) {
+            return;
+        }
+
         let total = 0;
-
-        document.querySelectorAll("#itemsTable tbody tr").forEach(row => {
-
+        table.querySelectorAll("tbody tr").forEach(function (row) {
             const qty = parseFloat(row.querySelector(".qty")?.value || 0);
             const cost = parseFloat(row.querySelector(".unit-cost")?.value || 0);
-
             const lineTotal = qty * cost;
-            row.querySelector(".item-total").innerText = lineTotal.toFixed(2);
+            const target = row.querySelector(".item-total");
 
+            if (target) {
+                target.innerText = money(lineTotal);
+            }
             total += lineTotal;
         });
 
-        document.getElementById("grandTotal").innerText = total.toFixed(2);
+        if (grandTotal) {
+            grandTotal.innerText = money(total);
+        }
+        if (sideTotal) {
+            sideTotal.innerText = money(total);
+        }
     }
 
-    document.addEventListener("input", function (e) {
-        if (e.target.classList.contains("qty") ||
-            e.target.classList.contains("unit-cost")) {
+    function updateCnrrState() {
+        if (!cnrrCheckbox || !cnrrState) {
+            return;
+        }
+
+        const stateText = cnrrState.querySelector("span");
+        if (cnrrCheckbox.checked) {
+            cnrrState.style.background = "#e0f2fe";
+            cnrrState.style.color = "#075985";
+            if (stateText) {
+                stateText.innerText = "CNRR included";
+            }
+        } else {
+            cnrrState.style.background = "#f1f5f9";
+            cnrrState.style.color = "#475569";
+            if (stateText) {
+                stateText.innerText = "CNRR excluded";
+            }
+        }
+    }
+
+    document.addEventListener("input", function (event) {
+        if (event.target.classList.contains("qty") || event.target.classList.contains("unit-cost")) {
             recalcTotals();
         }
     });
 
-    document.getElementById("addRowBtn").addEventListener("click", function () {
-        const row = document.querySelector("#itemsTable tbody tr").cloneNode(true);
-        row.querySelectorAll("input").forEach(i => i.value = "");
-        row.querySelector(".item-total").innerText = "0.00";
-        document.querySelector("#itemsTable tbody").appendChild(row);
-    });
-
-    document.addEventListener("click", function (e) {
-        if (e.target.closest(".remove-row")) {
-            const rows = document.querySelectorAll("#itemsTable tbody tr");
-            if (rows.length > 1) {
-                e.target.closest("tr").remove();
-                recalcTotals();
+    if (addRowBtn && table) {
+        addRowBtn.addEventListener("click", function () {
+            const source = table.querySelector("tbody tr");
+            if (!source) {
+                return;
             }
+            const row = source.cloneNode(true);
+            row.querySelectorAll("input").forEach(function (input) {
+                input.value = "";
+            });
+            const total = row.querySelector(".item-total");
+            if (total) {
+                total.innerText = "0.00";
+            }
+            table.querySelector("tbody").appendChild(row);
+            row.querySelector("input")?.focus({ preventScroll: true });
+        });
+    }
+
+    document.addEventListener("click", function (event) {
+        const removeButton = event.target.closest(".remove-row");
+        if (!removeButton || !table) {
+            return;
+        }
+        const rows = table.querySelectorAll("tbody tr");
+        if (rows.length > 1) {
+            removeButton.closest("tr").remove();
+            recalcTotals();
         }
     });
 
+    if (cnrrCheckbox) {
+        cnrrCheckbox.addEventListener("change", updateCnrrState);
+    }
+
     recalcTotals();
+    updateCnrrState();
 });
 </script>
-
-
 {% endblock %}

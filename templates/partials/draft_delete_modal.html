@@ -1,0 +1,174 @@
+<style>
+    .pcv-delete-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 1080;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+    }
+
+    .pcv-delete-modal.is-open {
+        display: flex;
+    }
+
+    .pcv-delete-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(12px);
+    }
+
+    .pcv-delete-modal-dialog {
+        position: relative;
+        width: min(440px, 100%);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        border-radius: 8px;
+        background: #ffffff;
+        box-shadow: 0 30px 80px rgba(15, 23, 42, 0.32);
+        transform: translateY(10px) scale(0.98);
+        transition: transform 0.16s ease;
+    }
+
+    .pcv-delete-modal.is-open .pcv-delete-modal-dialog {
+        transform: translateY(0) scale(1);
+    }
+
+    .pcv-delete-modal-accent {
+        height: 5px;
+        background: linear-gradient(90deg, #ef4444, #f59e0b);
+    }
+
+    .pcv-delete-modal-body {
+        padding: 24px;
+    }
+
+    .pcv-delete-modal-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        background: #fff1f2;
+        color: #dc2626;
+        font-size: 1.15rem;
+    }
+
+    .pcv-delete-modal-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1.18rem;
+        font-weight: 900;
+    }
+
+    .pcv-delete-modal-copy {
+        margin: 10px 0 0;
+        color: #64748b;
+        font-size: 0.94rem;
+        line-height: 1.55;
+    }
+
+    .pcv-delete-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 16px 24px 24px;
+    }
+
+    .pcv-delete-modal-actions .dash-btn {
+        min-width: 112px;
+    }
+
+    .pcv-delete-confirm-btn {
+        color: #fff;
+        border-color: transparent;
+        background: linear-gradient(90deg, #dc2626, #f97316);
+        box-shadow: 0 14px 28px rgba(220, 38, 38, 0.22);
+    }
+
+    @media (max-width: 575.98px) {
+        .pcv-delete-modal {
+            align-items: flex-end;
+            padding: 14px;
+        }
+
+        .pcv-delete-modal-actions {
+            flex-direction: column-reverse;
+        }
+    }
+</style>
+
+<div class="pcv-delete-modal" id="draftDeleteModal" aria-hidden="true">
+    <div class="pcv-delete-modal-backdrop" data-delete-modal-close></div>
+    <div class="pcv-delete-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="draftDeleteModalTitle">
+        <div class="pcv-delete-modal-accent"></div>
+        <div class="pcv-delete-modal-body">
+            <div class="pcv-delete-modal-icon">
+                <i class="fas fa-trash"></i>
+            </div>
+            <h2 class="pcv-delete-modal-title" id="draftDeleteModalTitle">Delete draft voucher?</h2>
+            <p class="pcv-delete-modal-copy">
+                This draft transaction will be permanently removed. This action cannot be undone.
+            </p>
+        </div>
+        <div class="pcv-delete-modal-actions">
+            <button type="button" class="dash-btn" data-delete-modal-close>Keep draft</button>
+            <button type="button" class="dash-btn pcv-delete-confirm-btn" id="confirmDraftDelete">
+                <i class="fas fa-trash"></i>
+                Delete draft
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const modal = document.getElementById("draftDeleteModal");
+    const confirmButton = document.getElementById("confirmDraftDelete");
+    let pendingForm = null;
+
+    if (!modal || !confirmButton) {
+        return;
+    }
+
+    function openModal(form) {
+        pendingForm = form;
+        modal.classList.add("is-open");
+        modal.setAttribute("aria-hidden", "false");
+        confirmButton.focus({ preventScroll: true });
+    }
+
+    function closeModal() {
+        modal.classList.remove("is-open");
+        modal.setAttribute("aria-hidden", "true");
+        pendingForm = null;
+    }
+
+    document.querySelectorAll(".js-draft-delete-form").forEach(function (form) {
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            openModal(form);
+        });
+    });
+
+    document.querySelectorAll("[data-delete-modal-close]").forEach(function (button) {
+        button.addEventListener("click", closeModal);
+    });
+
+    confirmButton.addEventListener("click", function () {
+        if (pendingForm) {
+            pendingForm.submit();
+        }
+    });
+
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && modal.classList.contains("is-open")) {
+            closeModal();
+        }
+    });
+});
+</script>

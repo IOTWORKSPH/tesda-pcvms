@@ -127,8 +127,7 @@
                                         </a>
                                         <form method="post"
                                               action="{% url 'pettycash:delete_pcv' voucher.uuid %}"
-                                              class="d-inline"
-                                              onsubmit="return confirm('Delete this draft voucher?');">
+                                              class="d-inline js-draft-delete-form">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-outline-danger" title="Delete">
                                                 <i class="fas fa-trash"></i>
@@ -167,4 +166,5 @@
         </div>
     </div>
 </div>
+{% include "partials/draft_delete_modal.html" %}
 {% endblock %}
