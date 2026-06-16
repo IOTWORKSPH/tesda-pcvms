@@ -79,7 +79,7 @@
             <div class="dash-progress mb-3">
                 <div class="dash-progress-bar" style="width: {{ utilization_percent }}%"></div>
             </div>
-            <div class="dash-grid dash-grid-3 mb-0">
+            <div class="dash-grid mb-0">
                 <div class="dash-card">
                     <div class="dash-card-label">Unliquidated exposure</div>
                     <div class="dash-card-value tone-red">{{ unliquidated_amount|money }}</div>
@@ -94,6 +94,11 @@
                     <div class="dash-card-label">Posted reimbursements</div>
                     <div class="dash-card-value tone-green">{{ reimbursed_amount|money }}</div>
                     <div class="dash-card-note">Unreplenished reimbursement total</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-card-label">Amount needed refund</div>
+                    <div class="dash-card-value tone-blue">{{ amount_needed_refund|money }}</div>
+                    <div class="dash-card-note">{{ for_reimbursement_count }} approved reimbursement{{ for_reimbursement_count|pluralize }} not yet posted</div>
                 </div>
             </div>
         </div>
@@ -226,10 +231,13 @@
                         <td>{{ voucher.expense_category.name }}</td>
                         <td class="text-right font-weight-bold">{{ voucher.amount_requested|money }}</td>
                         <td class="text-right">
-                            <div class="d-inline-flex flex-wrap justify-content-end" style="gap: 6px;">
-                                <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-sm btn-outline-primary" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
+                            <div class="d-inline-flex flex-wrap justify-content-end align-items-start" style="gap: 6px;">
+                                <div class="btn-group btn-group-sm pcv-action-group">
+                                    <a href="{% url 'pettycash:pcv_detail' voucher.uuid %}" class="btn btn-outline-primary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% include "partials/voucher_print_dropdown.html" %}
+                                </div>
                                 {% if voucher.transaction_type == "CASH_ADVANCE" and voucher.status == "APPROVED" %}
                                     <button type="button" class="btn btn-sm btn-success" data-toggle="modal" data-target="#releaseModal{{ voucher.id }}">
                                         Release Cash

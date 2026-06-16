@@ -781,6 +781,9 @@ def dashboard_custodian(request):
         transaction_type=TransactionType.REIMBURSEMENT,
         is_posted_to_ledger=False,
     ).select_related("requester", "expense_category", "supplier")
+    amount_needed_refund = for_reimbursement.aggregate(
+        total=Sum("amount_requested")
+    )["total"] or Decimal("0.00")
 
     for_liquidation = PettyCashVoucher.objects.filter(
         fund=fund,
@@ -925,6 +928,7 @@ def dashboard_custodian(request):
         "unliquidated_amount": unliquidated_amount,
         "pending_finalization_amount": pending_finalization_amount,
         "reimbursed_amount": reimbursed_amount,
+        "amount_needed_refund": amount_needed_refund,
 
         "for_release": for_release,
         "for_reimbursement": for_reimbursement,
